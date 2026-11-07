@@ -1,0 +1,1238 @@
+import { ChainDiagram, Element, CapSeriesModel, CapParallelModel, IndSeriesModel, IndParallelModel, RCTime, RCs, RLCTime, RLCs, RCHighPass, RLCircuit, RCwithICs, RCNormalised, HighPassPlot, RLPlot, RCwithICPlot, RCExplorer, RLCExplorer } from './widgets'
+
+## What is this about?
+
+A control engineer can only control what they can **predict**. Before we ask "how fast does this system respond?" or "does it oscillate?", we need a mathematical model of the physical thing — a transfer function, or at least a differential equation. This module shows how to get that model for **electrical circuits**, the most common building blocks of sensors, filters, amplifiers and motor drives.
+
+Start with something concrete. You close a switch and a battery starts charging a capacitor through a resistor (think of the flash of an old camera, or the "power-on" delay of a device). Questions you might ask:
+
+- How long until the capacitor is "full"?
+- What does the voltage curve look like while it charges?
+- If I double the resistor, what changes?
+
+The professor's answer to all of these is one sentence on page 1 <Src p="1" />:
+
+> *Laplace dönüşümü ilkelerini elektrik devre elemanlarının türevsel eşitliklerine uyguladığımızda, her elemanı temsil eden bir s-bölgesi gösterimi elde ederiz. Bilinen elektrik devre analizi yöntemlerini Laplace gösterimi ifadelerine uyguladığımızda Laplace uzayı çözümünü ve zaman bölgesi çözümünü bulabiliriz.*
+
+In English: **when we apply the Laplace transform to the differential equations of the circuit elements, every element gets an s-domain representation** (<Term en="s-domain representation" tr="s-bölgesi gösterimi" />). **Then the ordinary circuit-analysis methods we already know (Ohm's law, KVL, KCL, voltage divider…) work on these s-domain expressions**, and give us the <Term en="Laplace-space solution" tr="Laplace uzayı çözümü" /> and, after an inverse transform, the <Term en="time-domain solution" tr="zaman bölgesi çözümü" />.
+
+Why is that such a big deal? Capacitors and inductors are described by **derivatives and integrals**, so a circuit containing them gives a differential equation, which is tedious to solve. The Laplace transform turns derivatives into multiplication by $s$ ([Module 03](#/m/03)), so every element becomes a kind of "resistor whose value depends on $s$" — an **impedance**. Circuit analysis then becomes plain algebra.
+
+<Intuition>
+
+A resistor converts current into voltage instantly: $v=Ri$. A capacitor and an inductor are **energy stores** — they have memory. A capacitor's voltage depends on all the charge that has flowed into it so far; an inductor's current depends on all the voltage that has been applied to it so far. That memory is what makes circuits have time responses (charging curves, oscillations) instead of instant answers. The Laplace transform packs that memory into the factor $s$ (or $1/s$) and into initial-value terms like $v(0)$ and $i(0)$.
+
+</Intuition>
+
+After this module you can:
+
+- write the time-domain law, the integral form and the Laplace (s-domain) form of a resistor, capacitor and inductor, including initial-condition terms;
+- explain $Z_R=R$, $Z_C=\frac{1}{sC}$ and $Z_L=sL$, and draw s-domain element models;
+- model a circuit **two ways**: via its differential equation (I. yol) or directly with impedances and the voltage divider (II. yol);
+- find the step response of an RC circuit with partial fractions, and recognise it as the <Term en="zero-state response" tr="sıfır durum tepkesi" /> (ZSR);
+- derive the transfer function of a series RLC circuit, $H(s)=\frac{1}{LCs^2+RCs+1}$, and say what $R$, $L$, $C$ do to it.
+
+## From circuit to transfer function: the chain
+
+Every problem in this module follows the same chain. Keep it in mind — each section below fills in one link.
+
+1. **Physical circuit** — sources, resistors, capacitors, inductors and how they are connected.
+2. **Element laws** — $v=Ri$, $i=C\,\frac{dv}{dt}$, $v=L\,\frac{di}{dt}$.
+3. **KVL / KCL** — the sum of voltages around a loop is zero; the sum of currents into a node is zero.
+4. **Differential equation** — combining 2 and 3 gives an ODE relating output to input (e.g. $V_s=RC\,\frac{dV_c}{dt}+V_c$, derived in [Module 02](#/m/02) <Src p="7" l="02" />).
+5. **Laplace transform** — the ODE becomes an algebraic equation in $s$.
+6. **s-domain model / transfer function** — solve for the output: $V_c(s)$, or the ratio output/input $H(s)$.
+7. **Time response** — partial fractions + inverse Laplace give $v_c(t)$.
+
+<ChainDiagram />
+
+The professor's examples show both routes: page 4 goes through the ODE (steps 2→7), page 5 ("II. yol") jumps from the circuit straight to step 6 by transforming each element first, and page 6 uses the second route to get a transfer function.
+
+### Passive sign convention
+
+All element drawings in the notes use the same convention <Src p="1" />: the current arrow **enters** the element at the terminal marked **+**, and the voltage $v(t)$ is "+ on the left, − on the right". This is the <Term en="passive sign convention" tr="pasif işaret kuralı" />. Under it, $v=Ri$ has a plus sign and power $v\,i>0$ means the element absorbs energy. If you reverse the current arrow relative to the voltage, every element law gets a minus sign — so always draw the arrow and the $\pm$ marks before you write an equation.
+
+## Resistor
+
+<Term en="Resistor" tr="Direnç" /> — page 1 <Src p="1" />.
+
+<Element kind="R" />
+
+The time-domain law is Ohm's law:
+
+$$
+v(t)=R\,i(t)\quad\Longrightarrow\quad R=\frac{v(t)}{i(t)}
+$$
+
+- $v(t)$ — voltage across the resistor (V), + where the current enters;
+- $i(t)$ — current through it (A);
+- $R$ — resistance (Ω), a constant.
+
+The professor notes: *"Herhangi bir türevsel ya da gecikme operatörü olmadığı için"* — **since there is no derivative or delay operator** in this law, the Laplace transform changes nothing about its form. By linearity, $\L\{R\,i(t)\}=R\,\L\{i(t)\}=R\,I(s)$:
+
+<Element kind="R" s />
+
+$$
+V(s)=R\,I(s)\quad\Longrightarrow\quad R=\frac{V(s)}{I(s)}
+$$
+
+So the ratio $V(s)/I(s)$ — the **impedance** (<Term en="impedance" tr="empedans" />) — of a resistor is simply
+
+$$
+Z_R=R .
+$$
+
+Physically: a resistor has no memory. Its voltage right now depends only on its current right now. It dissipates energy as heat but stores none, so it never causes a delay or a "curve" in a response by itself.
+
+## Capacitor
+
+<Term en="Capacitor" tr="Sığaç (Kondansatör)" /> — page 2 <Src p="2" />. The notes use both Turkish names: *sığaç* (the Turkish-derived word, from *sığa* = capacitance) and *kondansatör* (from French *condensateur*).
+
+<Element kind="C" />
+
+### Capacitor law in the time domain
+
+$$
+i(t)=C\,\frac{dv(t)}{dt}
+$$
+
+- $C$ — capacitance (F, farad); practical values are µF ($10^{-6}$ F) or nF;
+- $v(t)$ — voltage across the plates; $i(t)$ — current into the + plate.
+
+**Where it comes from.** Two plates separated by an insulator store charge $q$ proportional to voltage: $q=C\,v$. Current is the rate at which charge arrives, $i=\frac{dq}{dt}$, so $i=C\,\frac{dv}{dt}$.
+
+**Physical meaning.** The capacitor stores energy in its electric field ($\tfrac12 Cv^2$). Current flows **only while the voltage is changing**. A constant voltage means zero current — at DC, after everything settles, a capacitor behaves like an **open circuit**.
+
+**Why the voltage cannot jump.** If $v$ jumped instantly from one value to another, $\frac{dv}{dt}$ would be infinite, so the current would be infinite. Real sources cannot supply that. Hence the capacitor voltage is **continuous**: its value just after switching equals its value just before. This is why the voltage at $t=0$, $v(0)$, is such an important number.
+
+### Integral form and the initial voltage
+
+Integrate both sides of $i=C\,\frac{dv}{dt}$ from $0$ to $t$:
+
+$$
+\int_0^t i(\tau)\,d\tau = C\,[v(t)-v(0)]
+\quad\Longrightarrow\quad
+v(t)=\frac{1}{C}\int_0^t i(t)\,dt + v(0)
+$$
+
+<Def term="Initial capacitor voltage" tr="Başlangıçtaki (t=0) kapasitans gerilimi">
+
+$v(0)$ is the voltage already on the capacitor at $t=0$ — the charge left over from the past. <Src p="2" />
+
+</Def>
+
+The notes write $\int_0^t i(t)\,dt$, using $t$ both as the upper limit and as the integration variable. That is common informal notation; strictly it is $\int_0^t i(\tau)\,d\tau$ with a dummy variable $\tau$. The meaning is identical.
+
+Reading the integral form: **today's voltage = initial voltage + (accumulated charge)/C**. The capacitor "remembers" every bit of current that ever flowed into it, and $v(0)$ summarises all of the history before $t=0$.
+
+### Laplace transform of the capacitor law
+
+We need two properties from [Module 03](#/m/03) <Src p="6" l="03" />:
+
+- **Derivative property:** $\L\left\{\frac{df}{dt}\right\}=sF(s)-f(0)$.
+- **Integral property:** $\L\left\{\int_0^t f(t)\,dt\right\}=\frac{F(s)}{s}$.
+- And the transform of a constant: $\L\{K\}=\frac{K}{s}$ (a constant for $t\ge 0$ is $K\,u(t)$).
+
+**From the derivative form.** Transform $i(t)=C\,\frac{dv}{dt}$:
+
+$$
+I(s)=C\,[\,sV(s)-v(0)\,]=sC\,V(s)-C\,v(0)
+$$
+
+**From the integral form.** Transform $v(t)=\frac1C\int_0^t i\,dt+v(0)$ term by term:
+
+$$
+V(s)=\frac{1}{C}\cdot\frac{I(s)}{s}+\frac{v(0)}{s}=\frac{1}{sC}\,I(s)+\frac{v(0)}{s}
+$$
+
+The two are the **same equation**: divide the first by $sC$ and rearrange, $V(s)=\frac{I(s)+C\,v(0)}{sC}=\frac{1}{sC}I(s)+\frac{v(0)}{s}$. ✓
+
+<Element kind="C" s />
+
+<KeyFormula title="Capacitor in the s-domain (p. 2)">
+
+$$
+I(s)=sC\,V(s)-C\,v(0)\qquad;\qquad V(s)=\frac{1}{sC}\,I(s)+\frac{v(0)}{s}
+$$
+
+</KeyFormula>
+
+<Src p="2" /> If $v(0)=0$ (*"v(0)=0 ise"*), the extra term vanishes and $V(s)=\frac{1}{sC}\,I(s)$.
+
+### Capacitor impedance
+
+With zero initial voltage, the ratio of voltage to current in the s-domain is
+
+<KeyFormula title="Empedans (p. 2)">
+
+$$
+\frac{V(s)}{I(s)}=Z_C=\frac{1}{sC}
+$$
+
+</KeyFormula>
+
+Every symbol: $s$ is the Laplace variable (unit 1/s), $C$ in farads, so $\frac{1}{sC}$ has units of ohms — it really is a "resistance that depends on $s$". **Impedance is defined with zero initial conditions**: it describes the element itself, not its stored past. The past is handled separately by the $v(0)$ term.
+
+<Mistake title="Z_C is 1/(sC), not sC">
+
+The capacitor impedance is $\frac{1}{sC}$. Writing $Z_C=sC$ (that is the **admittance**, $I/V$) is the single most common error in this topic. Memory aid: a capacitor *integrates* current, and integration ↔ division by $s$.
+
+</Mistake>
+
+### s-domain models of a charged capacitor
+
+The notes give the s-domain equations with the $v(0)$ term but do not draw what that term "looks like" in a circuit. Drawing it is very useful, because then the whole s-domain circuit can be solved with ordinary circuit rules. Each equation can be read as a little circuit:
+
+**Series form** — read $V(s)=\frac{1}{sC}I(s)+\frac{v(0)}{s}$ as a sum of two voltages: the voltage across an impedance $\frac{1}{sC}$, **plus** the voltage of a source $\frac{v(0)}{s}$ (a step of height $v(0)$) whose + is on the same side as the + of $V(s)$.
+
+<CapSeriesModel />
+
+**Parallel form** — read $I(s)=sC\,V(s)-C\,v(0)$ as KCL: the terminal current splits into the impedance current $\frac{V(s)}{1/(sC)}=sC\,V(s)$ and a source current. For the sum to equal $sCV(s)-Cv(0)$, the source must carry $C\,v(0)$ **in the opposite direction** to $I(s)$, i.e. pointing toward the + terminal.
+
+<CapParallelModel />
+
+Both models are equivalent (a voltage source in series with an impedance ↔ a current source in parallel with it: $\frac{v(0)/s}{1/(sC)}=C\,v(0)$). Use the series form in loop (KVL) problems, the parallel form in node (KCL) problems. The initial condition simply becomes **an extra source** in the s-domain circuit.
+
+## Inductor
+
+<Term en="Inductor / inductance" tr="Endüktans" /> — page 3 <Src p="3" />.
+
+<Element kind="L" />
+
+### Inductor law in the time domain
+
+$$
+v(t)=L\,\frac{di(t)}{dt}
+$$
+
+- $L$ — inductance (H, henry); practical values are mH or µH.
+
+**Where it comes from.** Current in a coil creates a magnetic flux linkage $\lambda=L\,i$. By Faraday's law, a changing flux induces a voltage $v=\frac{d\lambda}{dt}=L\,\frac{di}{dt}$.
+
+**Physical meaning.** The inductor stores energy in its magnetic field ($\tfrac12 L i^2$). It produces voltage **only while the current is changing**; with a constant current, $v=0$ — at DC, an inductor behaves like a **short circuit** (a plain wire).
+
+**Why the current cannot jump.** An instant jump in $i$ needs $\frac{di}{dt}=\infty$, i.e. an infinite voltage. So inductor current is **continuous**. (This is why breaking the circuit of a coil — a relay, an ignition coil — causes a large voltage spike: the inductor "fights" the sudden change.)
+
+The capacitor and the inductor are mirror images (**duals**): swap $v\leftrightarrow i$ and $C\leftrightarrow L$ and one law becomes the other.
+
+### Integral form and the initial current
+
+Integrate $v=L\,\frac{di}{dt}$ from $0$ to $t$:
+
+$$
+i(t)=\frac{1}{L}\int_0^t v(t)\,dt+i(0)
+$$
+
+<Def term="Initial inductor current" tr="Başlangıçtaki (t=0) endüktans akımı">
+
+$i(0)$ is the current already flowing in the inductor at $t=0$. <Src p="3" />
+
+</Def>
+
+### Laplace transform of the inductor law
+
+Exactly as for the capacitor. Derivative property on $v=L\,\frac{di}{dt}$:
+
+$$
+V(s)=L\,[\,sI(s)-i(0)\,]=sL\,I(s)-L\,i(0)
+$$
+
+Integral property on the integral form:
+
+$$
+I(s)=\frac{1}{L}\cdot\frac{V(s)}{s}+\frac{i(0)}{s}=\frac{1}{sL}\,V(s)+\frac{i(0)}{s}
+$$
+
+Check they agree: divide the first by $sL$, $I(s)=\frac{V(s)+L\,i(0)}{sL}=\frac{V(s)}{sL}+\frac{i(0)}{s}$. ✓
+
+<Element kind="L" s />
+
+<KeyFormula title="Inductor in the s-domain (p. 3)">
+
+$$
+V(s)=sL\,I(s)-L\,i(0)\qquad;\qquad I(s)=\frac{1}{sL}\,V(s)+\frac{i(0)}{s}
+$$
+
+</KeyFormula>
+
+If $i(0)=0$ (*"i(0)=0 olursa"*): $I(s)=\frac{1}{sL}\,V(s)$.
+
+### Inductor impedance
+
+<KeyFormula title="Empedans (p. 3)">
+
+$$
+\frac{V(s)}{I(s)}=sL\;\;(=Z_L)
+$$
+
+</KeyFormula>
+
+The notes write the ratio as $sL$ without a symbol; we will call it $Z_L$ by analogy with $Z_C$ on page 2. Units: $s$ (1/s) × $L$ (H = Ω·s) = Ω. ✓
+
+### s-domain models of an inductor with initial current
+
+**Series form** — $V(s)=sL\,I(s)-L\,i(0)$: voltage across impedance $sL$, **minus** a constant $L\,i(0)$. A minus means the source's + faces the − terminal of $V(s)$. Note that this source is $L\,i(0)$, **not** divided by $s$ — in the time domain it is an impulse $L\,i(0)\,\delta(t)$.
+
+<IndSeriesModel />
+
+**Parallel form** — $I(s)=\frac{V(s)}{sL}+\frac{i(0)}{s}$: the impedance current plus a step current source $\frac{i(0)}{s}$ flowing in the **same** direction as $I(s)$ (the inductor keeps pushing its initial current).
+
+<IndParallelModel />
+
+<Tip title="Signs of the initial-condition terms">
+
+Derivative form → the initial term has a **minus** sign: $I=sCV-Cv(0)$, $V=sLI-Li(0)$ (it comes from $sF(s)-f(0)$). Integral form → the initial term has a **plus** sign and a $1/s$: $V=\frac{I}{sC}+\frac{v(0)}{s}$, $I=\frac{V}{sL}+\frac{i(0)}{s}$ (a constant transforms to constant$/s$). If you remember where each form comes from, you can never get the sign wrong.
+
+</Tip>
+
+## Element summary and impedance
+
+| Element | Time-domain law | Integral form | s-domain law | Impedance $V/I$ (zero IC) |
+|---|---|---|---|---|
+| Resistor (direnç) | $v=Ri$ | — | $V=RI$ | $Z_R=R$ |
+| Capacitor (sığaç) | $i=C\frac{dv}{dt}$ | $v=\frac1C\int_0^t i\,dt+v(0)$ | $I=sCV-Cv(0)$, $V=\frac{1}{sC}I+\frac{v(0)}{s}$ | $Z_C=\frac{1}{sC}$ |
+| Inductor (endüktans) | $v=L\frac{di}{dt}$ | $i=\frac1L\int_0^t v\,dt+i(0)$ | $V=sLI-Li(0)$, $I=\frac{1}{sL}V+\frac{i(0)}{s}$ | $Z_L=sL$ |
+
+Once each element has an impedance, **impedances combine exactly like resistances**: in series they add, $Z=Z_1+Z_2+\dots$; and a voltage divider across $Z_2$ in a series string gives $V_2=V\,\frac{Z_2}{Z_1+Z_2+\dots}$. The professor says this explicitly on page 5: *"Bu işlem sırasında empedans gösterimleri direnç gibi işlem görecektir"* — during this operation the impedance expressions are treated like resistances <Src p="5" />.
+
+### Impedances at DC and at high frequency
+
+A quick sanity tool. Think of $s$ as "how fast things change":
+
+- $s\to 0$ (DC, steady state, very slow change): $Z_C=\frac{1}{sC}\to\infty$ (capacitor = **open circuit**), $Z_L=sL\to 0$ (inductor = **short circuit**).
+- $s\to\infty$ (the very first instant, very fast change): $Z_C\to 0$ (an uncharged capacitor looks like a **short**), $Z_L\to\infty$ (an inductor with no initial current looks like an **open**).
+
+These limits match the physics above (DC → no capacitor current, no inductor voltage) and are a fast way to check a transfer function: set $s=0$ and see if the DC answer makes sense.
+
+### Element-level example
+
+<Example title="Charged capacitor fed by a constant current">
+
+**Given:** $C=1\ \text{mF}$, initial voltage $v(0)=2\ \text{V}$, current $i(t)=3\ \text{mA}$ for $t\ge 0$ (i.e. $3\,u(t)$ mA). **Asked:** $v(t)$.
+
+**Method:** use the integral-form s-domain law, because we know $I(s)$ and want $V(s)$.
+
+<Step title="Transform the current">
+
+$I(s)=\L\{0.003\,u(t)\}=\dfrac{0.003}{s}$.
+
+</Step>
+
+<Step title="Apply the s-domain law">
+
+$$
+V(s)=\frac{1}{sC}I(s)+\frac{v(0)}{s}=\frac{1}{s\cdot 0.001}\cdot\frac{0.003}{s}+\frac{2}{s}=\frac{3}{s^2}+\frac{2}{s}
+$$
+
+</Step>
+
+<Step title="Inverse transform">
+
+$\Li\{1/s\}=1$ and $\Li\{1/s^2\}=t$ (ramp), so $v(t)=2+3t$ V for $t\ge 0$.
+
+</Step>
+
+<Answer>
+
+$v(t)=2+3t$ V — the voltage starts at 2 V and rises linearly at 3 V/s.
+
+</Answer>
+
+**Check:** at $t=0$, $v=2$ V ✓ (initial value kept). Time law: $\frac{dv}{dt}=3$ V/s and $\frac{i}{C}=\frac{0.003}{0.001}=3$ V/s ✓. A constant current pours charge in at a constant rate, so a straight line is exactly what physics predicts.
+
+</Example>
+
+## RC step response via the ODE
+
+Page 4 <Src p="4" /> — the professor's first example (*Örnek*).
+
+<RCTime />
+
+The series RC loop: source $V_s$, resistor $R$, capacitor $C$; the output is the capacitor voltage $V_c$. The same loop current $i(t)$ flows clockwise through all three elements. The notes say: *"Aynı devrenin daha önce bulduğumuz diferansiyel denklem çözümü üzerinden gidelim"* — let's proceed via the differential equation of this circuit that we found earlier ([Module 02](#/m/02) <Src p="7" l="02" />).
+
+<Example title="RC step response via the differential equation" src="4">
+
+**Given:** series RC circuit, $V_c(0)=0$, input $V_s=1\,u(t)$ (unit step). **Asked:** $V_c(t)$.
+
+**Method (I. yol):** ODE → Laplace → partial fractions → inverse Laplace.
+
+<Step title="Element laws and KVL give the ODE">
+
+Capacitor: $i=C\,\frac{dV_c}{dt}$. Resistor: $v_R=R\,i=RC\,\frac{dV_c}{dt}$. KVL around the loop: $V_s=v_R+V_c$, so
+
+$$
+V_s=R\,C\,\frac{dV_c}{dt}+V_c
+$$
+
+</Step>
+
+<Step title="Laplace-transform both sides">
+
+Derivative property with $V_c(0)=0$: $\L\{\frac{dV_c}{dt}\}=sV_c(s)-V_c(0)=sV_c(s)$. The input: $\L\{u(t)\}=\frac1s$. So
+
+$$
+\frac{1}{s}=RC\,s\,V_c(s)+V_c(s)
+$$
+
+</Step>
+
+<Step title="Solve the algebraic equation for the output">
+
+Factor out $V_c(s)$: $V_c(s)(RCs+1)=\frac1s$, so
+
+$$
+V_c(s)=\frac{1}{s}\cdot\frac{1}{RCs+1}=\frac{A}{s}+\frac{B}{RCs+1}
+$$
+
+</Step>
+
+<Step title="Partial-fraction coefficients">
+
+Identity used (cover-up rule): for a simple factor, multiply both sides by that factor and set $s$ to its root.
+
+$A$: multiply by $s$, set $s=0$: $A=\left.\dfrac{1}{RCs+1}\right|_{s=0}=\dfrac{1}{0+1}=1$.
+
+$B$: multiply by $(RCs+1)$, set $s=-\frac{1}{RC}$: $B=\left.\dfrac{1}{s}\right|_{s=-1/RC}=\dfrac{1}{\left(\frac{-1}{RC}\right)}=-RC$.
+
+</Step>
+
+<Step title="Rewrite in table form">
+
+$$
+V_c(s)=\frac{1}{s}-\frac{RC}{RCs+1}=\frac{1}{s}-\frac{1}{s+\frac{1}{RC}}
+$$
+
+(divide numerator and denominator of the second term by $RC$).
+
+</Step>
+
+<Step title="Inverse Laplace">
+
+$\Li\{\frac1s\}=1$, $\Li\{\frac{1}{s+a}\}=e^{-at}$ with $a=\frac{1}{RC}$.
+
+</Step>
+
+<Answer>
+
+$$
+V_c(t)=1-e^{-\frac{t}{RC}}\qquad (t\ge 0)
+$$
+
+*"bulunur"* — is found. (Strictly $V_c(t)=(1-e^{-t/RC})\,u(t)$; the notes write capital $V_c(t)$ for the time function.)
+
+</Answer>
+
+**Checks.** Recombine: $\frac1s-\frac{RC}{RCs+1}=\frac{RCs+1-RCs}{s(RCs+1)}=\frac{1}{s(RCs+1)}$ ✓. At $t=0$: $1-1=0=V_c(0)$ ✓ (voltage cannot jump). As $t\to\infty$: $V_c\to 1=V_s$ ✓ (capacitor is an open circuit at DC, no current, no drop on $R$). Final value theorem: $\lim_{s\to0}s\,V_c(s)=\lim_{s\to 0}\frac{1}{RCs+1}=1$ ✓.
+
+</Example>
+
+### Zero-state response
+
+<Def term="Zero-state response (ZSR)" tr="Sıfır durum tepkesi">
+
+*"Bu çözüm, elektrik devre analizinde karşılaştığımız sıfır durum tepkesidir (ZSR: Zero State Response)"* <Src p="4" /> — the response of a circuit to an input when **all its energy stores start empty** (every capacitor voltage and inductor current is zero at $t=0$).
+
+</Def>
+
+"State" means the stored energy — here $V_c(0)$. "Zero state" = $V_c(0)=0$. That is exactly why the derivative property gave just $sV_c(s)$, with no extra term. If the capacitor had started charged, the $v(0)$ terms from page 2 would add a second part to the answer (see [RC circuit with an initially charged capacitor](#/m/05/rc-circuit-with-an-initially-charged-capacitor)).
+
+Note also: with zero state, the ratio output/input is $\frac{V_c(s)}{V_s(s)}=\frac{1}{RCs+1}$ — the **transfer function** of this circuit. Transfer functions are always defined under zero initial conditions, which is why they and the ZSR go together.
+
+### The RC charging curve
+
+The answer $V_c(t)=1-e^{-t/RC}$ is the classic charging curve. The product $\tau=RC$ is the <Term en="time constant" tr="zaman sabiti" /> (unit: Ω·F = seconds). Plotted against $t/RC$, every RC circuit gives the same curve:
+
+<RCNormalised />
+
+How to read it and **sketch it by hand in an exam**:
+
+- **Axes:** horizontal time (in multiples of $RC$), vertical capacitor voltage.
+- **Start:** $V_c(0)=0$ — the curve starts at zero (capacitor voltage can't jump).
+- **Initial slope:** $\frac{dV_c}{dt}\big|_0=\frac{1}{RC}$. Draw a straight line from the origin to the point $(RC,\,1)$ — the curve starts tangent to it. Physically, at $t=0$ the empty capacitor acts like a short, so the full $V_s$ is across $R$ and $i(0)=\frac{V_s}{R}$; the charging rate is $\frac{i(0)}{C}=\frac{V_s}{RC}$.
+- **Key points:** at $t=RC$: 63.2% ($1-e^{-1}$); $2RC$: 86.5%; $3RC$: 95.0%; $4RC$: 98.2%; $5RC$: 99.3%.
+- **End:** horizontal asymptote at $V_s=1$. Engineers say "fully charged after about $4$–$5\,RC$".
+- **Parameters:** larger $R$ (less current) or larger $C$ (more charge needed) → larger $RC$ → slower curve. The **shape never changes**, only the time scale.
+
+<RCExplorer />
+
+Try it: double $R$ and watch $\tau$ double; then halve $C$ and get back the original curve — only the product $RC$ matters. Changing $V_s$ only scales the curve vertically (the system is linear: input $V_s\,u(t)$ gives $V_s(1-e^{-t/RC})$).
+
+## Second way: impedances and voltage divider
+
+Page 5 <Src p="5" /> — *"II. yol: Aynı devreyi tüm elemanların Laplace ifadesini alarak analiz edelim"* — let's analyse the same circuit by taking the Laplace expression of every element.
+
+<RCs />
+
+Each element is replaced by its s-domain form: the unit step source becomes $\frac1s$, $R$ stays $R$, and the (initially uncharged) capacitor becomes the impedance $\frac{1}{sC}$.
+
+<Example title="RC step response with impedances (II. yol)" src="5">
+
+**Given:** the same circuit, $V_c(0)=0$, unit-step input. **Asked:** $V_c(s)$ and $v(t)$.
+
+**Method:** *"Gerilim bölücü kuralını $V_c$ çıkışı için de işletelim"* — apply the <Term en="voltage divider rule" tr="gerilim bölücü kuralı" /> to the output $V_c$, treating impedances like resistances.
+
+<Step title="Voltage divider">
+
+$R$ and $\frac{1}{sC}$ are in series; the share of the source voltage across $\frac{1}{sC}$ is its impedance over the total:
+
+$$
+V_c=\frac{1}{s}\left(\frac{\frac{1}{sC}}{R+\frac{1}{sC}}\right)
+$$
+
+</Step>
+
+<Step title="Simplify the compound fraction">
+
+Write the denominator over a common denominator: $R+\frac{1}{sC}=\frac{sRC+1}{sC}$. Then the two $sC$'s cancel:
+
+$$
+V_c=\frac{1}{s}\left(\frac{\frac{1}{\cancel{sC}}}{\frac{sRC+1}{\cancel{sC}}}\right)=\frac{1}{s}\cdot\frac{1}{sRC+1}
+$$
+
+</Step>
+
+<Step title="Reuse the previous result">
+
+*"Bu noktadan sonra bir önceki çözümün son işlem sonuçlarını kullanabiliriz"* — from here on, the partial fractions are identical to page 4:
+
+$$
+V_c=\frac{1}{s}\cdot\frac{1}{sRC+1}=\frac{1}{s}-\frac{1}{s+\frac{1}{RC}}
+$$
+
+</Step>
+
+<Answer>
+
+$$
+v(t)=1-e^{-\frac{t}{RC}}
+$$
+
+</Answer>
+
+*"Her iki yoldan da aynı çözüme ulaştık. Burada ikinci çözümde diferansiyel eşitlik kullanmadan salt devre analizi ve Laplace dönüşümü kurallarını işletmek yeterli oldu."* — We reached the same solution both ways; in the second we never wrote a differential equation — circuit analysis plus Laplace rules were enough.
+
+</Example>
+
+### Comparing the two ways
+
+| | I. yol — ODE first | II. yol — impedances first |
+|---|---|---|
+| Steps | element laws + KVL → ODE → $\L$ → algebra | element → impedance; circuit rules directly in $s$ |
+| Initial conditions | appear automatically through $sF(s)-f(0)$ | must be added as extra sources (s-domain models above) |
+| Effort for big circuits | grows quickly (higher-order ODEs, substitutions) | stays algebra: series/parallel, divider, KVL/KCL |
+| Good when… | the ODE is given, or asked for, in the question | you want a transfer function or the circuit has several elements |
+
+**When to prefer which.** If the exam gives you a differential equation, or asks "write the differential equation of the circuit", use I. yol. If it asks for a transfer function $V_o(s)/V_i(s)$ or the response of a multi-element circuit, II. yol is faster and less error-prone — that is exactly what the professor does on page 6. Both must give the same answer; doing a small problem both ways is an excellent self-check.
+
+## Series RLC transfer function
+
+Page 6 <Src p="6" /> — the second *Örnek*: find $\dfrac{V_o(s)}{V_i(s)}=?$ for a series RLC circuit with the output across the capacitor.
+
+<RLCTime />
+
+<RLCs />
+
+<Example title="Series RLC transfer function" src="6">
+
+**Given:** series $R$, $L$, $C$ driven by $V_i$, output $V_o$ across $C$, zero initial conditions (needed for a transfer function). **Asked:** $H(s)=\frac{V_o(s)}{V_i(s)}$.
+
+**Method:** II. yol. Replace $L$ by $Ls$ and $C$ by $\frac{1}{Cs}$, then use the voltage divider — *"Gerilim bölücü kuralını işletelim"*.
+
+<Step title="Voltage divider over three series impedances">
+
+$$
+V_o(s)=V_i(s)\,\frac{\frac{1}{Cs}}{R+Ls+\frac{1}{Cs}}
+$$
+
+</Step>
+
+<Step title="Rearrange (eşitliği yeniden düzenleyelim)">
+
+Divide by $V_i(s)$ and bring the denominator over the common denominator $Cs$: $R+Ls+\frac{1}{Cs}=\frac{RCs+LCs^2+1}{Cs}$. So
+
+$$
+\frac{V_o(s)}{V_i(s)}=\frac{\frac{1}{\cancel{Cs}}}{\frac{RCs+LCs^2+1}{\cancel{Cs}}}
+$$
+
+</Step>
+
+<Step title="Order the denominator by powers of s">
+
+After cancelling $Cs$, the numerator is $1$ and the denominator is $RCs+LCs^2+1$; written in descending powers of $s$ it is $LCs^2+RCs+1$.
+
+</Step>
+
+<Answer>
+
+$$
+H(s)=\frac{V_o(s)}{V_i(s)}=\frac{1}{LCs^2+RCs+1}
+$$
+
+*"olarak bulunur"* — is found.
+
+</Answer>
+
+**Checks.** Units: $LC$ has units s², $RC$ has units s, so $LCs^2$, $RCs$ and $1$ are all dimensionless ✓. DC: $H(0)=1$ — at DC the inductor is a short and the capacitor an open, so no current flows and $V_o=V_i$ ✓. Remove the inductor ($L=0$): $H=\frac{1}{RCs+1}$, the RC result of pages 4–5 ✓.
+
+</Example>
+
+The same circuit by I. yol would need: $i=C\frac{dV_o}{dt}$, $v_R=RC\frac{dV_o}{dt}$, $v_L=L\frac{di}{dt}=LC\frac{d^2V_o}{dt^2}$, and KVL $V_i=LC\,\ddot V_o+RC\,\dot V_o+V_o$. Transforming with zero initial conditions gives $V_i(s)=(LCs^2+RCs+1)V_o(s)$ — the same $H(s)$. Notice how the **ODE coefficients are exactly the denominator coefficients**; II. yol simply skips writing the ODE.
+
+### What the denominator coefficients do
+
+$H(s)=\frac{1}{LCs^2+RCs+1}$ has a **second-order** denominator: the circuit has two independent energy stores ($L$ and $C$), so it has two poles — the roots of $LCs^2+RCs+1=0$:
+
+$$
+s_{1,2}=\frac{-RC\pm\sqrt{(RC)^2-4LC}}{2LC}
+$$
+
+(quadratic formula $\frac{-b\pm\sqrt{b^2-4ac}}{2a}$ with $a=LC$, $b=RC$, $c=1$). The sign of the discriminant $(RC)^2-4LC$ decides the character of the response:
+
+- $(RC)^2>4LC$ — two different real negative poles: the output rises to 1 without oscillating (like two RC stages).
+- $(RC)^2=4LC$ — a repeated real pole: the fastest rise without overshoot.
+- $(RC)^2<4LC$ — complex-conjugate poles: the output **overshoots and oscillates** before settling. Energy sloshes between the capacitor's electric field and the inductor's magnetic field; the resistor burns a bit of it each cycle.
+- $R=0$ — poles on the imaginary axis: nothing burns energy, the oscillation never dies.
+
+So $R$ (through $RC$) controls damping, while $L$ and $C$ (through $LC$) set the natural speed of the energy exchange. The detailed analysis of second-order systems — damping ratio, natural frequency, overshoot, settling time — is the subject of [Module 07](#/m/07); here it is enough to see that the circuit model *produces* such a system.
+
+<RLCExplorer />
+
+The slider values are deliberately "toy" values (ohms, henries, farads) so that the time axis is in seconds; real circuits with mH and µF are thousands of times faster but behave identically (see the numerical example below). Try: $L=C=1$ and slide $R$ from 0 to 4 — you pass through all four cases above, with the repeated pole at $R=2$ (where $(RC)^2=4LC$).
+
+## More worked examples
+
+### Output across the resistor
+
+<RCHighPass />
+
+<Example title="RC circuit with the output across R">
+
+**Given:** series loop $V_s$ – $C$ – $R$, output $v_R$ across $R$, zero initial conditions. **Asked:** $H(s)=\frac{V_R(s)}{V_s(s)}$ and the unit-step response.
+
+**Method:** II. yol — voltage divider, now with $R$ on the output side.
+
+<Step title="Voltage divider">
+
+$$
+\frac{V_R(s)}{V_s(s)}=\frac{R}{R+\frac{1}{sC}}
+$$
+
+</Step>
+
+<Step title="Clear the compound fraction">
+
+Multiply numerator and denominator by $sC$:
+
+$$
+H(s)=\frac{RCs}{RCs+1}
+$$
+
+</Step>
+
+<Step title="Step response">
+
+$V_R(s)=\frac1s\cdot\frac{RCs}{RCs+1}=\frac{RC}{RCs+1}=\frac{1}{s+\frac{1}{RC}}$ — the $s$ cancels, no partial fractions needed.
+
+</Step>
+
+<Answer>
+
+$H(s)=\dfrac{RCs}{RCs+1}$, and $v_R(t)=e^{-t/RC}$ for a unit step.
+
+</Answer>
+
+**Interpretation.** At the first instant the empty capacitor is a short, so the whole step appears across $R$: $v_R(0^+)=1$. As $C$ charges, the current dies away and so does $v_R$. At DC ($s=0$) $H(0)=0$: a capacitor in series **blocks DC** — this circuit passes only changes ("high-pass"). **Check:** $v_R+v_C=e^{-t/RC}+(1-e^{-t/RC})=1=V_s$ ✓ (KVL). Also $\frac{RCs}{RCs+1}+\frac{1}{RCs+1}=1$ ✓.
+
+</Example>
+
+<HighPassPlot />
+
+Note the jump: $v_R$ *can* jump (from 0 to 1 at $t=0$), because it is a resistor voltage; $v_C$ cannot.
+
+### RL circuit
+
+<RLCircuit />
+
+<Example title="Series RL circuit step response">
+
+**Given:** $V_s=10\,u(t)$ V, $R=20\ \Omega$, $L=0.5$ H, $i(0)=0$. **Asked:** $i(t)$, its time constant, and $v_L(t)$.
+
+**Method:** II. yol — total series impedance, then Ohm's law in $s$.
+
+<Step title="s-domain circuit">
+
+Source $\frac{10}{s}$; impedances $R=20$ and $sL=0.5s$ in series: $Z(s)=0.5s+20$.
+
+</Step>
+
+<Step title="Current">
+
+$$
+I(s)=\frac{V_s(s)}{Z(s)}=\frac{10}{s(0.5s+20)}=\frac{20}{s(s+40)}
+$$
+
+(multiply top and bottom by 2).
+
+</Step>
+
+<Step title="Partial fractions">
+
+$\frac{20}{s(s+40)}=\frac{A}{s}+\frac{B}{s+40}$. $A=\left.\frac{20}{s+40}\right|_{s=0}=0.5$; $B=\left.\frac{20}{s}\right|_{s=-40}=-0.5$.
+
+</Step>
+
+<Step title="Inverse transform and inductor voltage">
+
+$i(t)=0.5\left(1-e^{-40t}\right)$ A. Then $v_L=L\frac{di}{dt}=0.5\cdot 0.5\cdot 40\,e^{-40t}=10\,e^{-40t}$ V.
+
+</Step>
+
+<Answer>
+
+$i(t)=0.5(1-e^{-40t})$ A, $\tau=\frac{L}{R}=\frac{0.5}{20}=25$ ms, $v_L(t)=10e^{-40t}$ V.
+
+</Answer>
+
+**Interpretation and checks.** $i(0)=0$ ✓ (inductor current can't jump). Final value $0.5$ A $=\frac{V_s}{R}$ ✓ (inductor is a short at DC). At $t=0^+$ the inductor takes the whole 10 V (it acts as an open circuit at the first instant) ✓. The RL time constant is $L/R$ — **not** $RL$: a bigger $L$ resists change more (slower), a bigger $R$ makes it faster. Transfer function from $V_s$ to $i$: $\frac{1}{Ls+R}$.
+
+</Example>
+
+<RLPlot />
+
+### RC circuit with an initially charged capacitor
+
+The notes' capacitor equation $V(s)=\frac{1}{sC}I(s)+\frac{v(0)}{s}$ lets us go one step beyond the zero-state case.
+
+<RCwithICs />
+
+<Example title="RC charging from a nonzero initial voltage">
+
+**Given:** series RC (as on page 4), $R=10\ \text{k}\Omega$, $C=100\ \mu\text{F}$, $V_s=10\,u(t)$ V, capacitor initially at $v(0)=V_0=4$ V. **Asked:** $v_c(t)$.
+
+**Method:** do it both ways, as the professor did for the zero-state case.
+
+<Step title="Time constant">
+
+$\tau=RC=10^4\cdot 10^{-4}=1$ s, so $RC=1$ in the formulas below.
+
+</Step>
+
+<Step title="I. yol: ODE with the initial term">
+
+ODE: $RC\frac{dv_c}{dt}+v_c=V_s$. Transform with the full derivative property $\L\{\dot v_c\}=sV_c(s)-v_c(0)$:
+
+$$
+RC\,[sV_c(s)-V_0]+V_c(s)=\frac{V_s}{s}
+\;\Longrightarrow\;
+V_c(s)(RCs+1)=\frac{V_s}{s}+RC\,V_0
+$$
+
+$$
+V_c(s)=\underbrace{\frac{V_s}{s(RCs+1)}}_{\text{zero-state part}}+\underbrace{\frac{RC\,V_0}{RCs+1}}_{\text{initial-condition part}}
+$$
+
+</Step>
+
+<Step title="II. yol: s-domain circuit with the series capacitor model">
+
+KVL around the loop of the figure: $\frac{V_s}{s}=R\,I+\frac{1}{sC}I+\frac{V_0}{s}$, so $I(s)=\frac{(V_s-V_0)/s}{R+\frac{1}{sC}}=\frac{C(V_s-V_0)}{RCs+1}$. Then
+
+$$
+V_c(s)=\frac{1}{sC}I(s)+\frac{V_0}{s}=\frac{V_s-V_0}{s(RCs+1)}+\frac{V_0}{s}
+$$
+
+Same function (check below).
+
+</Step>
+
+<Step title="Invert with numbers">
+
+With $RC=1$: zero-state part $\frac{10}{s(s+1)}=\frac{10}{s}-\frac{10}{s+1}\to 10(1-e^{-t})$; initial-condition part $\frac{4}{s+1}\to 4e^{-t}$.
+
+$v_c(t)=10(1-e^{-t})+4e^{-t}=10-6e^{-t}$ V.
+
+</Step>
+
+<Answer>
+
+$v_c(t)=10-6\,e^{-t}$ V $\;=\;\underbrace{10(1-e^{-t})}_{\text{ZSR}}+\underbrace{4e^{-t}}_{\text{from }v(0)}$.
+
+</Answer>
+
+**Checks.** $v_c(0)=10-6=4$ V ✓. $v_c(\infty)=10$ V ✓. The two routes agree: II. yol gives $(V_s-V_0)(1-e^{-t})+V_0=6(1-e^{-t})+4=10-6e^{-t}$ ✓. At $t=1$ s: $10-6e^{-1}=7.79$ V.
+
+**Interpretation.** The response splits into the **zero-state response** (input acting on an empty capacitor — page 4's answer scaled by 10) plus a part produced only by the stored initial voltage, which decays with the same $\tau$. (Circuit-analysis books call that second part the *zero-input response*; the notes only name the ZSR.) The capacitor only has to "travel" from 4 V to 10 V, so the transient amplitude is 6 V, not 10 V.
+
+</Example>
+
+<RCwithICPlot />
+
+### Numerical RC and RLC
+
+<Example title="Numerical RC circuit with real component values">
+
+**Given:** $R=4.7\ \text{k}\Omega$, $C=10\ \mu\text{F}$, step $V_s=5$ V, $v_c(0)=0$. **Asked:** $\tau$, $V_c(s)$, $v_c(\tau)$, the initial current, and the time to reach 4.5 V.
+
+<Step title="Time constant">
+
+$\tau=RC=4.7\times10^{3}\ \Omega\cdot 10\times10^{-6}\ \text{F}=4.7\times10^{-2}\ \text{s}=47$ ms.
+
+</Step>
+
+<Step title="s-domain output">
+
+$V_c(s)=\frac{5}{s}\cdot\frac{1}{0.047s+1}$, so $v_c(t)=5(1-e^{-t/0.047})$ V.
+
+</Step>
+
+<Step title="Values">
+
+$v_c(\tau)=5(1-e^{-1})=5\cdot0.6321=3.16$ V. Initial current $i(0^+)=\frac{V_s}{R}=\frac{5}{4700}=1.064$ mA.
+
+</Step>
+
+<Step title="Time to reach 4.5 V">
+
+$4.5=5(1-e^{-t/\tau})\Rightarrow e^{-t/\tau}=0.1\Rightarrow t=\tau\ln 10=0.047\cdot2.3026=0.1082$ s.
+
+</Step>
+
+<Answer>
+
+$\tau=47$ ms; $v_c(\tau)=3.16$ V; $i(0^+)=1.064$ mA; 4.5 V (90%) is reached at $t\approx108$ ms.
+
+</Answer>
+
+**Sanity check:** 90% should come between $2\tau$ (86.5%) and $3\tau$ (95%): $2\tau=94$ ms, $3\tau=141$ ms, and 108 ms is in between ✓. Units: kΩ × µF = $10^3\cdot10^{-6}=10^{-3}$, i.e. **kΩ·µF = ms** — a handy shortcut.
+
+</Example>
+
+<Example title="Numerical series RLC: coefficients and pole type">
+
+**Given:** page-6 circuit with $R=100\ \Omega$, $L=10$ mH, $C=1\ \mu$F. **Asked:** $H(s)$ with numbers, the poles, and whether the step response oscillates. Repeat for $R=300\ \Omega$.
+
+<Step title="Coefficients">
+
+$LC=10\times10^{-3}\cdot1\times10^{-6}=10^{-8}\ \text{s}^2$; $RC=100\cdot10^{-6}=10^{-4}$ s.
+
+$$
+H(s)=\frac{1}{10^{-8}s^2+10^{-4}s+1}
+$$
+
+</Step>
+
+<Step title="Discriminant and poles (R = 100 Ω)">
+
+$(RC)^2-4LC=10^{-8}-4\cdot10^{-8}=-3\times10^{-8}<0$ → complex poles:
+
+$s_{1,2}=\frac{-10^{-4}\pm j\sqrt{3\times10^{-8}}}{2\times10^{-8}}=-5000\pm j\,8660$ rad/s.
+
+</Step>
+
+<Step title="R = 300 Ω">
+
+$RC=3\times10^{-4}$, $(RC)^2-4LC=9\times10^{-8}-4\times10^{-8}=5\times10^{-8}>0$ → real poles:
+
+$s_{1,2}=\frac{-3\times10^{-4}\pm\sqrt{5\times10^{-8}}}{2\times10^{-8}}=\frac{-3\times10^{-4}\pm2.236\times10^{-4}}{2\times10^{-8}}$, i.e. $s_1=-3820$, $s_2=-26180$ rad/s.
+
+</Step>
+
+<Answer>
+
+$R=100\ \Omega$: $H(s)=\frac{1}{10^{-8}s^2+10^{-4}s+1}$, poles $-5000\pm j8660$ → decaying oscillation (overshoot). $R=300\ \Omega$: $H(s)=\frac{1}{10^{-8}s^2+3\times10^{-4}s+1}$, poles $-3820$ and $-26180$ → no oscillation. The boundary is $(RC)^2=4LC$, i.e. $R=2\sqrt{L/C}=200\ \Omega$.
+
+</Answer>
+
+**Checks.** Product of roots must equal $c/a=1/LC=10^{8}$: $5000^2+8660^2\approx 2.5\times10^7+7.5\times10^7=10^8$ ✓; $3820\cdot26180\approx10^8$ ✓. Sum of roots $=-b/a=-RC/LC=-R/L$: $-3820-26180=-30000=-300/0.01$ ✓. The oscillation frequency $8660$ rad/s ≈ 1.4 kHz — real circuits are fast.
+
+</Example>
+
+### Common mistakes example
+
+<Example title="Find the three mistakes in a student solution">
+
+**Task:** unit-step response of the page-4 RC circuit with $R=1\ \text{M}\Omega$, $C=1\ \mu$F (so $RC=1$ s), $v_c(0)=2$ V.
+
+**Student's solution:** "$Z_C=sC$, so $V_c(s)=\frac{sC}{R+sC}$. With the initial condition, $V_c(s)=\frac{sC}{R+sC}-\frac{2}{s}$…"
+
+<Step title="Mistake 1 — impedance">
+
+$Z_C=\frac{1}{sC}$, not $sC$. With the wrong impedance the "transfer function" $\frac{sC}{R+sC}$ would give $H(0)=0$ — a capacitor would pass no DC voltage to itself, which is physically absurd. Correct: $\frac{1/(sC)}{R+1/(sC)}=\frac{1}{RCs+1}$.
+
+</Step>
+
+<Step title="Mistake 2 — forgetting the input's 1/s">
+
+$\frac{1}{RCs+1}$ is the **transfer function**, not the output. For a step the output is $H(s)\cdot\frac{1}{s}$. Inverting $\frac{1}{s+1}$ alone gives $e^{-t}$ — the impulse response — which starts at 1 and falls, the opposite of charging.
+
+</Step>
+
+<Step title="Mistake 3 — sign of the initial term">
+
+From the series capacitor model the initial term enters as $+\frac{v(0)}{s}$ inside the capacitor voltage, and the loop analysis (previous example) gives $V_c(s)=\frac{V_s-v(0)}{s(RCs+1)}+\frac{v(0)}{s}$. Writing $-\frac{2}{s}$ would start the curve at $-2$ V.
+
+</Step>
+
+<Step title="Correct solution">
+
+$V_c(s)=\frac{1-2}{s(s+1)}+\frac{2}{s}=-\frac{1}{s}+\frac{1}{s+1}+\frac{2}{s}=\frac{1}{s}+\frac{1}{s+1}$.
+
+</Step>
+
+<Answer>
+
+$v_c(t)=1+e^{-t}$ V: the capacitor starts at 2 V and **discharges** toward the 1 V source.
+
+</Answer>
+
+**Check:** $v_c(0)=2$ ✓, $v_c(\infty)=1$ ✓. If the initial voltage is above the source, the curve must fall — a quick physical sanity test.
+
+</Example>
+
+## Edge cases
+
+- **$v(0)=V_s$ (capacitor already at the source voltage).** From the previous examples, $V_c(s)=\frac{V_s-V_0}{s(RCs+1)}+\frac{V_0}{s}=\frac{V_s}{s}$: no transient at all, $v_c(t)=V_s$. Nothing to charge, no current flows.
+- **$R\to 0$ in the RC circuit.** $\tau=RC\to 0$ and $V_c(s)\to\frac1s$: the capacitor would charge instantly. That needs an infinite current pulse, which is why "voltage can't jump" assumes some resistance in the loop. Real circuits always have some.
+- **$C\to\infty$ or $R\to\infty$.** $\tau\to\infty$: the capacitor barely charges in any finite time. $R\to\infty$ is an open loop — no current at all.
+- **$L=0$ in the RLC circuit.** $H(s)=\frac{1}{LCs^2+RCs+1}\to\frac{1}{RCs+1}$: the second-order model collapses to the first-order RC model of pages 4–5.
+- **$R=0$ in the RLC circuit.** $H(s)=\frac{1}{LCs^2+1}$, poles $s=\pm\frac{j}{\sqrt{LC}}$ on the imaginary axis: the step response $1-\cos\frac{t}{\sqrt{LC}}$ oscillates forever between 0 and 2 (see the exercises). A lossless LC circuit just exchanges energy.
+- **Output across C vs across R vs across L.** The same series loop gives three different transfer functions with the **same denominator** $LCs^2+RCs+1$; only the numerator changes ($1$, $RCs$, $LCs^2$). The denominator belongs to the circuit (its energy stores and losses); the numerator depends on where you measure. The three numerators add up to the denominator — KVL in the s-domain.
+- **Impedance with nonzero initial conditions.** $V/I=\frac{1}{sC}$ only when $v(0)=0$. With a charged capacitor the ratio $V(s)/I(s)$ is not a property of the element any more; that is why the initial condition is modelled as a separate source.
+
+## How to solve exam problems
+
+<Procedure title="Modelling a circuit (find V(s), H(s) or v(t))">
+
+1. **Redraw the circuit** and mark the input, the output (with + and −), the current direction and the passive sign convention on each element.
+2. **Read the initial conditions.** "Başlangıç koşulları sıfır" / $v(0)=0$, $i(0)=0$ → zero state; transfer function questions always assume this.
+3. **Choose the route.** ODE given or asked → I. yol. Transfer function or several elements → II. yol (impedances).
+4. **I. yol:** element laws → KVL/KCL → ODE → Laplace with the derivative property (include $-f(0)$ terms) → solve for the output.
+5. **II. yol:** replace $R\to R$, $C\to\frac{1}{sC}$, $L\to sL$, the source by its transform ($\frac{1}{s}$ for a unit step); add initial-condition sources if needed; apply voltage divider / series sums / KVL.
+6. **Clear compound fractions** by multiplying numerator and denominator by the inner denominator ($sC$, $Cs$…). Write the result in descending powers of $s$.
+7. **For a time response:** multiply $H(s)$ by the input transform, then partial fractions and the Laplace table.
+8. **Verify:** $v(0)$ matches the initial condition, final value matches DC analysis ($C$ open, $L$ short), units of coefficients ($RC$ s, $LC$ s², $L/R$ s), $L=0$ or $R$-limits reduce to known results.
+
+</Procedure>
+
+<Mistake title="Typical errors">
+
+- $Z_C=sC$ instead of $\frac{1}{sC}$ (or $Z_L=\frac{1}{sL}$).
+- Forgetting the input's $\frac{1}{s}$: answering with the impulse response when the step response was asked.
+- Wrong sign or missing $1/s$ on initial terms: $-Cv(0)$ (derivative form) vs $+\frac{v(0)}{s}$ (integral form).
+- RL time constant written as $RL$; correct is $\frac{L}{R}$.
+- Dividing the source voltage over the wrong impedance (numerator must be the impedance **across which** the output is measured).
+- Forgetting $u(t)$ / "for $t\ge0$" — acceptable in the notes' style, but remember the formula is only valid after the switch.
+
+</Mistake>
+
+<Tip>
+
+Typical exam variations: (a) the page-4/5 RC circuit with different values or a different input amplitude; (b) the page-6 RLC with the output moved to $R$ or $L$; (c) "solve it both ways and show the results agree"; (d) numeric values in kΩ, µF, mH — convert to base units first (or use kΩ·µF = ms).
+
+</Tip>
+
+## Practice exercises
+
+<Exercise title="Why capacitor voltage is continuous" kind="concept" level={1}>
+
+Using only the law $i=C\frac{dv}{dt}$, explain why the voltage of a capacitor cannot change instantaneously. What is the analogous statement for an inductor, and why?
+
+<Solution>
+
+If $v$ jumped by $\Delta v$ in zero time, $\frac{dv}{dt}$ would be infinite, so $i=C\frac{dv}{dt}$ would be infinite — no real source can deliver an infinite current, so $v_C$ must be continuous: $v_C(0^+)=v_C(0^-)$. Physically, the voltage is set by the stored charge $q=Cv$, and moving finite charge takes time.
+
+For an inductor, $v=L\frac{di}{dt}$: an instant change of current would need infinite voltage, so **inductor current** is continuous. Physically, current is tied to stored magnetic energy $\tfrac12 Li^2$, which cannot change in zero time.
+
+**Check:** in the page-4 result $V_c(t)=1-e^{-t/RC}$, $V_c(0)=0=V_c(0^-)$ ✓; in the RL example $i(0)=0$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Capacitor s-domain equation with numbers" kind="formula" level={1}>
+
+A capacitor has $C=0.5$ F and $v(0)=4$ V. Write (a) $V(s)$ in terms of $I(s)$, (b) $I(s)$ in terms of $V(s)$, (c) the value of the parallel-model current source.
+
+<Solution>
+
+(a) $V(s)=\frac{1}{sC}I(s)+\frac{v(0)}{s}=\frac{1}{0.5s}I(s)+\frac{4}{s}=\frac{2}{s}I(s)+\frac{4}{s}$.
+
+(b) $I(s)=sCV(s)-Cv(0)=0.5s\,V(s)-2$.
+
+(c) $C\,v(0)=0.5\cdot4=2$ (A·s, the transform of an impulse of charge), directed toward the + terminal.
+
+**Verification:** solve (b) for $V$: $V=\frac{I+2}{0.5s}=\frac{2}{s}I+\frac{4}{s}$ — same as (a) ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Shorted inductor with initial current" kind="edge" level={2}>
+
+An ideal inductor $L=0.2$ H carries $i(0)=1$ A and is short-circuited at $t=0$ (so $v(t)=0$ for $t\ge0$). Using the s-domain law, find $i(t)$. Then explain what changes if the short has a resistance $R=2\ \Omega$ instead.
+
+<Hint>Use $I(s)=\frac{1}{sL}V(s)+\frac{i(0)}{s}$; for the second part use the series model and KVL.</Hint>
+
+<Solution>
+
+**Ideal short:** $V(s)=0$, so $I(s)=0+\frac{i(0)}{s}=\frac{1}{s}$ → $i(t)=1$ A for all $t\ge0$. With no resistance nothing dissipates energy; the current circulates forever (this is how superconducting magnets work).
+
+**With R = 2 Ω:** the inductor voltage equals $-R\,i$ (the resistor's voltage across the same two nodes, with the inductor's passive convention). Series model + KVL around the loop: $sL\,I-L\,i(0)+R\,I=0\Rightarrow I(s)=\frac{L\,i(0)}{sL+R}=\frac{0.2}{0.2s+2}=\frac{1}{s+10}$ → $i(t)=e^{-10t}$ A, decaying with $\tau=L/R=0.1$ s.
+
+**Check:** both give $i(0)=1$ A ✓ (current can't jump); with $R$, $i(\infty)=0$ ✓ (stored energy burned in $R$).
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Time constant from component values" kind="calc" level={1}>
+
+$R=2.2\ \text{k}\Omega$, $C=47\ \mu$F. Compute $\tau$ and the time after which a step-driven RC circuit is "practically fully charged" ($5\tau$).
+
+<Solution>
+
+$\tau=RC=2.2\times10^3\cdot47\times10^{-6}=103.4\times10^{-3}$ s $=103.4$ ms. (Shortcut: $2.2\cdot47=103.4$, and kΩ·µF = ms.)
+
+$5\tau=517$ ms ≈ 0.52 s, when $v_c$ has reached $1-e^{-5}=99.3\%$ of the final value.
+
+**Check:** units Ω·F = (V/A)(A·s/V) = s ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Time to reach a given fraction" kind="calc" level={2}>
+
+For the page-4 circuit, find (in terms of $\tau=RC$) the time at which $V_c$ reaches 50% and 90% of $V_s$.
+
+<Solution>
+
+$V_c=V_s(1-e^{-t/\tau})=kV_s\Rightarrow e^{-t/\tau}=1-k\Rightarrow t=-\tau\ln(1-k)=\tau\ln\frac{1}{1-k}$.
+
+50%: $t=\tau\ln2=0.693\,\tau$. 90%: $t=\tau\ln10=2.303\,\tau$.
+
+**Check:** 50% comes before $\tau$ (63.2%) ✓; 90% lies between $2\tau$ (86.5%) and $3\tau$ (95.0%) ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Page 4 with a 5 V step" kind="prof" level={1}>
+
+Repeat the page-4 example with $V_s=5\,u(t)$ (still $V_c(0)=0$). Find $V_c(s)$, the partial-fraction coefficients and $V_c(t)$.
+
+<Solution>
+
+ODE transform: $\frac{5}{s}=RCs\,V_c+V_c\Rightarrow V_c(s)=\frac{5}{s(RCs+1)}=\frac{A}{s}+\frac{B}{RCs+1}$.
+
+$A=\left.\frac{5}{RCs+1}\right|_{s=0}=5$. $B=\left.\frac{5}{s}\right|_{s=-1/RC}=-5RC$.
+
+$V_c(s)=\frac{5}{s}-\frac{5RC}{RCs+1}=\frac{5}{s}-\frac{5}{s+1/RC}$ → $V_c(t)=5(1-e^{-t/RC})$.
+
+**Check:** linearity — 5 × the unit-step answer ✓. $V_c(0)=0$, $V_c(\infty)=5$ ✓. Recombine: $\frac{5(RCs+1)-5RCs}{s(RCs+1)}=\frac{5}{s(RCs+1)}$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Second way with R = 1 MΩ and C = 1 µF" kind="prof" level={1}>
+
+Using II. yol (impedances and the voltage divider), find $V_c(s)$ and $v_c(t)$ for the page-5 circuit with $R=1\ \text{M}\Omega$, $C=1\ \mu$F and a unit-step input.
+
+<Solution>
+
+$RC=10^6\cdot10^{-6}=1$ s. Capacitor impedance $\frac{1}{sC}=\frac{10^6}{s}$.
+
+$V_c=\frac1s\cdot\frac{10^6/s}{10^6+10^6/s}=\frac1s\cdot\frac{1}{s+1}$ (multiply top and bottom by $s/10^6$).
+
+Partial fractions: $\frac{1}{s(s+1)}=\frac1s-\frac{1}{s+1}$ → $v_c(t)=1-e^{-t}$ V.
+
+**Check:** matches $1-e^{-t/RC}$ with $RC=1$ ✓; $v_c(1\text{ s})=0.632$ V ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="RLC with the output across the resistor" kind="circuit" level={2}>
+
+In the page-6 series RLC circuit, take the output across $R$ instead of $C$. Find $\frac{V_R(s)}{V_i(s)}$ and its DC value. Explain the DC value physically.
+
+<Solution>
+
+Voltage divider: $\frac{V_R}{V_i}=\frac{R}{R+Ls+\frac{1}{Cs}}$. Multiply top and bottom by $Cs$:
+
+$$
+\frac{V_R(s)}{V_i(s)}=\frac{RCs}{LCs^2+RCs+1}
+$$
+
+DC: $s=0$ gives $0$. At DC the capacitor is an open circuit, so no current flows and there is no voltage across $R$.
+
+**Check:** same denominator as page 6 ✓ (same circuit); units dimensionless ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="RLC with the output across the inductor" kind="circuit" level={2}>
+
+Find $\frac{V_L(s)}{V_i(s)}$ for the page-6 circuit and verify that $\frac{V_R}{V_i}+\frac{V_L}{V_i}+\frac{V_o}{V_i}=1$. What does this identity express?
+
+<Solution>
+
+$\frac{V_L}{V_i}=\frac{Ls}{R+Ls+\frac{1}{Cs}}=\frac{LCs^2}{LCs^2+RCs+1}$ (multiplied by $Cs$).
+
+Sum: $\frac{RCs+LCs^2+1}{LCs^2+RCs+1}=1$ ✓. It is **KVL in the s-domain**: $V_R+V_L+V_o=V_i$.
+
+At high frequency ($s\to\infty$) $\frac{V_L}{V_i}\to1$: the inductor takes all of a sudden change (it's an "open" at the first instant).
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="RL circuit with output across L" kind="circuit" level={2}>
+
+For the series RL circuit (source $V_s$, $R$, $L$), find $\frac{V_L(s)}{V_s(s)}$ and the unit-step response $v_L(t)$. Check against the RL worked example.
+
+<Solution>
+
+$\frac{V_L}{V_s}=\frac{sL}{R+sL}$. Step: $V_L(s)=\frac1s\cdot\frac{sL}{sL+R}=\frac{L}{sL+R}=\frac{1}{s+R/L}$ → $v_L(t)=e^{-Rt/L}$.
+
+**Check:** the RL example had $V_s=10$, $R/L=40$: $10e^{-40t}$ ✓ (linearity). $v_L(0^+)=1$ (inductor takes the full step), $v_L(\infty)=0$ (short at DC) ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Reading RC from a measured curve" kind="graph" level={1}>
+
+A step of 10 V is applied to an uncharged series RC circuit with $C=1\ \mu$F. The measured capacitor voltage reaches 6.32 V at $t=2$ ms. Find $RC$ and $R$. What voltage do you expect at $t=4$ ms and $t=10$ ms?
+
+<Solution>
+
+$6.32/10=0.632=1-e^{-1}$, so $t=\tau$: $RC=2$ ms. $R=\frac{2\times10^{-3}}{10^{-6}}=2000\ \Omega=2\ \text{k}\Omega$.
+
+$t=4$ ms $=2\tau$: $10(1-e^{-2})=8.65$ V. $t=10$ ms $=5\tau$: $10(1-e^{-5})=9.93$ V.
+
+**Check:** kΩ·µF = ms → $2\cdot1=2$ ms ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Charging from a negative initial voltage" kind="problem" level={3}>
+
+Series RC, $R=1\ \text{k}\Omega$, $C=1$ mF, step input $V_s=6$ V, but the capacitor starts at $v(0)=-2$ V. Find $V_c(s)$ using the series capacitor model, then $v_c(t)$, and the time at which $v_c$ crosses 0 V.
+
+<Solution>
+
+$RC=10^3\cdot10^{-3}=1$ s. From the s-domain circuit: $V_c(s)=\frac{V_s-V_0}{s(RCs+1)}+\frac{V_0}{s}=\frac{6-(-2)}{s(s+1)}+\frac{-2}{s}=\frac{8}{s(s+1)}-\frac{2}{s}$.
+
+Partial fractions: $\frac{8}{s(s+1)}=\frac8s-\frac{8}{s+1}$. So $V_c(s)=\frac{6}{s}-\frac{8}{s+1}$ → $v_c(t)=6-8e^{-t}$ V.
+
+Zero crossing: $6=8e^{-t}\Rightarrow t=\ln\frac{8}{6}=0.2877$ s ≈ 288 ms.
+
+**Check:** $v_c(0)=6-8=-2$ ✓; $v_c(\infty)=6$ ✓. Split: ZSR $6(1-e^{-t})$ + initial part $-2e^{-t}$ = $6-8e^{-t}$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Lossless LC circuit" kind="edge" level={3}>
+
+In the page-6 circuit set $R=0$, $L=0.1$ H, $C=10\ \mu$F. Find $H(s)$, its poles, and the unit-step response $v_o(t)$. What are the maximum and minimum of $v_o$?
+
+<Hint>$\Li\left\{\frac{s}{s^2+\omega^2}\right\}=\cos\omega t$.</Hint>
+
+<Solution>
+
+$LC=0.1\cdot10^{-5}=10^{-6}$ s², $RC=0$: $H(s)=\frac{1}{10^{-6}s^2+1}=\frac{10^6}{s^2+10^6}$. Poles $s=\pm j1000$ (on the imaginary axis).
+
+Step: $V_o(s)=\frac{10^6}{s(s^2+10^6)}=\frac{A}{s}+\frac{Bs+D}{s^2+10^6}$. $A=\left.\frac{10^6}{s^2+10^6}\right|_{0}=1$. Then $10^6=(s^2+10^6)+Bs^2+Ds\Rightarrow B=-1$, $D=0$.
+
+$V_o(s)=\frac1s-\frac{s}{s^2+10^6}$ → $v_o(t)=1-\cos(1000t)$ V.
+
+Max 2 V (at $1000t=\pi$), min 0 V; it oscillates forever at 1000 rad/s (≈159 Hz) because nothing dissipates energy.
+
+**Check:** $v_o(0)=0$ ✓. Recombine: $\frac{(s^2+10^6)-s^2}{s(s^2+10^6)}$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Numerical RLC with R = 300 Ω" kind="calc" level={2}>
+
+Page-6 circuit, $R=300\ \Omega$, $L=10$ mH, $C=1\ \mu$F. Write $H(s)$ with numbers, find the poles, and say whether the step response overshoots. Which value of $R$ is the boundary?
+
+<Solution>
+
+$LC=10^{-8}$, $RC=3\times10^{-4}$: $H(s)=\frac{1}{10^{-8}s^2+3\times10^{-4}s+1}$.
+
+Discriminant $(3\times10^{-4})^2-4\cdot10^{-8}=5\times10^{-8}>0$ → real poles $\frac{-3\times10^{-4}\pm2.236\times10^{-4}}{2\times10^{-8}}$: $s_1\approx-3820$, $s_2\approx-26180$ rad/s. Two real negative poles → no oscillation, no overshoot.
+
+Boundary: $(RC)^2=4LC\Rightarrow R=2\sqrt{L/C}=2\sqrt{10^{-2}/10^{-6}}=2\cdot100=200\ \Omega$.
+
+**Check:** $s_1s_2\approx10^8=1/LC$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Transfer function or step response" kind="concept" level={1}>
+
+A student solves the page-4 circuit as: "$V_c(s)=\frac{1}{RCs+1}$, so $V_c(t)=\frac{1}{RC}e^{-t/RC}$." What did they compute, what was forgotten, and how can you tell from the answer alone that it is wrong for a step input?
+
+<Solution>
+
+They computed the **transfer function** $H(s)$ and inverted it — that is the **impulse response**. They forgot to multiply by the step's transform $\frac{1}{s}$.
+
+Tell-tale signs: their answer starts at $\frac{1}{RC}\ne0$ at $t=0$ (the capacitor voltage would jump — impossible for a finite step input) and decays to 0 instead of rising to $V_s=1$. Correct: $V_c(s)=\frac{1}{s(RCs+1)}$, $V_c(t)=1-e^{-t/RC}$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="DC behaviour from impedances" kind="concept" level={1}>
+
+Using $Z_C=\frac{1}{sC}$ and $Z_L=sL$ at $s=0$, explain why the page-6 transfer function satisfies $H(0)=1$, and predict the final value of $v_o$ for a 12 V step.
+
+<Solution>
+
+At $s=0$: $Z_C\to\infty$ (open), $Z_L=0$ (short). With the capacitor open, no current flows, so there is no voltage across $R$ or $L$; KVL gives $V_o=V_i$. Hence $H(0)=\frac{1}{0+0+1}=1$.
+
+For a 12 V step, final value theorem: $\lim_{s\to0}s\cdot\frac{12}{s}H(s)=12H(0)=12$ V.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Choosing between the two ways" kind="concept" level={1}>
+
+(a) What is the main advantage of II. yol (p. 5) over I. yol (p. 4)? (b) Give one situation where I. yol is the natural choice. (c) How must II. yol be modified if the capacitor is initially charged?
+
+<Solution>
+
+(a) No differential equation is needed: each element becomes an impedance and the familiar circuit rules (series sums, voltage divider) give the s-domain answer directly by algebra — *"salt devre analizi ve Laplace dönüşümü kurallarını işletmek yeterli oldu"*.
+
+(b) When the question gives the ODE or asks you to derive it, or when you want the initial conditions to enter automatically through $sF(s)-f(0)$.
+
+(c) Replace the capacitor by its s-domain model with initial condition: $\frac{1}{sC}$ in series with a source $\frac{v(0)}{s}$ (or $\frac{1}{sC}$ in parallel with a current source $Cv(0)$), following $V(s)=\frac{1}{sC}I(s)+\frac{v(0)}{s}$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Writing the RLC differential equation" kind="problem" level={2}>
+
+Derive the differential equation of the page-6 circuit (I. yol) with $V_o$ as the unknown, transform it with zero initial conditions, and confirm $H(s)=\frac{1}{LCs^2+RCs+1}$.
+
+<Solution>
+
+Loop current $i=C\frac{dV_o}{dt}$ (capacitor law). Resistor: $v_R=Ri=RC\frac{dV_o}{dt}$. Inductor: $v_L=L\frac{di}{dt}=LC\frac{d^2V_o}{dt^2}$.
+
+KVL: $V_i=v_R+v_L+V_o=LC\frac{d^2V_o}{dt^2}+RC\frac{dV_o}{dt}+V_o$.
+
+Laplace, zero ICs ($\L\{\ddot f\}=s^2F$, $\L\{\dot f\}=sF$): $V_i(s)=(LCs^2+RCs+1)V_o(s)$ ⟹ $H(s)=\frac{1}{LCs^2+RCs+1}$ ✓.
+
+</Solution>
+
+</Exercise>

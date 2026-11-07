@@ -1,0 +1,2166 @@
+import { StepPlot, RampPlot, ImpulsePlot, ImpulseLimitExplorer, SShiftExplorer, TimeShiftExplorer, FvtFailPlot, P7IvtFvtPlot, P14ComparePlot, PartialFractionViewer } from './widgets'
+
+## What is this about?
+
+Every physical system in this course — a heater warming a room, a car speeding up, a capacitor charging through a resistor — is described by a **differential equation**: a relation between a signal and its rates of change. Solving differential equations directly (guessing exponentials, matching coefficients, fitting initial conditions) is slow and error-prone, and it gets much worse when the input is a step, a delayed pulse or an impulse.
+
+The <Term en="Laplace transform" tr="Laplace Dönüşümü" /> is a change of language. It takes a function of time $f(t)$ and turns it into a function $F(s)$ of a new variable $s$. In this new language:
+
+- **differentiating** in time becomes **multiplying by $s$**,
+- **integrating** in time becomes **dividing by $s$**,
+- the initial conditions appear automatically,
+- a **differential equation becomes an ordinary algebraic equation**.
+
+You solve the algebra for $F(s)$, then translate back to time with the <Term en="inverse Laplace transform" tr="Ters Laplace Dönüşümü" />. The translation back is done with a **table** of known pairs plus a technique called <Term en="partial fraction expansion" tr="Basit Kesirlere Ayırma" />, which is the second half of this module.
+
+Why does a control engineer care? Every later topic — transfer functions, block diagrams, time response, stability, steady-state error — is written in the $s$-domain. The location of the roots of the denominator of $F(s)$ (the **poles**) tells you directly whether a response decays, grows or oscillates. This module is the mathematical toolkit for the rest of the course.
+
+### A first taste: solving an ODE with algebra
+
+Think of a small room heater. Let $y(t)$ be the temperature rise of the room. A simple model is
+
+$$
+\frac{dy}{dt}+2y=2u(t),\qquad y(0)=0,
+$$
+
+where $u(t)$ is the unit step (the heater is switched on at $t=0$). Without knowing any rules yet, here is how the Laplace method will look once you have finished the module:
+
+1. Transform each term: $\frac{dy}{dt}\to sY(s)-y(0)=sY(s)$, $\;2y\to 2Y(s)$, $\;2u(t)\to \frac{2}{s}$.
+2. Algebra: $(s+2)Y(s)=\frac{2}{s}\;\Rightarrow\;Y(s)=\frac{2}{s(s+2)}$.
+3. Split into simple pieces: $\frac{2}{s(s+2)}=\frac{1}{s}-\frac{1}{s+2}$.
+4. Read the answer from the table: $y(t)=1-e^{-2t}$.
+
+No guessing, no fitting — four mechanical steps. The temperature rises and settles at 1, exactly as a heater should behave. Everything in this module explains *why* each of those steps works.
+
+### After this module you can
+
+- compute Laplace transforms from the definition (step, ramp, impulse, exponential, sine, cosine);
+- use the properties (linearity, $s$-shift, multiplication by $t^n$, time shift, derivative, integral) to transform complicated signals without integrating;
+- find $f(0^+)$ and $f(\infty)$ directly from $F(s)$ with the initial and final value theorems — and know when the final value theorem is **not** allowed;
+- invert $F(s)$ with the table, and with partial fractions for distinct, repeated and complex roots, and by completing the square;
+- solve linear differential (and integro-differential) equations with initial conditions.
+
+## The definition
+
+<Def term="Laplace transform" tr="Laplace Dönüşümü">
+
+Let $f(t)$ be a <Term en="time-domain" tr="zaman bölgesi" /> function. Its Laplace transform is <Src p="1" />
+
+$$
+\L\{f(t)\}=F(s)=\int_{0}^{\infty}f(t)\,e^{-st}\,dt .
+$$
+
+</Def>
+
+Every symbol:
+
+- $f(t)$ — the signal, defined for $t\ge 0$ (what happens before $t=0$ is ignored by the integral; in control we switch things on at $t=0$).
+- $s$ — a complex number $s=\sigma+j\omega$ (the notes use $j$ for $\sqrt{-1}$). It is a free parameter: for each value of $s$ the integral gives one number $F(s)$.
+- $e^{-st}$ — the **kernel**: a weighting function that multiplies the signal before integrating.
+- $F(s)$ — the result, a function of $s$. Capital letter = $s$-domain, small letter = time domain: $y(t)\leftrightarrow Y(s)$, $f(t)\leftrightarrow F(s)$.
+
+### What the variable s means
+
+Write $e^{-st}=e^{-\sigma t}e^{-j\omega t}$. The factor $e^{-\sigma t}$ is a decaying exponential (for $\sigma>0$) and $e^{-j\omega t}=\cos\omega t-j\sin\omega t$ is a rotation at frequency $\omega$. So $F(s)$ asks: *"if I weigh the signal with a decay of rate $\sigma$ and correlate it with a rotation of frequency $\omega$, what total do I get?"* The real part $\sigma$ measures growth/decay, the imaginary part $\omega$ measures oscillation. That is why, at the end of the module, the location of the poles in the complex $s$-plane will tell us whether $f(t)$ decays, grows or oscillates.
+
+<Intuition>
+
+The one fact that makes Laplace useful: the exponential $e^{-st}$ is the only function whose derivative is a multiple of itself. When you differentiate $f(t)$ under the integral and integrate by parts, the derivative "moves" onto $e^{-st}$ and comes out as a factor $s$. That is why $\frac{d}{dt}\to s$ (derived in the [derivative property](#/m/03/derivative-property)).
+
+</Intuition>
+
+### Convergence and the lower limit
+
+The integral must converge. For $f(t)=1$ we need $\int_0^\infty e^{-st}dt$ to be finite, which needs $\operatorname{Re}(s)>0$ so that $e^{-st}\to0$ as $t\to\infty$. Each transform below therefore holds for $\operatorname{Re}(s)$ large enough (the *region of convergence*). In this course you never need to compute it explicitly — just remember that the step "$e^{-st}\big|_{t=\infty}=0$" silently uses it.
+
+The lower limit is written $0$. When the signal contains an impulse or a jump exactly at $t=0$, the limit is understood as $0^-$ (just before zero) so that the whole impulse is included; the initial conditions $f(0)$ in the derivative property are then the values just before the input is applied. In all of the professor's problems this distinction causes no difference in the results.
+
+## Transforms of basic functions
+
+<Src p="1" /> The notes call these <Term en="basic functions" tr="Temel Fonksiyonlar" />. Each is computed straight from the definition. Learn the results by heart — and the derivations, because they are typical exam questions.
+
+### Unit step
+
+<Def term="Unit step" tr="Birim basamak">
+
+$$
+u(t)=\begin{cases}1, & t>0\\ 0, & t<0\end{cases}
+$$
+
+A switch that turns on at $t=0$ and stays on. <Src p="1" />
+
+</Def>
+
+<StepPlot />
+
+Graph (as in the notes): zero for $t<0$, a vertical jump at $t=0$, then a horizontal line at height 1. To sketch it in an exam: axes, a mark "1" on the vertical axis, flat line on the time axis to the left, jump, flat line at 1 to the right.
+
+Derivation. For $t>0$, $u(t)=1$, so
+
+$$
+\L\{u(t)\}=\int_0^\infty 1\cdot e^{-st}\,dt=\left[\frac{e^{-st}}{-s}\right]_0^\infty=\frac{-1}{s}\left(e^{-st}\Big|_0^\infty\right)=\frac{-1}{s}(0-1)=\frac{1}{s}.
+$$
+
+(The upper limit gives 0 because $\operatorname{Re}(s)>0$.)
+
+<KeyFormula title="Unit step">
+
+$$
+\L\{u(t)\}=\frac{1}{s}
+$$
+
+</KeyFormula>
+
+A constant $A$ applied at $t=0$ (i.e. $A\,u(t)$) has transform $A/s$. In control, $u(t)$ is the standard **test input**: "switch the heater on and see what happens".
+
+### Unit ramp
+
+<Def term="Unit ramp" tr="Birim rampa fonksiyonu">
+
+$$
+r(t)=\begin{cases}t, & t\ge 0\\ 0, & t<0\end{cases}
+$$
+
+A signal that grows linearly with slope 1 — for example a reference position that moves at constant speed. <Src p="2" />
+
+</Def>
+
+<RampPlot />
+
+Derivation. Use **integration by parts**, $\int u\,dv=uv-\int v\,du$, with $u=t$, $dv=e^{-st}dt$, so $du=dt$, $v=-\frac{e^{-st}}{s}$:
+
+$$
+\L\{r(t)\}=\int_0^\infty t\,e^{-st}\,dt=\underbrace{\left[-\frac{t\,e^{-st}}{s}\right]_0^\infty}_{=0}+\frac{1}{s}\int_0^\infty e^{-st}\,dt=\frac{1}{s}\cdot\frac{1}{s}=\frac{1}{s^2}.
+$$
+
+The bracket is zero at both ends: at $t=0$ because of the factor $t$, at $t=\infty$ because the exponential decays faster than $t$ grows.
+
+<KeyFormula title="Unit ramp">
+
+$$
+\L\{r(t)\}=\L\{t\}=\frac{1}{s^2}
+$$
+
+</KeyFormula>
+
+Notice the pattern: step $\to 1/s$, ramp (the integral of the step) $\to 1/s^2$. Integrating once more gives $t^2/2\to 1/s^3$. This is the [integral property](#/m/03/integral-property) at work.
+
+### Unit impulse
+
+<Def term="Unit impulse" tr="Birim impulse fonksiyonu">
+
+The notes define <Src p="2" />
+
+$$
+\delta(t)=\begin{cases}1, & t=0\\ 0, & t\neq 0\end{cases}
+$$
+
+and draw it as a vertical arrow at the origin. Physically: a very short, very strong "kick" (a hammer blow, a sudden charge injected into a circuit) whose **total area is 1**.
+
+</Def>
+
+<ImpulsePlot />
+
+Derivation in the notes. Since $\delta(t)$ is zero everywhere except at $t=0$, the factor $e^{-st}$ can be replaced by its value at $t=0$, which is $e^{0}=1$:
+
+$$
+\L\{\delta(t)\}=\int_0^\infty\delta(t)\,e^{-st}\,dt=e^{0}\int_0^\infty\delta(t)\,dt=1 .
+$$
+
+<KeyFormula title="Unit impulse">
+
+$$
+\L\{\delta(t)\}=1
+$$
+
+</KeyFormula>
+
+<Note title="Correction to the notes: what the impulse really is">
+
+The notes write $\delta(t)=1$ at $t=0$. Taken literally that would make the integral $\int\delta(t)\,dt$ equal to **zero** (a single point has no width), and the transform would be 0, not 1. The precise statement is:
+
+$$
+\delta(t)=0\ \text{for}\ t\neq 0,\qquad \int_{-\infty}^{\infty}\delta(t)\,dt=1 .
+$$
+
+The impulse is the limit of a pulse of width $\varepsilon$ and height $1/\varepsilon$ as $\varepsilon\to0$: its height grows without bound while its **area stays 1**. The arrow in the drawing represents "area 1", not "height 1". The step $e^{0}\int\delta\,dt$ in the notes uses exactly this area-1 property (the *sifting property* $\int f(t)\delta(t)\,dt=f(0)$), and the lower limit should be read as $0^-$ so that the whole impulse is inside the integral. The **result $\L\{\delta(t)\}=1$ is correct**.
+
+</Note>
+
+<ImpulseLimitExplorer />
+
+Slide $\varepsilon$ toward 0: the pulse gets taller and thinner, its area stays 1, and its Laplace transform $\frac{1-e^{-\varepsilon s}}{\varepsilon s}$ (evaluated at $s=1$ in the read-out) approaches 1.
+
+### Exponential function
+
+<Src p="3" /> The notes group the next three functions under <Term en="exponential functions" tr="Üstel Fonksiyonlar" /> — sine and cosine are included because they are handled as sums of complex exponentials.
+
+$$
+f(t)=e^{-at}u(t)=\begin{cases}e^{-at}, & t\ge0\\ 0, & t<0\end{cases}
+$$
+
+Combine the two exponentials into one, $e^{-at}e^{-st}=e^{-(s+a)t}$, and repeat the step-function integral with $s$ replaced by $s+a$:
+
+$$
+F(s)=\int_0^\infty e^{-at}e^{-st}\,dt=\int_0^\infty e^{-t(s+a)}\,dt=\left[\frac{e^{-(s+a)t}}{-(s+a)}\right]_0^\infty=\frac{1}{s+a}.
+$$
+
+<KeyFormula title="Exponential">
+
+$$
+\L\{e^{-at}u(t)\}=\frac{1}{s+a}
+$$
+
+</KeyFormula>
+
+Meaning: a decaying exponential $e^{-at}$ ($a>0$) corresponds to a **pole** (a root of the denominator) at $s=-a$, on the negative real axis. The faster the decay, the further left the pole. With $a<0$ the exponential grows and the pole is in the right half-plane. Setting $a=0$ gives back $1/s$, the step.
+
+### Sine function
+
+$$
+f(t)=A\sin(\omega t)\,u(t)
+$$
+
+The trick is **Euler's formula** $e^{j\theta}=\cos\theta+j\sin\theta$. Writing it for $+\theta$ and $-\theta$ and subtracting gives $e^{j\theta}-e^{-j\theta}=2j\sin\theta$, so <Src p="3" />
+
+$$
+\sin\omega t=\frac{e^{j\omega t}-e^{-j\omega t}}{2j}.
+$$
+
+Now each piece is an exponential, and we already know $\L\{e^{-at}\}=\frac{1}{s+a}$; with $a=-j\omega$ and $a=+j\omega$:
+
+$$
+F(s)=\frac{A}{2j}\int_0^\infty\left(e^{j\omega t}-e^{-j\omega t}\right)e^{-st}\,dt=\frac{A}{2j}\left(\frac{1}{s-j\omega}-\frac{1}{s+j\omega}\right).
+$$
+
+Common denominator $(s-j\omega)(s+j\omega)=s^2+\omega^2$:
+
+$$
+=\frac{A}{2j}\cdot\frac{(s+j\omega)-(s-j\omega)}{s^2+\omega^2}=\frac{A}{2j}\cdot\frac{\cancel{s}+j\omega-\cancel{s}+j\omega}{s^2+\omega^2}=\frac{A}{2j}\cdot\frac{2j\omega}{s^2+\omega^2}.
+$$
+
+<KeyFormula title="Sine">
+
+$$
+\L\{A\sin(\omega t)\}=A\,\frac{\omega}{s^2+\omega^2}
+$$
+
+</KeyFormula>
+
+Poles: $s^2+\omega^2=0\Rightarrow s=\pm j\omega$, on the imaginary axis — a pure, undamped oscillation of frequency $\omega$. Note the **$\omega$ in the numerator**: when inverting, you must create it (e.g. $\frac{5}{s^2+4}=2.5\cdot\frac{2}{s^2+2^2}$).
+
+### Cosine function
+
+<Src p="4" /> Adding instead of subtracting the two Euler formulas gives
+
+$$
+\cos\omega t=\frac{e^{j\omega t}+e^{-j\omega t}}{2}.
+$$
+
+$$
+\L\{A\cos\omega t\}=\frac{A}{2}\int_0^\infty\left(e^{j\omega t}+e^{-j\omega t}\right)e^{-st}\,dt=\frac{A}{2}\left(\frac{1}{s-j\omega}+\frac{1}{s+j\omega}\right)=\frac{A}{2}\cdot\frac{s+j\omega+s-j\omega}{s^2+\omega^2}=\frac{A}{\cancel{2}}\cdot\frac{\cancel{2}s}{s^2+\omega^2}.
+$$
+
+<KeyFormula title="Cosine">
+
+$$
+\L\{A\cos(\omega t)\}=A\,\frac{s}{s^2+\omega^2}
+$$
+
+</KeyFormula>
+
+Same poles $\pm j\omega$ as the sine — same frequency — but $s$ in the numerator instead of $\omega$. Memory aid: **cosine ↔ $s$ on top, sine ↔ $\omega$ on top**. A quick check: at $t=0$, $\cos 0=1$ and $\sin0=0$; the [initial value theorem](#/m/03/initial-value-theorem) gives $\lim_{s\to\infty}s\cdot\frac{s}{s^2+\omega^2}=1$ and $\lim_{s\to\infty}s\cdot\frac{\omega}{s^2+\omega^2}=0$. ✓
+
+## Properties of the Laplace transform
+
+<Src p="5" /> The <Term en="properties" tr="Laplace Dönüşümünün Özellikleri" /> let you transform complicated signals by combining the basic transforms instead of integrating again. Each one follows from the definition in two or three lines — the derivations are shown so you know *why* each rule looks the way it does (and so you can rebuild a rule you have forgotten in the exam).
+
+### Linearity
+
+<Src p="5" /> <Term en="Linearity" tr="Doğrusallık" />:
+
+$$
+f(t)=a f_1(t)\pm b f_2(t)\;\Longrightarrow\;F(s)=aF_1(s)\pm bF_2(s).
+$$
+
+Why: the integral is linear — $\int(a f_1\pm b f_2)e^{-st}dt=a\int f_1e^{-st}dt\pm b\int f_2e^{-st}dt$. This is what allows term-by-term transforms and term-by-term inverses.
+
+Mini-example: $\L\{4-3e^{-2t}\}=\frac{4}{s}-\frac{3}{s+2}$.
+
+<Mistake title="Linearity is for sums, not products">
+
+$\L\{f_1(t)f_2(t)\}\neq F_1(s)F_2(s)$. A product in time has no simple transform in general. The only products handled in this module are the special ones with their own rules: $e^{\pm at}f(t)$ (next property) and $t^n f(t)$.
+
+</Mistake>
+
+### Multiplication by an exponential
+
+<Src p="5" /> <Term en="Multiplication by an exponential (s-shift)" tr="Üstel ile Çarpma" />:
+
+<KeyFormula title="s-shift">
+
+$$
+f(t)=e^{\pm at}f_1(t)\;\Longrightarrow\;F(s)=F_1(s\mp a)
+$$
+
+</KeyFormula>
+
+Derivation (lower sign, $e^{-at}$):
+
+$$
+\L\{e^{-at}f_1(t)\}=\int_0^\infty f_1(t)\,e^{-at}e^{-st}\,dt=\int_0^\infty f_1(t)\,e^{-(s+a)t}\,dt=F_1(s+a).
+$$
+
+The integral is exactly the definition of $F_1$, evaluated at $s+a$ instead of $s$. So: **multiply by $e^{-at}$ in time ⇔ replace every $s$ by $s+a$**. With $e^{+at}$ replace $s$ by $s-a$.
+
+Meaning: every pole of $F_1$ moves by $-a$ along the real axis. A pole at $\pm j\omega$ (sustained oscillation) moves to $-a\pm j\omega$ (decaying oscillation). The exponential transform itself is an instance: $\L\{1\}=\frac1s\Rightarrow\L\{e^{-at}\cdot1\}=\frac{1}{s+a}$.
+
+Mini-example: $\L\{\sin 2t\}=\frac{2}{s^2+4}\Rightarrow\L\{e^{-3t}\sin2t\}=\frac{2}{(s+3)^2+4}$.
+
+<SShiftExplorer />
+
+Move $a$: the teal curve stays inside the envelope $\pm e^{-at}$ and the two poles slide left by $a$. With $a<0$ the poles cross into the right half-plane and the oscillation grows.
+
+### Multiplication by t (ramp multiplication)
+
+<Src p="5" /> <Term en="Multiplication by a ramp (by t to the power n)" tr="Rampa ile Çarpma" />:
+
+<KeyFormula title="Multiplication by t^n">
+
+$$
+f(t)=t^n f_1(t)\;\Longrightarrow\;F(s)=(-1)^n\frac{d^n}{ds^n}F_1(s)
+$$
+
+</KeyFormula>
+
+Derivation for $n=1$: differentiate the definition of $F_1$ with respect to $s$ (the derivative goes inside the integral, and $\frac{d}{ds}e^{-st}=-t\,e^{-st}$):
+
+$$
+\frac{d}{ds}F_1(s)=\int_0^\infty f_1(t)\,(-t)\,e^{-st}\,dt=-\L\{t\,f_1(t)\}\;\Rightarrow\;\L\{t f_1(t)\}=-\frac{dF_1}{ds}.
+$$
+
+Each extra factor $t$ is one more derivative and one more factor $-1$, giving $(-1)^n\frac{d^n}{ds^n}$.
+
+Most important consequence — the transform of $t^n$. Take $f_1=u(t)$, $F_1=\frac1s=s^{-1}$. Differentiating $n$ times: $\frac{d^n}{ds^n}s^{-1}=(-1)^n\,n!\,s^{-(n+1)}$. Multiplying by $(-1)^n$ (and $(-1)^{2n}=1$):
+
+$$
+\L\{t^n\}=\frac{n!}{s^{n+1}}\qquad\left(t\to\frac{1}{s^2},\;t^2\to\frac{2}{s^3},\;t^3\to\frac{6}{s^4}\right).
+$$
+
+Combined with the $s$-shift: $\L\{t^n e^{-at}\}=\frac{n!}{(s+a)^{n+1}}$. These two pairs are used on p8 and in the repeated-root case.
+
+Mini-example: $\L\{t\,e^{-4t}\}$: $\L\{e^{-4t}\}=\frac{1}{s+4}$, so $-\frac{d}{ds}(s+4)^{-1}=(s+4)^{-2}=\frac{1}{(s+4)^2}$.
+
+### Initial value theorem
+
+<Src p="5" /> <Term en="Initial value theorem" tr="İlk Değer Teoremi" />:
+
+<KeyFormula title="Initial value theorem (IVT)">
+
+$$
+f(0^+)=\lim_{t\to0}f(t)\;\Longrightarrow\;f(0^+)=\lim_{s\to\infty}sF(s)
+$$
+
+</KeyFormula>
+
+It gives the value of the signal just after $t=0$ **without inverting** $F(s)$.
+
+Why (using the derivative property derived below, $\L\{f'\}=sF(s)-f(0)$): as $s\to\infty$ the weight $e^{-st}$ vanishes for every $t>0$, so $\int_{0^+}^\infty f'(t)e^{-st}dt\to0$. Hence $sF(s)-f(0^+)\to0$, i.e. $sF(s)\to f(0^+)$.
+
+How to use: multiply $F(s)$ by $s$, then let $s\to\infty$ — only the highest powers of $s$ in numerator and denominator matter. For a proper rational $F(s)$ the IVT always gives a finite answer when the numerator degree is exactly one less than the denominator degree, and 0 when it is two or more less.
+
+Mini-example: $F(s)=\frac{3}{s+2}$ ($f=3e^{-2t}$): $\lim_{s\to\infty}\frac{3s}{s+2}=3=f(0)$. ✓
+
+### Final value theorem
+
+<Src p="5" /> <Term en="Final value theorem" tr="Son Değer Teoremi" />:
+
+<KeyFormula title="Final value theorem (FVT)">
+
+$$
+f(\infty)=\lim_{t\to\infty}f(t)\;\Longrightarrow\;f(\infty)=\lim_{s\to0}sF(s)
+$$
+
+</KeyFormula>
+
+It gives the **steady-state** (long-run) value — later in the course this is how steady-state error is computed.
+
+Why: let $s\to0$ in the derivative property. The weight $e^{-st}\to1$, so
+
+$$
+\lim_{s\to0}\int_0^\infty f'(t)e^{-st}\,dt=\int_0^\infty f'(t)\,dt=f(\infty)-f(0)\quad\text{and}\quad\lim_{s\to0}\left[sF(s)-f(0)\right].
+$$
+
+Equating, $f(\infty)=\lim_{s\to0}sF(s)$. But the very first step assumed that $f(\infty)$ **exists**. If $f(t)$ grows or oscillates forever, the formula still produces a number — a wrong one.
+
+<Note title="When the final value theorem is NOT valid (not written in the notes)">
+
+The FVT may be used only if $f(t)$ actually settles to a constant. In terms of poles:
+
+**All poles of $sF(s)$ must lie strictly in the left half-plane** (negative real part).
+
+- A pole of $F(s)$ in the right half-plane (e.g. $\frac{1}{s-2}\leftrightarrow e^{2t}$) → $f$ grows without bound → FVT invalid.
+- A pair of poles on the imaginary axis (e.g. $\frac{\omega}{s^2+\omega^2}$) → $f$ oscillates forever → FVT invalid.
+- A **double** pole at the origin (e.g. $\frac{1}{s^2}\leftrightarrow t$) → $f$ grows → FVT invalid.
+- A **single** pole at the origin is fine: the factor $s$ cancels it — this is exactly the step part that becomes the final value.
+
+Always check the poles before trusting $\lim_{s\to0}sF(s)$.
+
+</Note>
+
+<FvtFailPlot />
+
+The plot shows two signals for which the formula gives a number although the signal has no final value: $\frac{4}{s(s^2+4)}\leftrightarrow1-\cos2t$ (FVT says 1, the signal oscillates between 0 and 2 forever) and $\frac{5}{s(s-1)}\leftrightarrow-5+5e^{t}$ (FVT says $-5$, the signal grows to $+\infty$). The teal curve is the professor's p7 example, where all poles are in the left half-plane and the FVT value $0.5$ is genuine.
+
+### Time shift
+
+<Src p="5" /> <Term en="Shifting property (time shift)" tr="Öteleme Özelliği" />:
+
+<KeyFormula title="Time shift">
+
+$$
+\L\{f(t-t_0)\}=e^{-st_0}F(s)
+$$
+
+</KeyFormula>
+
+Here $f(t-t_0)$ means the **whole signal delayed by $t_0>0$**: it is zero until $t=t_0$ and then repeats $f$. Precisely, it is $f(t-t_0)\,u(t-t_0)$ (the notes leave the $u(t-t_0)$ implicit).
+
+Derivation: the delayed signal is zero for $t<t_0$, so
+
+$$
+\int_{t_0}^\infty f(t-t_0)e^{-st}\,dt\overset{\tau=t-t_0}{=}\int_0^\infty f(\tau)e^{-s(\tau+t_0)}\,d\tau=e^{-st_0}\int_0^\infty f(\tau)e^{-s\tau}\,d\tau=e^{-st_0}F(s).
+$$
+
+Meaning: a delay in time = multiplication by $e^{-st_0}$ (a factor that is *not* a ratio of polynomials — a dead time). Mini-example: $\L\{u(t-3)\}=\frac{e^{-3s}}{s}$; $\L\{\delta(t-2)\}=e^{-2s}$.
+
+<TimeShiftExplorer />
+
+<Mistake title="Shift the argument, not just the switch-on time">
+
+$\L\{t\,u(t-2)\}\neq\frac{e^{-2s}}{s^2}$. The rule needs the function written in terms of $t-t_0$: $t\,u(t-2)=(t-2)u(t-2)+2u(t-2)$, so $\L\{t\,u(t-2)\}=e^{-2s}\left(\frac{1}{s^2}+\frac{2}{s}\right)$.
+
+</Mistake>
+
+### Derivative property
+
+<Src p="6" /> <Term en="Derivative property" tr="Türev Özelliği" />:
+
+<KeyFormula title="Derivative property">
+
+$$
+\L\left\{\frac{d^n}{dt^n}f(t)\right\}=s^nF(s)-s^{n-1}f(0)-s^{n-2}f'(0)-\dots-f^{(n-1)}(0)
+$$
+
+</KeyFormula>
+
+$f(0),f'(0),\dots,f^{(n-1)}(0)$ are the <Term en="initial values (initial conditions)" tr="Başlangıç değerleri" />. (The notes write the last term as $f^{n-1}(0)$, meaning the $(n-1)$-th derivative, and abbreviate the middle terms with dots.)
+
+Derivation for $n=1$ — integration by parts with $u=e^{-st}$, $dv=f'(t)dt$:
+
+$$
+\L\{f'(t)\}=\int_0^\infty f'(t)e^{-st}\,dt=\Big[f(t)e^{-st}\Big]_0^\infty-\int_0^\infty f(t)(-s)e^{-st}\,dt=\big(0-f(0)\big)+sF(s).
+$$
+
+$$
+\L\{f'\}=sF(s)-f(0).
+$$
+
+For $n=2$ apply the same rule to $g=f'$:
+
+$$
+\L\{f''\}=s\,\L\{f'\}-f'(0)=s\big(sF(s)-f(0)\big)-f'(0)=s^2F(s)-sf(0)-f'(0).
+$$
+
+Each further derivative multiplies by $s$ and subtracts the next initial value — that is the general pattern.
+
+Why it matters: this is the property that turns a differential equation into algebra, and it **automatically inserts the initial conditions**. With zero initial conditions, simply $\frac{d^n}{dt^n}\to s^n$.
+
+<Mistake title="Forgetting the initial conditions">
+
+$\L\{y'\}$ is $sY(s)-y(0)$, not $sY(s)$. If $y(0)\neq0$ and you drop it, you solve a different problem (see the [worked example](#/m/03/solving-differential-equations)).
+
+</Mistake>
+
+### Integral property
+
+<Src p="6" /> <Term en="Integral property" tr="İntegral Özelliği" />:
+
+<KeyFormula title="Integral property">
+
+$$
+\L\left\{\int_0^t f(t)\,dt\right\}=\frac{F(s)}{s}
+$$
+
+</KeyFormula>
+
+(The integration variable is normally written with another letter, $\int_0^t f(\tau)d\tau$; the notes reuse $t$.)
+
+Derivation: let $g(t)=\int_0^t f(\tau)d\tau$. Then $g'(t)=f(t)$ and $g(0)=0$ (an integral over zero length). The derivative property gives $F(s)=\L\{g'\}=sG(s)-g(0)=sG(s)$, so $G(s)=F(s)/s$.
+
+Meaning: **integration in time ⇔ division by $s$**, the inverse of differentiation ⇔ multiplication by $s$. Mini-example: $\int_0^t 1\,d\tau=t$, and indeed $\frac{1/s}{s}=\frac{1}{s^2}$.
+
+## Transform table
+
+Everything in the notes, gathered for quick lookup (<Term en="transform table" tr="dönüşüm tablosu" />). All signals are understood to be multiplied by $u(t)$ (zero for $t<0$).
+
+| # | $f(t)$ | $F(s)$ | Source |
+|---|---|---|---|
+| 1 | $\delta(t)$ | $1$ | p2 |
+| 2 | $u(t)$ | $\dfrac{1}{s}$ | p1 |
+| 3 | $t$ (ramp $r(t)$) | $\dfrac{1}{s^2}$ | p2 |
+| 4 | $t^n$ | $\dfrac{n!}{s^{n+1}}$ | p5 (from $t^n$ rule), used p8 |
+| 5 | $e^{-at}$ | $\dfrac{1}{s+a}$ | p3 |
+| 6 | $t\,e^{-at}$ | $\dfrac{1}{(s+a)^2}$ | used p8 |
+| 7 | $\dfrac{t^{n-1}}{(n-1)!}e^{-at}$ | $\dfrac{1}{(s+a)^n}$ | p11 |
+| 8 | $\sin\omega t$ | $\dfrac{\omega}{s^2+\omega^2}$ | p3 |
+| 9 | $\cos\omega t$ | $\dfrac{s}{s^2+\omega^2}$ | p4 |
+| 10 | $e^{-at}\sin\omega t$ | $\dfrac{\omega}{(s+a)^2+\omega^2}$ | used p15 |
+| 11 | $e^{-at}\cos\omega t$ | $\dfrac{s+a}{(s+a)^2+\omega^2}$ | used p8, p15 |
+| 12 | $2\lvert K\rvert e^{-\alpha t}\cos(\omega t+\theta)$ | $\dfrac{K}{s+\alpha-j\omega}+\dfrac{K^*}{s+\alpha+j\omega}$ | p13 |
+
+| Property | Time domain | $s$-domain | Source |
+|---|---|---|---|
+| Linearity | $af_1\pm bf_2$ | $aF_1\pm bF_2$ | p5 |
+| $s$-shift | $e^{\pm at}f(t)$ | $F(s\mp a)$ | p5 |
+| Multiplication by $t^n$ | $t^nf(t)$ | $(-1)^n\dfrac{d^nF}{ds^n}$ | p5 |
+| Time shift | $f(t-t_0)u(t-t_0)$ | $e^{-st_0}F(s)$ | p5 |
+| Derivative | $f'(t)$ | $sF(s)-f(0)$ | p6 |
+| Second derivative | $f''(t)$ | $s^2F(s)-sf(0)-f'(0)$ | p6 |
+| Integral | $\int_0^tf\,d\tau$ | $\dfrac{F(s)}{s}$ | p6 |
+| IVT | $f(0^+)$ | $\lim_{s\to\infty}sF(s)$ | p5 |
+| FVT | $f(\infty)$ | $\lim_{s\to0}sF(s)$ (poles of $sF$ in LHP) | p5 |
+
+## Worked examples of the properties
+
+### Professor's examples (p6–p7)
+
+<Example title="Integro-differential equation to Y(s)" src="6">
+
+<Step title="Given and asked">
+
+$$
+\frac{dy}{dt}+3y+\int_0^t y\,dt=u(t),\qquad y(0)=1,\qquad Y(s)=\,?
+$$
+
+The equation contains a derivative **and** an integral of the unknown (an *integro-differential equation*). In time that is awkward; in $s$ both become simple factors.
+
+</Step>
+
+<Step title="Transform every term">
+
+Use the derivative property for $\frac{dy}{dt}$, linearity for $3y$, the integral property for $\int_0^t y\,dt$, and the step transform for $u(t)$:
+
+$$
+sY(s)-y(0)+3Y(s)+\frac{Y(s)}{s}=\frac{1}{s}.
+$$
+
+</Step>
+
+<Step title="Insert the initial value and clear the fraction">
+
+With $y(0)=1$, move it to the right: $sY+3Y+\frac{Y}{s}=\frac1s+1$. Write the left side over the common denominator $s$:
+
+$$
+\frac{s^2Y(s)+3sY(s)+Y(s)}{s}=\frac{1}{s}+1=\frac{1+s}{s}.
+$$
+
+</Step>
+
+<Step title="Solve for Y(s)">
+
+Multiply both sides by $s$: $Y(s)\,(s^2+3s+1)=s+1$.
+
+</Step>
+
+<Answer>
+
+$$
+Y(s)=\frac{s+1}{s^2+3s+1}
+$$
+
+</Answer>
+
+Sanity check with the IVT: $\lim_{s\to\infty}sY(s)=\lim\frac{s^2+s}{s^2+3s+1}=1=y(0)$ ✓ — the transform "remembers" the initial value we put in. (The time-domain solution is [Exercise "Time response of the p6 example"](#/m/03/practice-exercises).)
+
+</Example>
+
+<Example title="Transform of a damped t sin 4t plus a delayed impulse" src="7">
+
+<Step title="Given and asked">
+
+$$
+f(t)=e^{-2t}\,t\,\sin(4t)+5\delta(t-2),\qquad F(s)=\,?
+$$
+
+By linearity, treat the two terms separately. The first is a product of three factors — exactly the situation the properties are for: start from the innermost known transform ($\sin4t$), then apply "multiplication by $t$", then "multiplication by $e^{-2t}$".
+
+</Step>
+
+<Step title="Start from the table">
+
+$$
+\L\{\sin4t\}=\frac{4}{s^2+16}\qquad(\omega=4).
+$$
+
+</Step>
+
+<Step title="Multiply by t (n = 1)">
+
+$$
+\L\{t\sin4t\}=(-1)^1\frac{d}{ds}\left(\frac{4}{s^2+16}\right).
+$$
+
+Derivative by the chain rule: $\frac{d}{ds}\,4(s^2+16)^{-1}=4\cdot(-1)(s^2+16)^{-2}\cdot2s=\frac{-2s\cdot4}{(s^2+16)^2}$. So
+
+$$
+\L\{t\sin4t\}=(-1)\frac{-2s\cdot4}{(s^2+16)^2}=\frac{8s}{(s^2+16)^2}.
+$$
+
+</Step>
+
+<Step title="Multiply by e^(−2t): replace s by s + 2">
+
+$$
+\L\{e^{-2t}\,t\sin4t\}=\frac{8(s+2)}{\left[(s+2)^2+16\right]^2}.
+$$
+
+Every $s$ is replaced — the one in the numerator too.
+
+</Step>
+
+<Step title="The delayed impulse">
+
+$\L\{5\delta(t)\}=5$ (linearity), and a delay of $t_0=2$ multiplies by $e^{-2s}$: $\L\{5\delta(t-2)\}=e^{-2s}\cdot5$.
+
+</Step>
+
+<Answer>
+
+$$
+F(s)=\frac{8(s+2)}{\left[(s+2)^2+16\right]^2}+5e^{-2s}
+$$
+
+</Answer>
+
+Order matters in this kind of problem: apply $t$ first, then $e^{-2t}$. (Doing the shift first and then differentiating also works — $-\frac{d}{ds}\frac{4}{(s+2)^2+16}$ gives the same result — but mixing them up, e.g. differentiating and forgetting to shift the numerator $s$, is the typical error.) Numerical check: at $s=1$ the formula gives $\frac{24}{625}=0.0384$, and integrating $e^{-2t}t\sin4t\,e^{-t}$ numerically gives $0.0384$ ✓.
+
+</Example>
+
+<Example title="Initial and final values from F(s)" src="7">
+
+<Step title="Given and asked">
+
+$$
+F(s)=\frac{s+2}{s(s^2+2s+4)}\quad\text{ise}\quad f(0)=\,?\;;\;f(\infty)=\,?
+$$
+
+("ise" = "if/then".) We are not asked for $f(t)$ — only its start and end — so the IVT and FVT are the right tools.
+
+</Step>
+
+<Step title="Initial value">
+
+$$
+f(0)=\lim_{s\to\infty}sF(s)=\lim_{s\to\infty}\cancel{s}\,\frac{s+2}{\cancel{s}(s^2+2s+4)}=\lim_{s\to\infty}\frac{s+2}{s^2+2s+4}=0 .
+$$
+
+The denominator is one degree higher, so the ratio goes to 0.
+
+</Step>
+
+<Step title="Check that the FVT is allowed">
+
+Poles of $sF(s)=\frac{s+2}{s^2+2s+4}$: $s=\frac{-2\pm\sqrt{4-16}}{2}=-1\pm j\sqrt3$. Both have real part $-1$ — left half-plane ✓. (The notes skip this check; it is good practice to write it.)
+
+</Step>
+
+<Step title="Final value">
+
+$$
+f(\infty)=\lim_{s\to0}sF(s)=\lim_{s\to0}\frac{s+2}{s^2+2s+4}=\frac{2}{4}=0.5 .
+$$
+
+(The notes write $0{,}5$ with a decimal comma.)
+
+</Step>
+
+<Answer>
+
+$$
+f(0)=0,\qquad f(\infty)=0.5
+$$
+
+</Answer>
+
+Check by inverting (techniques from later in this module): $F(s)=\frac{0.5}{s}-\frac{0.5s}{s^2+2s+4}$ gives $f(t)=0.5-0.5e^{-t}\left(\cos\sqrt3t-\frac{1}{\sqrt3}\sin\sqrt3t\right)$, so $f(0)=0.5-0.5=0$ and $f(\infty)=0.5$ ✓.
+
+<P7IvtFvtPlot />
+
+</Example>
+
+### More forward-transform examples
+
+<Example title="Linearity: a sum of basic signals">
+
+<Step title="Given">
+
+$f(t)=3-2e^{-4t}+5\cos2t$ (for $t\ge0$). Find $F(s)$.
+
+</Step>
+
+<Step title="Term by term">
+
+$3=3u(t)\to\frac3s$; $\;-2e^{-4t}\to-\frac{2}{s+4}$ ($a=4$); $\;5\cos2t\to5\frac{s}{s^2+4}$ ($\omega=2$, so $\omega^2=4$).
+
+</Step>
+
+<Answer>
+
+$$
+F(s)=\frac{3}{s}-\frac{2}{s+4}+\frac{5s}{s^2+4}
+$$
+
+</Answer>
+
+Check with the IVT: $\lim_{s\to\infty}sF=3-2+5=6=f(0)=3-2+5$ ✓.
+
+</Example>
+
+<Example title="Damped sine via the s-shift">
+
+<Step title="Given">
+
+$f(t)=e^{-3t}\sin2t$. Find $F(s)$.
+
+</Step>
+
+<Step title="Base transform, then shift">
+
+$\L\{\sin2t\}=\frac{2}{s^2+4}$. Multiplication by $e^{-3t}$ (lower sign, $a=3$) replaces $s$ by $s+3$:
+
+$$
+F(s)=\frac{2}{(s+3)^2+4}=\frac{2}{s^2+6s+13}.
+$$
+
+</Step>
+
+<Answer>
+
+$$
+\L\{e^{-3t}\sin2t\}=\frac{2}{(s+3)^2+4}
+$$
+
+</Answer>
+
+Interpretation: poles $-3\pm j2$ — decay rate 3 (real part), oscillation frequency 2 (imaginary part). Reading poles like this becomes second nature in later modules.
+
+</Example>
+
+<Example title="Sign trap in the s-shift: a growing exponential">
+
+<Step title="Given">
+
+$f(t)=e^{2t}\cos t$. Find $F(s)$.
+
+</Step>
+
+<Step title="The tempting wrong answer">
+
+"Exponential with a 2, so $s+2$": $\frac{s+2}{(s+2)^2+1}$. **Wrong.** That is the transform of $e^{-2t}\cos t$.
+
+</Step>
+
+<Step title="Correct use of the rule">
+
+$e^{+at}f_1\to F_1(s-a)$: the sign **flips**. With $a=2$, replace $s$ by $s-2$ in $\frac{s}{s^2+1}$:
+
+$$
+F(s)=\frac{s-2}{(s-2)^2+1}.
+$$
+
+</Step>
+
+<Answer>
+
+$$
+\L\{e^{2t}\cos t\}=\frac{s-2}{(s-2)^2+1}
+$$
+
+</Answer>
+
+Sanity check by pole location: $f$ grows, so the poles must be in the right half-plane — they are at $2\pm j$ ✓. The wrong answer would have poles at $-2\pm j$ (decaying), which contradicts the signal.
+
+</Example>
+
+<Example title="Transform of t cos 3t">
+
+<Step title="Given">
+
+$f(t)=t\cos3t$. Find $F(s)$.
+
+</Step>
+
+<Step title="Multiplication by t">
+
+$\L\{\cos3t\}=\frac{s}{s^2+9}$. Quotient rule $\left(\frac{u}{v}\right)'=\frac{u'v-uv'}{v^2}$ with $u=s$, $v=s^2+9$:
+
+$$
+\frac{d}{ds}\frac{s}{s^2+9}=\frac{1\cdot(s^2+9)-s\cdot2s}{(s^2+9)^2}=\frac{9-s^2}{(s^2+9)^2}.
+$$
+
+Multiply by $(-1)^1$:
+
+</Step>
+
+<Answer>
+
+$$
+\L\{t\cos3t\}=\frac{s^2-9}{(s^2+9)^2}
+$$
+
+</Answer>
+
+Check at $s=1$: formula gives $\frac{-8}{100}=-0.08$; numerical integration of $t\cos3t\,e^{-t}$ gives $-0.08$ ✓. Note the **double** poles at $\pm j3$ — the signature of an oscillation whose amplitude grows like $t$.
+
+</Example>
+
+<Example title="t squared times e^-t two ways">
+
+<Step title="Way 1: multiplication by t squared">
+
+$\L\{e^{-t}\}=(s+1)^{-1}$. Then $\frac{d}{ds}(s+1)^{-1}=-(s+1)^{-2}$ and $\frac{d^2}{ds^2}(s+1)^{-1}=2(s+1)^{-3}$. With $(-1)^2=1$: $\L\{t^2e^{-t}\}=\frac{2}{(s+1)^3}$.
+
+</Step>
+
+<Step title="Way 2: power rule then s-shift">
+
+$\L\{t^2\}=\frac{2!}{s^3}=\frac{2}{s^3}$; multiply by $e^{-t}$ → replace $s$ by $s+1$: $\frac{2}{(s+1)^3}$.
+
+</Step>
+
+<Answer>
+
+$$
+\L\{t^2e^{-t}\}=\frac{2}{(s+1)^3}
+$$
+
+</Answer>
+
+Both routes agree, as they must. This pair reappears in the professor's repeated-root example on p12.
+
+</Example>
+
+<Example title="Delayed step, delayed ramp and a rectangular pulse">
+
+<Step title="Delayed step">
+
+$u(t-3)$: $F=\frac1s$, $t_0=3$ → $\frac{e^{-3s}}{s}$.
+
+</Step>
+
+<Step title="Delayed ramp">
+
+$(t-2)u(t-2)$ is the ramp shifted by 2 → $\frac{e^{-2s}}{s^2}$.
+
+</Step>
+
+<Step title="Rectangular pulse of height 1 from t = 0 to t = 1">
+
+The pulse is "on at 0, off at 1": $p(t)=u(t)-u(t-1)$. Linearity and time shift: $\frac1s-\frac{e^{-s}}{s}$.
+
+</Step>
+
+<Answer>
+
+$$
+u(t-3)\to\frac{e^{-3s}}{s},\qquad (t-2)u(t-2)\to\frac{e^{-2s}}{s^2},\qquad u(t)-u(t-1)\to\frac{1-e^{-s}}{s}
+$$
+
+</Answer>
+
+This is how a switch-on/switch-off input (e.g. a heater run for one hour) is described in the $s$-domain.
+
+</Example>
+
+### More IVT and FVT examples
+
+<Example title="IVT and FVT with a check by inversion">
+
+<Step title="Given">
+
+$F(s)=\frac{10(s+2)}{s(s+5)}$. Find $f(0^+)$ and $f(\infty)$.
+
+</Step>
+
+<Step title="IVT">
+
+$sF(s)=\frac{10(s+2)}{s+5}$; as $s\to\infty$ this tends to $10$.
+
+</Step>
+
+<Step title="FVT — check first">
+
+Poles of $sF(s)$: only $s=-5$ (LHP) ✓. Then $\lim_{s\to0}\frac{10(s+2)}{s+5}=\frac{20}{5}=4$.
+
+</Step>
+
+<Answer>
+
+$$
+f(0^+)=10,\qquad f(\infty)=4
+$$
+
+</Answer>
+
+Check by inversion: $\frac{10(s+2)}{s(s+5)}=\frac{4}{s}+\frac{6}{s+5}$ (coefficients by the cover-up rule below), so $f(t)=4+6e^{-5t}$: $f(0)=10$ ✓, $f(\infty)=4$ ✓.
+
+</Example>
+
+<Example title="Applying the FVT illegally">
+
+<Step title="Given">
+
+$F(s)=\frac{5}{s(s-1)}$. A student writes $f(\infty)=\lim_{s\to0}sF(s)=\frac{5}{-1}=-5$.
+
+</Step>
+
+<Step title="Check the poles">
+
+$sF(s)=\frac{5}{s-1}$ has a pole at $s=+1$ — **right half-plane**. The FVT is not allowed.
+
+</Step>
+
+<Step title="What really happens">
+
+$\frac{5}{s(s-1)}=\frac{-5}{s}+\frac{5}{s-1}$, so $f(t)=-5+5e^{t}\to+\infty$.
+
+</Step>
+
+<Answer>
+
+$f(\infty)$ does not exist ($f$ grows without bound). The "$-5$" is meaningless — it even has the wrong sign.
+
+</Answer>
+
+</Example>
+
+<Example title="IVT and FVT on the professor's ODE result">
+
+<Step title="Given">
+
+The p6 result $Y(s)=\frac{s+1}{s^2+3s+1}$ with $y(0)=1$.
+
+</Step>
+
+<Step title="IVT">
+
+$\lim_{s\to\infty}\frac{s(s+1)}{s^2+3s+1}=1$ ✓ (matches the given $y(0)=1$).
+
+</Step>
+
+<Step title="FVT">
+
+Roots of $s^2+3s+1$: $s=\frac{-3\pm\sqrt{9-4}}{2}=\frac{-3\pm\sqrt5}{2}\approx-0.382,\;-2.618$, both negative ✓. Then $\lim_{s\to0}\frac{s(s+1)}{s^2+3s+1}=\frac{0}{1}=0$.
+
+</Step>
+
+<Answer>
+
+$$
+y(0^+)=1,\qquad y(\infty)=0
+$$
+
+</Answer>
+
+Interpretation: although a step input $u(t)$ is applied, the output returns to 0 — the integral term $\int y\,dt$ in the equation keeps pushing it back. Theorems like these let you predict such behaviour without solving the equation.
+
+</Example>
+
+## Inverse Laplace transform
+
+<Src p="8" /> <Term en="Inverse Laplace transform" tr="Ters Laplace Dönüşümü" />: given $F(s)$, find $f(t)=\Li\{F(s)\}$.
+
+The notes say: *to find the time-domain expression of a Laplace function, look at the Laplace properties and the transform table; in this way the time-domain expression can be written directly.* In practice: make each term of $F(s)$ look **exactly** like a table entry — by pulling out constants, creating the right numerator ($\omega$, $n!$, $s+a$) and completing the square — then read off $f(t)$.
+
+<Example title="Inverse transform by table" src="8">
+
+<Step title="Given">
+
+$$
+F(s)=\frac{2}{s}-\frac{1}{s^3}-\frac{3}{(s+4)^2}+\frac{5}{s^2+4}+\frac{s+1}{s^2+2s+4}
+$$
+
+By linearity, invert term by term.
+
+</Step>
+
+<Step title="2/s">
+
+$\frac{2}{s}=2\cdot\frac{1}{s}\;\Rightarrow\;2u(t)$.
+
+</Step>
+
+<Step title="−1/s³: create the n! of the t^n pair">
+
+The table has $\frac{n!}{s^{n+1}}\leftrightarrow t^n$; here $n+1=3$, $n=2$, so the numerator must be $2!=2$:
+
+$$
+-\frac{1}{s^3}=\frac{-1}{2!}\cdot\frac{2!}{s^3}\;\Rightarrow\;-\frac12t^2 .
+$$
+
+</Step>
+
+<Step title="−3/(s+4)²">
+
+$\frac{1}{(s+a)^2}\leftrightarrow t\,e^{-at}$ with $a=4$: $\;-3\frac{1}{(s+4)^2}\Rightarrow-3e^{-4t}\,t$.
+
+</Step>
+
+<Step title="(s+1)/(s²+2s+4): complete the square">
+
+$s^2+2s+4=(s^2+2s+1)+3=(s+1)^2+(\sqrt3)^2$. The numerator is already $s+1$, so this is the damped cosine with $a=1$, $\omega=\sqrt3$:
+
+$$
+\frac{s+1}{(s+1)^2+(\sqrt3)^2}\;\Rightarrow\;e^{-t}\cos(\sqrt3t).
+$$
+
+</Step>
+
+<Step title="5/(s²+4): create the ω of the sine">
+
+$\omega^2=4$, $\omega=2$, but the numerator is 5, not 2: $\frac{5}{s^2+4}=\frac{2.5\cdot2}{s^2+(2)^2}\Rightarrow2.5\sin(2t)$. (Written $2{,}5$ in the notes.)
+
+</Step>
+
+<Answer>
+
+$$
+f(t)=2u(t)-\frac{t^2}{2}-3e^{-4t}\,t+2.5\sin(2t)+e^{-t}\cos(\sqrt3t)
+$$
+
+</Answer>
+
+Check: at $t=0$, $f=2-0-0+0+1=3$; the IVT on $F$ gives $2-0-0+0+1=3$ ✓ (only terms with numerator degree one less than the denominator contribute). Numerically at $s=1$: $F(1)=2.1657$, and the Laplace integral of the answer is also $2.1657$ ✓.
+
+</Example>
+
+## Partial fraction expansion
+
+<Src p="9" /> All terms of the p8 example were already in table form. The notes continue: *in general we will not meet terms of that form; we then need to break the expression into its simple components using reduction methods.* The method is <Term en="partial fraction decomposition" tr="Basit Kesirlere Ayırma Yöntemi" />: rewrite
+
+$$
+F(s)=\frac{N(s)}{D(s)}\qquad(N=\text{numerator, pay};\;D=\text{denominator, payda})
+$$
+
+as a **sum** of small fractions, each of which is a table entry. Which small fractions appear depends on the roots of the <Term en="denominator polynomial" tr="payda polinomu" /> — the **poles** — and there are three cases in the notes.
+
+<Note title="Proper fractions">
+
+Partial fractions as taught here require the numerator degree to be **smaller** than the denominator degree (a *proper* fraction). All examples in the notes satisfy this. If it were not the case, you would first divide the polynomials; that never happens in this module.
+
+</Note>
+
+### Distinct real roots
+
+<Src p="9" /> <Term en="Real and distinct roots case" tr="Gerçek ve Ayrık Kök Durumu" />. Let
+
+$$
+F(s)=\frac{N(s)}{(s+p_1)(s+p_2)\cdots(s+p_n)}
+$$
+
+with all $p_i$ real and different. Then
+
+$$
+F(s)=\frac{K_1}{s+p_1}+\frac{K_2}{s+p_2}+\dots+\frac{K_n}{s+p_n}
+$$
+
+and, since each term is $\frac{K_i}{s+p_i}\leftrightarrow K_ie^{-p_it}$,
+
+$$
+f(t)=K_1e^{-p_1t}+K_2e^{-p_2t}+\dots+K_ne^{-p_nt}.
+$$
+
+<Note title="Wording: 'roots p' vs. poles −p">
+
+The notes call the $p_i$ "the roots" (p kökleri). Strictly, the roots of the denominator (the poles) are $s=-p_1,\,-p_2,\dots$ — the values that make a factor $s+p_i$ zero. The formulas are written consistently with that: the limit is taken as $s\to-p_i$.
+
+</Note>
+
+To find the coefficients <Src p="10" />:
+
+<KeyFormula title="Residue (cover-up) formula — distinct roots">
+
+$$
+K_i=\lim_{s\to-p_i}\Big\{(s+p_i)F(s)\Big\}
+$$
+
+</KeyFormula>
+
+**Why it works.** Multiply the whole expansion by $(s+p_1)$:
+
+$$
+(s+p_1)F(s)=K_1+K_2\frac{s+p_1}{s+p_2}+\dots+K_n\frac{s+p_1}{s+p_n}.
+$$
+
+On the left, $(s+p_1)$ cancels the same factor in the denominator of $F$. Now set $s=-p_1$: every term on the right except $K_1$ contains the factor $(s+p_1)=0$ and disappears. What is left is $K_1$. In practice: **cover up** the factor $(s+p_i)$ in the denominator of $F$ and evaluate everything else at $s=-p_i$. This is called the *cover-up rule*; $K_i$ is called the *residue* at the pole $-p_i$.
+
+<Example title="Partial fractions with three distinct real roots" src="10">
+
+<Step title="Given and form of the expansion">
+
+$$
+F(s)=\frac{s^2+2s+2}{(s+1)(s+2)(s-3)}=\frac{K_1}{s+1}+\frac{K_2}{s+2}+\frac{K_3}{s-3}.
+$$
+
+Poles $-1,-2,+3$: real and distinct. (Note $s-3$ means $p_3=-3$, a pole at $+3$.)
+
+</Step>
+
+<Step title="K1: cover (s+1), put s = −1">
+
+$$
+K_1=\lim_{s\to-1}(s+1)F(s)=\left.\frac{s^2+2s+2}{(s+2)(s-3)}\right|_{s=-1}=\frac{1-2+2}{(1)(-4)}=\frac{-1}{4}.
+$$
+
+</Step>
+
+<Step title="K2: cover (s+2), put s = −2">
+
+$$
+K_2=\left.\frac{s^2+2s+2}{(s+1)(s-3)}\right|_{s=-2}=\frac{4-4+2}{(-1)(-5)}=\frac{2}{5}.
+$$
+
+</Step>
+
+<Step title="K3: cover (s−3), put s = 3">
+
+$$
+K_3=\left.\frac{s^2+2s+2}{(s+1)(s+2)}\right|_{s=3}=\frac{9+6+2}{(4)(5)}=\frac{17}{20}.
+$$
+
+</Step>
+
+<Step title="Invert term by term">
+
+$\frac{K}{s+a}\to Ke^{-at}$; for $s-3$, $a=-3$, giving $e^{3t}$.
+
+</Step>
+
+<Answer>
+
+$$
+f(t)=-\frac14e^{-t}+\frac25e^{-2t}+\frac{17}{20}e^{3t}
+$$
+
+</Answer>
+
+Checks: (1) recombine at $s=4$: $F(4)=\frac{26}{30}=0.8667$, and $-\frac{1}{20}+\frac{2}{30}+\frac{17}{20}=0.8667$ ✓. (2) IVT: $f(0)=-0.25+0.4+0.85=1$ and $\lim_{s\to\infty}sF=1$ ✓. (3) The FVT does **not** apply (pole at $+3$): $f(t)$ grows like $e^{3t}$.
+
+</Example>
+
+<Example title="Distinct roots with a pole at the origin">
+
+<Step title="Given">
+
+$F(s)=\frac{2s+3}{s(s+1)(s+3)}=\frac{K_1}{s}+\frac{K_2}{s+1}+\frac{K_3}{s+3}$.
+
+</Step>
+
+<Step title="Coefficients by cover-up">
+
+$K_1=\left.\frac{2s+3}{(s+1)(s+3)}\right|_{s=0}=\frac{3}{3}=1$
+
+$K_2=\left.\frac{2s+3}{s(s+3)}\right|_{s=-1}=\frac{1}{(-1)(2)}=-\frac12$
+
+$K_3=\left.\frac{2s+3}{s(s+1)}\right|_{s=-3}=\frac{-3}{(-3)(-2)}=-\frac12$
+
+</Step>
+
+<Answer>
+
+$$
+f(t)=1-\frac12e^{-t}-\frac12e^{-3t}
+$$
+
+</Answer>
+
+Checks: $f(0)=1-0.5-0.5=0$ and IVT $\lim_{s\to\infty}\frac{2s^2+3s}{s^3+\dots}=0$ ✓; FVT (poles of $sF$ at $-1,-3$) gives $\frac{3}{3}=1=f(\infty)$ ✓. Sum of coefficients $1-\frac12-\frac12=0=f(0)$ — a quick consistency test for any proper $F$ whose numerator degree is at least two less than the denominator.
+
+</Example>
+
+### Repeated real roots
+
+<Src p="11" /> <Term en="Real and repeated (multiple) roots case" tr="Gerçek ve Katlı Kök Durumu" />. If the denominator has a root repeated $n$ times, the expansion must contain **every power** of that factor up to $n$:
+
+$$
+F(s)=\frac{N(s)}{(s+p)^n}=\frac{K_1}{(s+p)^n}+\frac{K_2}{(s+p)^{n-1}}+\dots+\frac{K_n}{s+p}.
+$$
+
+Each term is inverted with table entry 7, $\frac{1}{(s+p)^k}\leftrightarrow\frac{t^{k-1}}{(k-1)!}e^{-pt}$ (which is just $\L\{t^n\}=\frac{n!}{s^{n+1}}$ plus the $s$-shift):
+
+$$
+f(t)=K_1\frac{t^{n-1}}{(n-1)!}e^{-pt}+K_2\frac{t^{n-2}}{(n-2)!}e^{-pt}+\dots+K_ne^{-pt}.
+$$
+
+<KeyFormula title="Coefficients for an n-fold root at s = −p">
+
+$$
+K_i=\lim_{s\to-p}\frac{1}{(i-1)!}\,\frac{d^{\,i-1}}{ds^{\,i-1}}\Big[(s+p)^nF(s)\Big],\qquad i=1,2,\dots,n
+$$
+
+</KeyFormula>
+
+<Note title="Correction to the notes: s = −p, not s = p">
+
+The notes say the root is repeated "at the point $s=p$" and write the limit as $\lim_{s\to p}$. With the factor $(s+p)^n$, the root is at $s=-p$ (that is where $s+p=0$), so the limit must be $s\to-p$. The professor's own example on p12 does it correctly: for $(s+1)^3$ the limit is $s\to-1$.
+
+</Note>
+
+**Why the derivatives are needed.** Multiply the expansion by $(s+p)^n$ (for simplicity, $F$ has only this repeated factor):
+
+$$
+(s+p)^nF(s)=K_1+K_2(s+p)+K_3(s+p)^2+\dots+K_n(s+p)^{n-1}.
+$$
+
+- At $s=-p$ every term except $K_1$ vanishes → $K_1=\big[(s+p)^nF\big]_{s=-p}$. That is the cover-up rule again, but it only gives the **first** coefficient.
+- The cover-up trick cannot reach $K_2$: multiplying by $(s+p)^{n-1}$ instead would leave $\frac{K_1}{s+p}$, which blows up at $s=-p$.
+- Differentiate once: $\frac{d}{ds}\big[(s+p)^nF\big]=K_2+2K_3(s+p)+3K_4(s+p)^2+\dots$. At $s=-p$ only $K_2$ survives.
+- Differentiate twice: $2K_3+3\cdot2K_4(s+p)+\dots$. At $s=-p$ this is $2K_3=2!\,K_3$ — hence the factor $\frac{1}{2!}$.
+- In general the $(i-1)$-th derivative leaves $(i-1)!\,K_i$, which explains the $\frac{1}{(i-1)!}$.
+
+So differentiation peels off one power of $(s+p)$ at a time, exactly like reading the coefficients of a Taylor series.
+
+If $F$ also has other (distinct) poles, those terms are handled with the ordinary cover-up rule; after multiplying by $(s+p)^n$ they still contain $(s+p)^n$ and vanish at $s=-p$ together with their first $n-1$ derivatives, so the formula above is unaffected.
+
+<Example title="Partial fractions with a triple root" src="12">
+
+<Step title="Given and form">
+
+$$
+F(s)=\frac{s+3}{(s+1)^3(s+2)}
+$$
+
+At $s=-1$ there is a 3-fold root (*3 tane katlı kök*), and a simple root at $s=-2$:
+
+$$
+F(s)=\frac{K_1}{(s+1)^3}+\frac{K_2}{(s+1)^2}+\frac{K_3}{s+1}+\frac{A}{s+2}.
+$$
+
+</Step>
+
+<Step title="A — distinct-root method">
+
+$$
+A=\lim_{s\to-2}(s+2)F(s)=\left.\frac{s+3}{(s+1)^3}\right|_{s=-2}=\frac{1}{(-1)^3}=-1.
+$$
+
+</Step>
+
+<Step title="K1 — no derivative">
+
+$(s+1)^3F(s)=\frac{s+3}{s+2}$.
+
+$$
+K_1=\left.\frac{s+3}{s+2}\right|_{s=-1}=\frac{2}{1}=2.
+$$
+
+</Step>
+
+<Step title="K2 — first derivative">
+
+Quotient rule:
+
+$$
+K_2=\lim_{s\to-1}\left[\frac{1}{1!}\frac{d}{ds}\left(\frac{s+3}{s+2}\right)\right]=\left.\frac{(s+2)-(s+3)}{(s+2)^2}\right|_{s=-1}=\left.\frac{-1}{s^2+4s+4}\right|_{s=-1}=\frac{-1}{1-4+4}=-1.
+$$
+
+</Step>
+
+<Step title="K3 — second derivative">
+
+Differentiate the result of the previous step once more, $\frac{d}{ds}\frac{-1}{s^2+4s+4}=\frac{2s+4}{(s^2+4s+4)^2}$:
+
+$$
+K_3=\lim_{s\to-1}\frac{1}{2!}\frac{d}{ds}\left(\frac{-1}{s^2+4s+4}\right)=\left.\frac12\cdot\frac{2s+4}{(s^2+4s+4)^2}\right|_{s=-1}=\frac12\cdot\frac{2}{1}=1.
+$$
+
+</Step>
+
+<Step title="Invert">
+
+$\frac{2}{(s+1)^3}\to2\cdot\frac{t^2}{2!}e^{-t}$, $\;\frac{-1}{(s+1)^2}\to-te^{-t}$, $\;\frac{1}{s+1}\to e^{-t}$, $\;\frac{-1}{s+2}\to-e^{-2t}$.
+
+</Step>
+
+<Answer>
+
+$$
+f(t)=2\cdot\frac{1}{2!}t^2e^{-t}-te^{-t}+e^{-t}-e^{-2t}=t^2e^{-t}-te^{-t}+e^{-t}-e^{-2t}
+$$
+
+</Answer>
+
+Checks: recombination at $s=1$: $F(1)=\frac{4}{8\cdot3}=0.1667$; $\frac{2}{8}-\frac14+\frac12-\frac13=0.1667$ ✓. $f(0)=0-0+1-1=0$ and IVT $\lim sF=\lim\frac{s^2}{s^4}\to0$ ✓. A shortcut check: $K_3+A=1-1=0$ — the $\frac1s$-like terms must cancel when the numerator degree is at least two below the denominator.
+
+</Example>
+
+<Example title="Repeated root at s = -1 with a pole at the origin">
+
+<Step title="Given and form">
+
+$F(s)=\frac{s+3}{s(s+1)^2}=\frac{K_1}{(s+1)^2}+\frac{K_2}{s+1}+\frac{A}{s}$ (double root, $n=2$).
+
+</Step>
+
+<Step title="A">
+
+$A=\left.\frac{s+3}{(s+1)^2}\right|_{s=0}=3$.
+
+</Step>
+
+<Step title="K1 and K2">
+
+$(s+1)^2F=\frac{s+3}{s}=1+\frac3s$.
+
+$K_1=\left.\frac{s+3}{s}\right|_{s=-1}=\frac{2}{-1}=-2$.
+
+$K_2=\left.\frac{d}{ds}\left(1+\frac3s\right)\right|_{s=-1}=\left.-\frac{3}{s^2}\right|_{s=-1}=-3$.
+
+</Step>
+
+<Answer>
+
+$$
+f(t)=3-2te^{-t}-3e^{-t}
+$$
+
+</Answer>
+
+Checks: $f(0)=3-0-3=0$ ✓ (IVT: $\lim\frac{s+3}{(s+1)^2}=0$). FVT: poles of $sF$ at $-1$ (LHP), $\lim_{s\to0}\frac{s+3}{(s+1)^2}=3=f(\infty)$ ✓. Numerically $F(1)=1$ and $3-\frac{2}{4}-\frac32=1$ ✓.
+
+</Example>
+
+<Mistake title="Missing powers in a repeated-root expansion">
+
+For $(s+1)^3$ you need **three** terms $\frac{K_1}{(s+1)^3}+\frac{K_2}{(s+1)^2}+\frac{K_3}{s+1}$. Writing only $\frac{K_1}{(s+1)^3}$ (or using the cover-up rule for $K_2,K_3$) gives a wrong answer. Count: an $n$-fold root contributes exactly $n$ unknowns.
+
+</Mistake>
+
+### Complex roots
+
+<Src p="13" /> <Term en="Complex roots case" tr="Karmaşık Kök Durumu" />. A polynomial with real coefficients has complex roots only in <Term en="conjugate pairs" tr="eşlenik çiftler" />. Write them as $s_{1,2}=-\alpha\pm j\omega$. Then
+
+$$
+F(s)=\frac{N(s)}{(s+\alpha+j\omega)(s+\alpha-j\omega)}=\frac{K}{s+\alpha-j\omega}+\frac{K^*}{s+\alpha+j\omega}.
+$$
+
+<Note title="Correction to the notes: the roots are −α ± jω">
+
+The notes state the roots as $s_{1,2}=\alpha\pm j\omega$, but the factors $(s+\alpha+j\omega)(s+\alpha-j\omega)$ vanish at $s=-\alpha\mp j\omega$. With the factors as written (and the final formula $2|K|e^{-\alpha t}\cos(\omega t+\theta)$, which decays for $\alpha>0$), the roots are $s_{1,2}=-\alpha\pm j\omega$. Everything else in the derivation is consistent with this.
+
+</Note>
+
+**Why the second coefficient is $K^*$.** $K$ is found with the cover-up rule at the pole $-\alpha+j\omega$. Because $N$ and $D$ have real coefficients, evaluating at the conjugate point gives the conjugate value, $F(\bar s)=\overline{F(s)}$; so the cover-up at $-\alpha-j\omega$ gives exactly $\bar K=K^*$. You only ever compute one of them.
+
+**Deriving the time function (Euler).** Inverting each term like an exponential ($\frac{1}{s+a}\to e^{-at}$ with complex $a$):
+
+$$
+f(t)=Ke^{-(\alpha-j\omega)t}+K^*e^{-(\alpha+j\omega)t}.
+$$
+
+Write $K$ in polar form: $K=|K|\angle\theta=|K|e^{j\theta}$, $K^*=|K|e^{-j\theta}$. Then
+
+$$
+f(t)=|K|e^{-\alpha t}e^{+j\omega t}e^{j\theta}+|K|e^{-\alpha t}e^{-j\omega t}e^{-j\theta}=|K|e^{-\alpha t}\underbrace{\left(e^{j(\omega t+\theta)}+e^{-j(\omega t+\theta)}\right)}_{2\cos(\omega t+\theta)}.
+$$
+
+The bracket is $2\cos(\omega t+\theta)$ by the same Euler identity used for the cosine transform. The imaginary parts cancel — as they must, since $f(t)$ is a real signal.
+
+<KeyFormula title="Complex-conjugate pair">
+
+$$
+\frac{K}{s+\alpha-j\omega}+\frac{K^*}{s+\alpha+j\omega}\;\longleftrightarrow\;f(t)=2|K|\,e^{-\alpha t}\cos(\omega t+\theta),\qquad K=|K|\angle\theta
+$$
+
+</KeyFormula>
+
+Reading it: real part of the pole ($-\alpha$) → **envelope** $e^{-\alpha t}$; imaginary part ($\omega$) → **frequency**; residue $K$ → amplitude $2|K|$ and phase $\theta$. And $K$ is found "with the methods of the distinct-root case" — the cover-up rule, now with complex arithmetic.
+
+<Example title="Partial fractions with complex roots" src="14">
+
+<Step title="Given and roots">
+
+$$
+F(s)=\frac{s+1}{(s+2)(s^2+2s+2)}
+$$
+
+Denominator roots (*payda kökleri*): $s_1=-2$, and from $s^2+2s+2=0$: $s=\frac{-2\pm\sqrt{4-8}}{2}=-1\pm j$. So $\alpha=1$, $\omega=1$.
+
+</Step>
+
+<Step title="Form of the expansion">
+
+$$
+F(s)=\frac{A}{s+2}+\frac{K}{s+1-j}+\frac{K^*}{s+1+j}.
+$$
+
+</Step>
+
+<Step title="A">
+
+$$
+A=\lim_{s\to-2}(s+2)F(s)=\left.\frac{s+1}{s^2+2s+2}\right|_{s=-2}=\frac{-1}{4-4+2}=\frac{-1}{2}.
+$$
+
+</Step>
+
+<Step title="K: cover (s+1−j), put s = −1+j">
+
+$$
+K=\lim_{s\to-1+j}(s+1-j)\frac{s+1}{(s+2)(s+1-j)(s+1+j)}=\left.\frac{s+1}{(s+2)(s+1+j)}\right|_{s=-1+j}=\frac{-1+j+1}{(-1+j+2)(-1+j+1+j)}.
+$$
+
+Simplify: numerator $j$; first factor $1+j$; second factor $2j$:
+
+$$
+K=\frac{\cancel{j}}{(1+j)(2\cancel{j})}=\frac{1}{2(1+j)}.
+$$
+
+</Step>
+
+<Step title="Polar form of K">
+
+$1+j$ has magnitude $\sqrt{1^2+1^2}=\sqrt2$ and angle $\arctan\frac11=45^\circ$, so $2(1+j)=2\sqrt2\angle45^\circ$. Dividing by a complex number divides magnitudes and **subtracts** angles:
+
+$$
+K=\frac{1}{2\sqrt2\angle45^\circ}=\frac{1}{2\sqrt2}\angle-45^\circ,\qquad |K|=\frac{1}{2\sqrt2},\;\theta=-45^\circ,\;\omega=1.
+$$
+
+</Step>
+
+<Step title="Apply the formula">
+
+$2|K|=\frac{2}{2\sqrt2}=\frac{1}{\sqrt2}$, $\alpha=1$:
+
+$$
+2|K|e^{-\alpha t}\cos(\omega t+\theta)=\frac{1}{\sqrt2}e^{-t}\cos(t-45^\circ).
+$$
+
+</Step>
+
+<Answer>
+
+$$
+f(t)=\frac{1}{\sqrt2}e^{-t}\cos(t-45^\circ)-\frac12e^{-2t}
+$$
+
+</Answer>
+
+Checks: $f(0)=\frac{1}{\sqrt2}\cdot\frac{1}{\sqrt2}-\frac12=0$ and IVT $\lim sF=\lim\frac{s^2}{s^3}=0$ ✓. Numerically $F(2)=\frac{3}{4\cdot10}=0.075$ and the Laplace integral of the answer at $s=2$ is $0.0750$ ✓.
+
+</Example>
+
+<Note title="Correction to the notes: the e^(−t) is missing in the p14 answer">
+
+The notes write the final result as $f(t)=\frac{1}{\sqrt2}\cos(t-45^\circ)-\frac12e^{-2t}$ — the envelope $e^{-\alpha t}=e^{-t}$ has been dropped (and $\alpha=1$ is never written down on the page). All the coefficients ($A=-\frac12$, $|K|=\frac{1}{2\sqrt2}$, $\theta=-45^\circ$, $\omega=1$) are correct; only the last line is wrong. Correct:
+
+$$
+f(t)=\frac{1}{\sqrt2}e^{-t}\cos(t-45^\circ)-\frac12e^{-2t}.
+$$
+
+Three ways to see the written answer cannot be right: (1) the poles $-1\pm j$ have real part $-1$, so the oscillation must decay like $e^{-t}$; (2) all poles are in the left half-plane, so the FVT gives $f(\infty)=\lim_{s\to0}sF(s)=0$, but the written answer oscillates forever; (3) at $s=2$ its Laplace transform is $0.175$ instead of $F(2)=0.075$.
+
+</Note>
+
+<P14ComparePlot />
+
+<Mistake title="Forgetting the envelope e^(−αt)">
+
+When writing $2|K|e^{-\alpha t}\cos(\omega t+\theta)$, read $\alpha$ off the **real part of the pole** and write it down explicitly before writing $f(t)$ — exactly the step that went missing on p14. Only if the poles are on the imaginary axis ($\alpha=0$) is there no envelope.
+
+</Mistake>
+
+### Completing the square
+
+<Src p="15" /> An alternative to complex residues: keep the quadratic factor real, rewrite it as $(s+\alpha)^2+\omega^2$, and split the numerator so that each piece matches table entries 10 and 11.
+
+**Completing the square:** $s^2+bs+c=\left(s+\frac b2\right)^2+\left(c-\frac{b^2}{4}\right)$, so $\alpha=\frac b2$ and $\omega=\sqrt{c-\frac{b^2}{4}}$ (real when the roots are complex). Then split any linear numerator as
+
+$$
+As+B=A(s+\alpha)+(B-A\alpha)\quad\Rightarrow\quad\frac{As+B}{(s+\alpha)^2+\omega^2}\;\leftrightarrow\;e^{-\alpha t}\left[A\cos\omega t+\frac{B-A\alpha}{\omega}\sin\omega t\right].
+$$
+
+**Amplitude–phase form.** A sum $a\cos x+b\sin x$ can always be written as one cosine. Expanding $R\cos(x-\varphi)=R\cos\varphi\cos x+R\sin\varphi\sin x$ and comparing: $a=R\cos\varphi$, $b=R\sin\varphi$, so
+
+$$
+a\cos x+b\sin x=R\cos(x-\varphi),\qquad R=\sqrt{a^2+b^2},\quad\tan\varphi=\frac ba
+$$
+
+(choose $\varphi$ in the quadrant of the point $(a,b)$). This links the two methods: $R=2|K|$ and $\varphi=-\theta$.
+
+<Example title="Inverse by completing the square" src="15">
+
+<Step title="Given">
+
+$$
+F(s)=\frac{s+2}{s^2+2s+4}
+$$
+
+Roots $-1\pm j\sqrt3$ — complex. Instead of residues, complete the square.
+
+</Step>
+
+<Step title="Complete the square">
+
+$s^2+2s+4=(s+1)^2+3=(s+1)^2+(\sqrt3)^2$, so $\alpha=1$, $\omega=\sqrt3$.
+
+</Step>
+
+<Step title="Split the numerator into (s+α) and a multiple of ω">
+
+$s+2=(s+1)+1$, and $1=\frac{1}{\sqrt3}\cdot\sqrt3$:
+
+$$
+F(s)=\frac{s+1}{(s+1)^2+(\sqrt3)^2}+\frac{\sqrt3}{(s+1)^2+(\sqrt3)^2}\cdot\frac{1}{\sqrt3}.
+$$
+
+As the notes say: up to here we only rewrote $F(s)$ in the formats $\frac{s}{s^2+\omega^2}$ and $\frac{\omega}{s^2+\omega^2}$ of the table (shifted by $s\to s+1$); now the transform can be read off directly.
+
+</Step>
+
+<Step title="Read off from the table">
+
+$$
+f(t)=e^{-t}\cos(\sqrt3t)+\frac{1}{\sqrt3}e^{-t}\sin(\sqrt3t).
+$$
+
+</Step>
+
+<Step title="Amplitude–phase form">
+
+$a=1$, $b=\frac{1}{\sqrt3}$: $R=\sqrt{1+\frac13}=\frac{2}{\sqrt3}=1.1547\approx1.155$, $\tan\varphi=\frac{1/\sqrt3}{1}\Rightarrow\varphi=30^\circ$ (first quadrant).
+
+</Step>
+
+<Answer>
+
+$$
+f(t)=e^{-t}\cos(\sqrt3t)+\frac{1}{\sqrt3}e^{-t}\sin(\sqrt3t)=1.155\,e^{-t}\cos(\sqrt3t-30^\circ)
+$$
+
+</Answer>
+
+Cross-check with the residue method: $K=\left.\frac{s+2}{s+1+j\sqrt3}\right|_{s=-1+j\sqrt3}=\frac{1+j\sqrt3}{2j\sqrt3}=0.5-j0.2887=0.5774\angle-30^\circ$, so $2|K|=1.155$ and $\theta=-30^\circ$ ✓. IVT: $f(0)=1$ and $\lim\frac{s(s+2)}{s^2+2s+4}=1$ ✓.
+
+</Example>
+
+<Example title="Complex roots two ways">
+
+<Step title="Given">
+
+$F(s)=\frac{10}{s(s^2+2s+5)}$. Roots: $0$ and $-1\pm j2$ ($\alpha=1$, $\omega=2$).
+
+</Step>
+
+<Step title="Method 1 — residues">
+
+$A=\left.\frac{10}{s^2+2s+5}\right|_{s=0}=2$.
+
+$K=\left.\frac{10}{s(s+1+j2)}\right|_{s=-1+j2}=\frac{10}{(-1+j2)(j4)}=\frac{10}{-8-j4}$.
+
+Multiply numerator and denominator by the conjugate $-8+j4$: $K=\frac{10(-8+j4)}{64+16}=\frac{-80+j40}{80}=-1+j0.5$.
+
+Polar: $|K|=\sqrt{1+0.25}=1.118$; the point $(-1,\,0.5)$ is in the second quadrant, $\theta=180^\circ-\arctan0.5=180^\circ-26.57^\circ=153.43^\circ$.
+
+$f(t)=2+2(1.118)e^{-t}\cos(2t+153.43^\circ)=2+2.236e^{-t}\cos(2t+153.4^\circ)$.
+
+</Step>
+
+<Step title="Method 2 — real quadratic term">
+
+Write $\frac{10}{s(s^2+2s+5)}=\frac2s+\frac{Bs+C}{s^2+2s+5}$. Multiply out: $10=2(s^2+2s+5)+(Bs+C)s$. Compare powers: $s^2$: $2+B=0\Rightarrow B=-2$; $s^1$: $4+C=0\Rightarrow C=-4$; $s^0$: $10=10$ ✓.
+
+$\frac{-2s-4}{(s+1)^2+4}=\frac{-2(s+1)-2}{(s+1)^2+2^2}=-2\frac{s+1}{(s+1)^2+2^2}-\frac{2}{(s+1)^2+2^2}$
+
+$\Rightarrow f(t)=2-2e^{-t}\cos2t-e^{-t}\sin2t$.
+
+</Step>
+
+<Step title="The two agree">
+
+$a=-2$, $b=-1$: $R=\sqrt{5}=2.236$, point $(-2,-1)$ in the third quadrant, $\varphi=-180^\circ+26.57^\circ=-153.43^\circ$, so $-2\cos x-\sin x=2.236\cos(x+153.43^\circ)$ ✓.
+
+</Step>
+
+<Answer>
+
+$$
+f(t)=2-2e^{-t}\cos2t-e^{-t}\sin2t=2+2.236\,e^{-t}\cos(2t+153.4^\circ)
+$$
+
+</Answer>
+
+Checks: $f(0)=2-2=0$ (IVT: $\lim\frac{10}{s^2+\dots}=0$) ✓; $f(\infty)=2$ (FVT: $\frac{10}{5}=2$, poles of $sF$ in LHP) ✓.
+
+</Example>
+
+### Partial fraction explorer
+
+Pick an example: the plot shows each term of the expansion (dashed) and their sum (thick), the poles in the $s$-plane, and a numerical check that the expansion equals the original fraction. Red dashed curves show what goes wrong in the two "mistake" situations (p14 as written; initial conditions forgotten).
+
+<PartialFractionViewer />
+
+How each pole shows up in time: a real pole at $-a$ → $e^{-at}$; a repeated real pole → extra $t$, $t^2$ factors; a complex pair $-\alpha\pm j\omega$ → oscillation of frequency $\omega$ inside $e^{-\alpha t}$; a pole at 0 → a constant; a pole in the right half-plane → growth.
+
+## Solving differential equations
+
+The full method combines everything: derivative property (with initial conditions) → algebra → partial fractions → table.
+
+<Procedure title="Solving a linear ODE with the Laplace transform">
+
+1. Transform every term. Derivatives: $y'\to sY-y(0)$, $y''\to s^2Y-sy(0)-y'(0)$. Integrals: $\int_0^ty\to Y/s$. Inputs from the table.
+2. Insert the initial values; collect $Y(s)$ on the left, everything else on the right.
+3. Solve for $Y(s)$ as a single fraction.
+4. Factor the denominator; decide the case (distinct / repeated / complex).
+5. Partial fractions; invert with the table.
+6. Check: $y(0)$ (and $y'(0)$) against the given values; IVT/FVT; substitute back into the ODE if time permits.
+
+</Procedure>
+
+<Example title="Second-order ODE with nonzero initial conditions">
+
+<Step title="Given">
+
+$$
+y''+5y'+6y=6u(t),\qquad y(0)=2,\quad y'(0)=-1 .
+$$
+
+</Step>
+
+<Step title="Transform">
+
+$$
+\underbrace{s^2Y-2s-(-1)}_{y''}+5\underbrace{(sY-2)}_{y'}+6Y=\frac6s
+$$
+
+$$
+s^2Y-2s+1+5sY-10+6Y=\frac6s .
+$$
+
+</Step>
+
+<Step title="Collect">
+
+$(s^2+5s+6)Y=\frac6s+2s+9=\frac{2s^2+9s+6}{s}$, and $s^2+5s+6=(s+2)(s+3)$:
+
+$$
+Y(s)=\frac{2s^2+9s+6}{s(s+2)(s+3)} .
+$$
+
+</Step>
+
+<Step title="Partial fractions (distinct roots 0, −2, −3)">
+
+$K_0=\left.\frac{2s^2+9s+6}{(s+2)(s+3)}\right|_{0}=\frac66=1$
+
+$K_{-2}=\left.\frac{2s^2+9s+6}{s(s+3)}\right|_{-2}=\frac{8-18+6}{(-2)(1)}=\frac{-4}{-2}=2$
+
+$K_{-3}=\left.\frac{2s^2+9s+6}{s(s+2)}\right|_{-3}=\frac{18-27+6}{(-3)(-1)}=\frac{-3}{3}=-1$
+
+</Step>
+
+<Answer>
+
+$$
+y(t)=1+2e^{-2t}-e^{-3t}
+$$
+
+</Answer>
+
+Checks: $y(0)=1+2-1=2$ ✓; $y'(t)=-4e^{-2t}+3e^{-3t}$, $y'(0)=-1$ ✓; substituting: $y''=8e^{-2t}-9e^{-3t}$, so $y''+5y'+6y=(8-20+12)e^{-2t}+(-9+15-6)e^{-3t}+6=6$ ✓. FVT: $\lim_{s\to0}sY=\frac{6}{6}=1$ ✓.
+
+</Example>
+
+<Example title="Forgetting the initial conditions">
+
+<Step title="The mistake">
+
+Same equation, but the student writes $y''\to s^2Y$ and $y'\to sY$: $(s^2+5s+6)Y=\frac6s$, so $Y=\frac{6}{s(s+2)(s+3)}$.
+
+</Step>
+
+<Step title="Its (wrong) answer">
+
+Cover-up: $\frac{6}{6}=1$, $\frac{6}{(-2)(1)}=-3$, $\frac{6}{(-3)(-1)}=2$ → $y(t)=1-3e^{-2t}+2e^{-3t}$.
+
+</Step>
+
+<Step title="Detecting it">
+
+At $t=0$: $1-3+2=0$, but the problem says $y(0)=2$ ✗. The result is the response *from rest* — a different problem with the same final value 1, so the FVT alone would **not** have caught the error. Always check $y(0)$.
+
+</Step>
+
+<Answer>
+
+Correct answer: $y(t)=1+2e^{-2t}-e^{-3t}$ (previous example). The difference between the two, $5e^{-2t}-3e^{-3t}$, is precisely the part of the response produced by the initial conditions.
+
+</Answer>
+
+</Example>
+
+## Edge cases
+
+- **Pole at the origin.** $\frac{K}{s}\leftrightarrow K$ — a constant. A single pole at 0 is what makes a nonzero final value; the FVT is valid with it.
+- **Double pole at the origin** ($\frac{1}{s^2}$): a ramp, grows forever — FVT invalid.
+- **Poles on the imaginary axis** ($\alpha=0$): $2|K|\cos(\omega t+\theta)$ — no envelope, oscillation never dies; FVT invalid. Repeated poles on the axis ($\frac{s^2-9}{(s^2+9)^2}\leftrightarrow t\cos3t$) give oscillations that grow.
+- **Pole in the right half-plane** ($s=+3$ on p10): the corresponding term grows exponentially and dominates; FVT invalid.
+- **Complex poles with $\omega\to0$**: the pair merges into a double real pole and $e^{-\alpha t}\cos\omega t\to e^{-\alpha t}$, while the sine term $\frac{1}{\omega}e^{-\alpha t}\sin\omega t\to te^{-\alpha t}$ — the repeated-root case is the limit of the complex case.
+- **$s-p$ instead of $s+p$** in a factor: the pole is at $+p$; the cover-up value is $s=+p$, and the term is $e^{+pt}$.
+- **Delay factors $e^{-st_0}$**: not part of the partial fractions. Invert the rational part, then shift the result by $t_0$ (time-shift property backwards).
+- **Numerator degree ≥ denominator degree**: not proper — divide first (does not occur in the notes).
+- **The impulse at $t=0$**: use the lower limit $0^-$; $f(0^+)$ from the IVT is the value just *after* the impulse.
+
+## How to solve exam problems
+
+<Procedure title="Recognise the problem type">
+
+1. "Find $\L\{\dots\}$" with products like $e^{-at}t\sin\omega t$ or delays → **properties** (p7-type). Work from the inside out: table entry → $t^n$ rule → $s$-shift; delays last.
+2. "Find $Y(s)$" from an equation with $y'$, $\int y$ → **derivative/integral property** (p6-type). Don't forget $y(0)$.
+3. "Find $f(0)$, $f(\infty)$" → **IVT/FVT** (p7-type). Check the poles before the FVT.
+4. "Find $f(t)$" with table-shaped terms → **table** (p8-type): create $n!$, $\omega$, $(s+a)$.
+5. "Find $f(t)$" with a factored denominator → **partial fractions** (p10/p12/p14) or **completing the square** (p15).
+
+</Procedure>
+
+<Procedure title="Partial fractions — decision and steps">
+
+1. Factor the denominator; list the poles with multiplicities.
+2. Write the expansion: one term per distinct real pole; $n$ terms for an $n$-fold pole; a $K$, $K^*$ pair (or a real quadratic term) for each complex pair.
+3. Distinct real: $K_i=\big[(s+p_i)F\big]_{s=-p_i}$.
+4. Repeated: $K_1$ by cover-up; $K_i=\frac{1}{(i-1)!}\frac{d^{i-1}}{ds^{i-1}}\big[(s+p)^nF\big]_{s=-p}$.
+5. Complex: $K$ at $s=-\alpha+j\omega$ → polar $|K|\angle\theta$ → $2|K|e^{-\alpha t}\cos(\omega t+\theta)$. Or complete the square.
+6. Write $f(t)$; check $f(0)$ with the IVT, $f(\infty)$ with the FVT (if valid), or recombine at one value of $s$.
+
+</Procedure>
+
+<Mistake title="Top six exam errors in this module">
+
+1. **Dropping initial conditions** in $\L\{y'\}=sY-y(0)$.
+2. **Wrong sign in the $s$-shift**: $e^{-at}\to s+a$, $e^{+at}\to s-a$.
+3. **Not shifting the numerator** after multiplication by $e^{-at}$: every $s$ becomes $s+a$.
+4. **Forgetting $e^{-\alpha t}$** in the complex-root answer (the p14 slip).
+5. **Using the FVT illegally** (RHP poles, poles on the $j\omega$-axis, double pole at 0).
+6. **Angle of $K$ in the wrong quadrant**: always locate the point $(\operatorname{Re}K,\operatorname{Im}K)$ before taking $\arctan$.
+
+</Mistake>
+
+<Tip title="Fast verification in the exam">
+
+- **IVT check**: compare $f(0)$ from your answer with $\lim_{s\to\infty}sF(s)$.
+- **Recombination check**: put $s=1$ (or any convenient number that is not a pole) into both $F(s)$ and your expansion — they must be equal.
+- **Pole check**: every pole must appear in $f(t)$ as the correct exponential/envelope.
+
+</Tip>
+
+## Practice exercises
+
+<Exercise title="Why derivatives become multiplication by s" kind="concept" level={1}>
+
+Explain in your own words why $\L\{f'(t)\}=sF(s)-f(0)$, and why this makes the Laplace transform useful for differential equations.
+
+<Solution>
+
+Integration by parts moves the derivative from $f$ onto the kernel $e^{-st}$: $\int_0^\infty f'e^{-st}dt=[fe^{-st}]_0^\infty+s\int_0^\infty fe^{-st}dt$. Differentiating $e^{-st}$ produces the factor $-s$ (the exponential is its own derivative up to a constant), so the result is $s$ times $F(s)$, minus the boundary value $f(0)$ (the upper boundary vanishes because $e^{-st}\to0$). Consequence: every derivative in a linear ODE becomes a power of $s$ times $Y(s)$ plus known initial values, so the ODE becomes a polynomial equation in $s$ that can be solved for $Y(s)$ by algebra. Check: $f=e^{-at}$, $f'=-ae^{-at}$; $sF-f(0)=\frac{s}{s+a}-1=\frac{-a}{s+a}=\L\{f'\}$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Transform of a growing exponential from the definition" kind="formula" level={1}>
+
+Compute $\L\{e^{2t}\}$ directly from the definition. For which $s$ does the integral converge?
+
+<Solution>
+
+$$
+\int_0^\infty e^{2t}e^{-st}dt=\int_0^\infty e^{-(s-2)t}dt=\left[\frac{e^{-(s-2)t}}{-(s-2)}\right]_0^\infty=\frac{1}{s-2},
+$$
+
+valid when $\operatorname{Re}(s)>2$ (so that $e^{-(s-2)t}\to0$). This is the $e^{-at}$ formula with $a=-2$: pole at $s=+2$, right half-plane, a growing signal. Check with IVT: $\lim\frac{s}{s-2}=1=e^0$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Damped cosine transform" kind="calc" level={1}>
+
+Find $\L\{4e^{-2t}\cos3t\}$.
+
+<Solution>
+
+$\L\{\cos3t\}=\frac{s}{s^2+9}$. Multiply by $e^{-2t}$: replace $s$ by $s+2$ everywhere; linearity gives the factor 4:
+
+$$
+F(s)=\frac{4(s+2)}{(s+2)^2+9}.
+$$
+
+Check: IVT $\lim s\cdot\frac{4(s+2)}{(s+2)^2+9}=4=f(0)$ ✓. Numerically $F(1)=\frac{12}{18}=0.667$, matching the numerical integral ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="t sin 2t" kind="calc" level={2}>
+
+Find $\L\{t\sin2t\}$ with the multiplication-by-$t$ property.
+
+<Hint>Same steps as the first part of the p7 example, with $\omega=2$.</Hint>
+
+<Solution>
+
+$\L\{\sin2t\}=\frac{2}{s^2+4}$. $\frac{d}{ds}2(s^2+4)^{-1}=-2(s^2+4)^{-2}\cdot2s=\frac{-4s}{(s^2+4)^2}$. Multiply by $(-1)$:
+
+$$
+\L\{t\sin2t\}=\frac{4s}{(s^2+4)^2}.
+$$
+
+General pattern: $\L\{t\sin\omega t\}=\frac{2\omega s}{(s^2+\omega^2)^2}$ (p7 had $\omega=4$: $\frac{8s}{(s^2+16)^2}$ ✓). Numerical check at $s=1$: $\frac{4}{25}=0.16$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Delayed step plus delayed impulse" kind="calc" level={1}>
+
+Find the Laplace transform of $f(t)=2u(t-1)+\delta(t-3)$.
+
+<Solution>
+
+$\L\{2u(t)\}=\frac2s$, delay 1 → $\frac{2e^{-s}}{s}$. $\L\{\delta(t)\}=1$, delay 3 → $e^{-3s}$.
+
+$$
+F(s)=\frac{2e^{-s}}{s}+e^{-3s}.
+$$
+
+Interpretation: a level of 2 switched on at $t=1$ and a unit kick at $t=3$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Integro-differential equation with zero initial value" kind="prof" level={2}>
+
+Following the p6 example, solve $\frac{dy}{dt}+2y+5\int_0^ty\,dt=u(t)$, $y(0)=0$, for $Y(s)$ and then $y(t)$.
+
+<Solution>
+
+Transform: $sY-0+2Y+\frac{5Y}{s}=\frac1s$. Multiply by $s$: $(s^2+2s+5)Y=1$:
+
+$$
+Y(s)=\frac{1}{s^2+2s+5}=\frac{1}{(s+1)^2+2^2}=\frac12\cdot\frac{2}{(s+1)^2+2^2}.
+$$
+
+Table entry 10 ($a=1$, $\omega=2$):
+
+$$
+y(t)=\frac12e^{-t}\sin2t.
+$$
+
+Checks: $y(0)=0$ ✓; $y'(t)=\frac12e^{-t}(2\cos2t-\sin2t)$, $y'(0)=1$ — from the equation at $t=0$: $y'(0)=1-2\cdot0-0=1$ ✓. FVT (poles $-1\pm j2$): $\lim sY=0=y(\infty)$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Time response of the p6 example" kind="prof" level={3}>
+
+Invert the professor's result $Y(s)=\frac{s+1}{s^2+3s+1}$ to find $y(t)$. Give exact coefficients and decimals.
+
+<Hint>The roots of $s^2+3s+1$ are real and distinct but irrational: $r_{1,2}=\frac{-3\pm\sqrt5}{2}$.</Hint>
+
+<Solution>
+
+Roots $r_1=\frac{-3+\sqrt5}{2}\approx-0.382$, $r_2=\frac{-3-\sqrt5}{2}\approx-2.618$, $r_1-r_2=\sqrt5$. $Y=\frac{K_1}{s-r_1}+\frac{K_2}{s-r_2}$.
+
+$K_1=\frac{r_1+1}{r_1-r_2}=\frac{(-1+\sqrt5)/2}{\sqrt5}=\frac{5-\sqrt5}{10}\approx0.2764$
+
+$K_2=\frac{r_2+1}{r_2-r_1}=\frac{(-1-\sqrt5)/2}{-\sqrt5}=\frac{5+\sqrt5}{10}\approx0.7236$
+
+$$
+y(t)=0.2764\,e^{-0.382t}+0.7236\,e^{-2.618t}.
+$$
+
+Checks: $y(0)=K_1+K_2=1$ ✓ (given $y(0)=1$); $y(\infty)=0$ ✓ (FVT). At $s=1$: $Y(1)=\frac25=0.4$ and $\frac{0.2764}{1.382}+\frac{0.7236}{3.618}=0.2+0.2=0.4$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="IVT and FVT for a third-order F(s)" kind="formula" level={1}>
+
+$F(s)=\frac{3s+2}{s(s+1)(s+4)}$. Find $f(0^+)$ and $f(\infty)$ without inverting, then verify by inverting.
+
+<Solution>
+
+IVT: $sF=\frac{3s+2}{(s+1)(s+4)}\to0$ as $s\to\infty$ (degree 1 over degree 2). $f(0^+)=0$.
+
+FVT: poles of $sF$ at $-1,-4$ (LHP) ✓; $\lim_{s\to0}\frac{3s+2}{(s+1)(s+4)}=\frac24=0.5$.
+
+Verification: $K_0=\frac{2}{4}=0.5$; $K_{-1}=\frac{-1}{(-1)(3)}=\frac13$; $K_{-4}=\frac{-10}{(-4)(-3)}=-\frac56$. $f(t)=0.5+\frac13e^{-t}-\frac56e^{-4t}$: $f(0)=0.5+0.333-0.833=0$ ✓, $f(\infty)=0.5$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="FVT with poles on the imaginary axis" kind="edge" level={2}>
+
+For $F(s)=\frac{4}{s(s^2+4)}$, a student writes $f(\infty)=\lim_{s\to0}sF(s)=1$. Is that right? Find $f(t)$.
+
+<Solution>
+
+$sF(s)=\frac{4}{s^2+4}$ has poles at $\pm j2$ — on the imaginary axis — so the FVT is **not valid**. Inverting: $\frac{4}{s(s^2+4)}=\frac{1}{s}+\frac{Bs+C}{s^2+4}$; $4=s^2+4+(Bs+C)s\Rightarrow B=-1$, $C=0$. So $f(t)=1-\cos2t$, which oscillates between 0 and 2 forever; it has no final value. ("1" is only its average.) Check: $f(0)=0$ and IVT $\lim\frac{4}{s^2+4}\to0$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="FVT with a right-half-plane pole" kind="edge" level={2}>
+
+$F(s)=\frac{s+1}{s(s-2)}$. What does $\lim_{s\to0}sF(s)$ give, and what does $f(t)$ actually do?
+
+<Solution>
+
+$\lim_{s\to0}\frac{s+1}{s-2}=-\frac12$. But $sF$ has a pole at $s=+2$ (RHP) → FVT invalid. Cover-up: $K_0=\frac{1}{-2}=-\frac12$, $K_2=\frac{3}{2}$. $f(t)=-\frac12+\frac32e^{2t}\to+\infty$. The "final value" $-\frac12$ is meaningless. Check: $f(0)=1$, IVT $\lim\frac{s+1}{s-2}=1$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Inverse transform by table lookup" kind="calc" level={1}>
+
+Find $f(t)$ for $F(s)=\frac{3}{s^2}+\frac{4}{s+2}-\frac{2s}{s^2+9}+\frac{6}{s^2+9}$.
+
+<Solution>
+
+$\frac{3}{s^2}\to3t$; $\frac{4}{s+2}\to4e^{-2t}$; $-2\frac{s}{s^2+9}\to-2\cos3t$; $\frac{6}{s^2+9}=2\cdot\frac{3}{s^2+3^2}\to2\sin3t$.
+
+$$
+f(t)=3t+4e^{-2t}-2\cos3t+2\sin3t.
+$$
+
+Check: $f(0)=4-2=2$; IVT: $\lim sF=0+4-2+0=2$ ✓. Numerically $F(1)=4.733$ = Laplace integral of the answer ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Three distinct poles" kind="calc" level={2}>
+
+Find $f(t)$ for $F(s)=\frac{s+5}{(s+1)(s+2)(s+3)}$.
+
+<Solution>
+
+$K_1=\frac{4}{(1)(2)}=2$ (at $s=-1$); $K_2=\frac{3}{(-1)(1)}=-3$ (at $s=-2$); $K_3=\frac{2}{(-2)(-1)}=1$ (at $s=-3$).
+
+$$
+f(t)=2e^{-t}-3e^{-2t}+e^{-3t}.
+$$
+
+Checks: $f(0)=2-3+1=0$, IVT $\to0$ ✓; recombination at $s=1$: $F(1)=\frac{6}{24}=0.25$, $\frac22-\frac33+\frac14=0.25$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Double pole at the origin" kind="calc" level={2}>
+
+Find $f(t)$ for $F(s)=\frac{1}{s^2(s+1)}$.
+
+<Solution>
+
+$F=\frac{K_1}{s^2}+\frac{K_2}{s}+\frac{A}{s+1}$ (2-fold root at $s=0$, i.e. $p=0$).
+
+$A=\left.\frac{1}{s^2}\right|_{s=-1}=1$. $s^2F=\frac{1}{s+1}$: $K_1=\frac{1}{1}=1$; $K_2=\left.\frac{d}{ds}\frac{1}{s+1}\right|_0=\left.\frac{-1}{(s+1)^2}\right|_0=-1$.
+
+$$
+f(t)=t-1+e^{-t}.
+$$
+
+Checks: $f(0)=0$ ✓; $f'(t)=1-e^{-t}$, $f'(0)=0$ ✓ (consistent: $\frac{1}{s^2(s+1)}$ is the ramp response of $\frac{1}{s+1}$). FVT not applicable (double pole at 0): indeed $f\to\infty$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Triple pole only" kind="calc" level={2}>
+
+Find $f(t)$ for $F(s)=\frac{s^2+1}{(s+1)^3}$.
+
+<Solution>
+
+$(s+1)^3F=s^2+1$, $n=3$, $p=1$.
+
+$K_1=[s^2+1]_{-1}=2$; $K_2=\frac{1}{1!}[2s]_{-1}=-2$; $K_3=\frac{1}{2!}[2]=1$.
+
+$$
+f(t)=2\frac{t^2}{2!}e^{-t}-2te^{-t}+e^{-t}=t^2e^{-t}-2te^{-t}+e^{-t}=(t-1)^2e^{-t}.
+$$
+
+Checks: $f(0)=1$; IVT $\lim\frac{s(s^2+1)}{(s+1)^3}=1$ ✓. At $s=1$: $F(1)=\frac28=0.25$; $\frac28-\frac24+\frac12=0.25$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Repeated-root time function" kind="formula" level={1}>
+
+Find $\Li\left\{\frac{6}{(s+2)^4}\right\}$.
+
+<Solution>
+
+$\frac{1}{(s+a)^n}\leftrightarrow\frac{t^{n-1}}{(n-1)!}e^{-at}$ with $n=4$, $a=2$: $6\cdot\frac{t^3}{3!}e^{-2t}=t^3e^{-2t}$. Check via the forward route: $\L\{t^3\}=\frac{6}{s^4}$, shift $s\to s+2$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Complex pair by completing the square" kind="calc" level={2}>
+
+Find $f(t)$ for $F(s)=\frac{2s+12}{s^2+2s+5}$, in sine–cosine form and in amplitude–phase form.
+
+<Solution>
+
+$s^2+2s+5=(s+1)^2+2^2$ ($\alpha=1$, $\omega=2$). $2s+12=2(s+1)+10=2(s+1)+5\cdot2$:
+
+$$
+F=2\frac{s+1}{(s+1)^2+2^2}+5\frac{2}{(s+1)^2+2^2}\;\Rightarrow\;f(t)=2e^{-t}\cos2t+5e^{-t}\sin2t.
+$$
+
+Amplitude–phase: $R=\sqrt{4+25}=\sqrt{29}=5.385$, $\tan\varphi=\frac52$, first quadrant, $\varphi=68.2^\circ$: $f(t)=5.385e^{-t}\cos(2t-68.2^\circ)$.
+
+Residue check: $K=\left.\frac{2s+12}{s+1+j2}\right|_{s=-1+j2}=\frac{10+j4}{j4}=1-j2.5$, $2|K|=2\sqrt{7.25}=5.385$, $\theta=-68.2^\circ$ ✓. IVT: $f(0)=2$, $\lim\frac{s(2s+12)}{s^2+\dots}=2$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Undamped complex pair with a real pole" kind="calc" level={3}>
+
+Find $f(t)$ for $F(s)=\frac{5}{(s+1)(s^2+4)}$ using the $K$, $K^*$ method. Is the FVT applicable?
+
+<Solution>
+
+Poles: $-1$ and $\pm j2$ ($\alpha=0$, $\omega=2$).
+
+$A=\left.\frac{5}{s^2+4}\right|_{s=-1}=1$.
+
+$K=\left.\frac{5}{(s+1)(s+j2)}\right|_{s=j2}=\frac{5}{(1+j2)(j4)}=\frac{5}{-8+j4}=\frac{5(-8-j4)}{80}=-0.5-j0.25$.
+
+$|K|=\sqrt{0.25+0.0625}=0.559$; point $(-0.5,-0.25)$ in the third quadrant: $\theta=-180^\circ+26.57^\circ=-153.43^\circ$.
+
+$$
+f(t)=e^{-t}+1.118\cos(2t-153.4^\circ)\qquad(=e^{-t}-\cos2t+0.5\sin2t).
+$$
+
+No envelope since $\alpha=0$: the oscillation persists, so the **FVT is not applicable** (poles on the $j\omega$ axis). Checks: $f(0)=1+1.118\cos(153.4^\circ)=1-1=0$ ✓ (IVT gives 0). Real-form check: $5=(s^2+4)+(Bs+C)(s+1)\Rightarrow B=-1$, $C=1$ → $-\cos2t+\frac12\sin2t$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Checking the p14 answer with the final value theorem" kind="prof" level={2}>
+
+The notes give $f(t)=\frac{1}{\sqrt2}\cos(t-45^\circ)-\frac12e^{-2t}$ for $F(s)=\frac{s+1}{(s+2)(s^2+2s+2)}$. Use the FVT to show this cannot be correct, and state the correct answer.
+
+<Solution>
+
+Poles: $-2$, $-1\pm j$ — all in the LHP, so the FVT is valid: $f(\infty)=\lim_{s\to0}\frac{s(s+1)}{(s+2)(s^2+2s+2)}=0$. The written answer contains $\frac{1}{\sqrt2}\cos(t-45^\circ)$, which keeps oscillating with amplitude $0.707$ — it does not tend to 0. Contradiction. The pole real part $-1$ demands the envelope $e^{-t}$:
+
+$$
+f(t)=\frac{1}{\sqrt2}e^{-t}\cos(t-45^\circ)-\frac12e^{-2t}.
+$$
+
+This tends to 0 ✓ and its transform at $s=2$ equals $F(2)=0.075$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="First-order ODE with an initial value" kind="problem" level={1}>
+
+Solve $y'+4y=8u(t)$, $y(0)=1$.
+
+<Solution>
+
+$sY-1+4Y=\frac8s\Rightarrow(s+4)Y=\frac{8+s}{s}\Rightarrow Y=\frac{s+8}{s(s+4)}$.
+
+Cover-up: $K_0=\frac84=2$, $K_{-4}=\frac{4}{-4}=-1$. $y(t)=2-e^{-4t}$.
+
+Checks: $y(0)=1$ ✓; $y'+4y=4e^{-4t}+8-4e^{-4t}=8$ ✓; FVT $=\frac{8}{4}=2$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Second-order ODE with zero input" kind="problem" level={3}>
+
+Solve $y''+2y'+5y=0$, $y(0)=1$, $y'(0)=1$. Give the result in amplitude–phase form too.
+
+<Solution>
+
+$s^2Y-s-1+2(sY-1)+5Y=0\Rightarrow(s^2+2s+5)Y=s+3\Rightarrow Y=\frac{s+3}{(s+1)^2+2^2}$.
+
+$s+3=(s+1)+2$: $Y=\frac{s+1}{(s+1)^2+2^2}+\frac{2}{(s+1)^2+2^2}$, so
+
+$$
+y(t)=e^{-t}\cos2t+e^{-t}\sin2t=\sqrt2\,e^{-t}\cos(2t-45^\circ).
+$$
+
+($R=\sqrt{1+1}$, $\tan\varphi=1$, $\varphi=45^\circ$.) Checks: $y(0)=1$ ✓; $y'=e^{-t}(-\cos2t-\sin2t-2\sin2t+2\cos2t)$, $y'(0)=-1+2=1$ ✓. Without input, the response is entirely due to the initial conditions — it would be zero if they had been forgotten.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Pole locations and the shape of f(t)" kind="graph" level={2}>
+
+Without full calculation, describe and sketch $f(t)$ for (a) $\frac{1}{s+2}$, (b) $\frac{1}{s-1}$, (c) $\frac{1}{s^2+4}$, (d) $\frac{1}{(s+1)^2+4}$. Give the pole locations.
+
+<Solution>
+
+(a) Pole $-2$: $e^{-2t}$ — starts at 1, decays smoothly, down to about 2% after $t=2$.
+(b) Pole $+1$: $e^{t}$ — starts at 1, grows exponentially.
+(c) Poles $\pm j2$: $\frac12\sin2t$ — starts at 0, oscillates between $\pm\frac12$ forever with period $\pi$.
+(d) Poles $-1\pm j2$: $\frac12e^{-t}\sin2t$ — starts at 0, oscillates with period $\pi$ inside the envelope $\pm\frac12e^{-t}$, dies out.
+
+Sketching rule: real part → envelope (decay if negative, growth if positive, constant if zero); imaginary part → oscillation frequency. Check (d) with the IVT: $\lim\frac{s}{(s+1)^2+4}=0=f(0)$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Amplitude-phase conversion" kind="formula" level={1}>
+
+Write $3\cos2t-4\sin2t$ as $R\cos(2t-\varphi)$.
+
+<Solution>
+
+$a=3$, $b=-4$: $R=\sqrt{9+16}=5$. Point $(3,-4)$ is in the fourth quadrant: $\varphi=-\arctan\frac43=-53.13^\circ$. So $3\cos2t-4\sin2t=5\cos(2t+53.13^\circ)$. Check at $t=0$: $5\cos53.13^\circ=5(0.6)=3$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Why the repeated-root formula needs derivatives" kind="concept" level={2}>
+
+For $F(s)=\frac{N(s)}{(s+p)^2}=\frac{K_1}{(s+p)^2}+\frac{K_2}{s+p}$, explain why the cover-up rule finds $K_1$ but not $K_2$, and how differentiation solves this.
+
+<Solution>
+
+Multiplying by $(s+p)^2$: $N(s)=K_1+K_2(s+p)$. At $s=-p$ the $K_2$ term vanishes, giving $K_1=N(-p)$. To isolate $K_2$ by cover-up you would multiply by only $(s+p)$, giving $\frac{K_1}{s+p}+K_2$ — infinite at $s=-p$, so no value can be read. Differentiating $N(s)=K_1+K_2(s+p)$ once removes the constant $K_1$ and leaves $N'(s)=K_2$, so $K_2=N'(-p)$. Example: $\frac{s+3}{(s+1)^2}$: $K_1=2$, $K_2=1$; check: $\frac{2}{(s+1)^2}+\frac{1}{s+1}=\frac{2+s+1}{(s+1)^2}$ ✓.
+
+</Solution>
+
+</Exercise>

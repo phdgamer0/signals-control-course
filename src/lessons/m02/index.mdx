@@ -1,0 +1,1848 @@
+import { StepFunctionPlot, ImpulsePlot, RampFunctionPlot, TestInputExplorer, StepToImpulseExplorer, StablePlot, UnstablePlot, AnnotatedStepResponse, StepCriteriaExplorer, ReadingExamplePlot, RCCircuit, RLCircuit, RCOutputRCircuit, RCStepExplorer, ExpSTExplorer, LaplaceIntegralExplorer } from './widgets'
+
+## What is this about?
+
+Imagine you have just built a room heater controller. You switch it on and want to know: *Is it any good?* You cannot test it with every possible situation the room will ever face (doors opening, sun coming in, people entering). Engineers do something smarter. They hit the system with a few **standard test signals** and watch what comes out. From those few experiments they judge three things:
+
+1. **Does it stay under control?** If you ask for 22 °C, does the temperature settle somewhere, or does it run away or swing wildly forever? This is **stability**.
+2. **How good is the response?** How fast does it get there, how far does it overshoot, how long until it calms down, and how close to 22 °C does it finally end up? These are the **performance criteria**.
+3. **What is the input→output rule of the system?** If we can write that rule down mathematically (the **transfer function**), we can predict the output for *any* input without building anything.
+
+This module (the professor's lecture "<Term en="Input–Output–Stability" tr="Giriş-Çıkış ve Kararlılık" />") gives you the vocabulary and the first tools for all three. It ends by introducing the **Laplace transform**, the tool that turns the differential equations describing real systems into simple algebra.
+
+<Intuition>
+
+Think of a car's cruise control. "Set speed = 100 km/h" is a **step** input (the desired speed jumps from 90 to 100). A kick from a pothole is like an **impulse** (a short hard hit). "Accelerate steadily" is a **ramp**. A well-designed cruise control reaches 100 km/h quickly, overshoots only a little, settles, and ends up very close to 100. A badly designed one might oscillate between 95 and 105 forever, or worse, keep accelerating: **unstable**.
+
+</Intuition>
+
+**After this module you can:**
+
+- write, sketch and combine the three basic test inputs (step, ramp, impulse) and explain why $\delta=\dfrac{du}{dt}$ and $u=\dfrac{dr}{dt}$;
+- decide whether a given response is bounded (BIBO stable behaviour) or not;
+- read $t_r$, $t_p$, $m$, $t_s$, $y_{ss}$ and $e_{ss}$ off a unit-step response and explain each one;
+- explain what a transfer function is and how it can be found (analytically or by system identification);
+- model a series RC circuit with a differential equation;
+- explain why we move to the Laplace transform, what $e^{st}$ and the s-plane mean, and derive $\L\{u\}=\frac1s$, $\L\{r\}=\frac1{s^2}$, $\L\{\delta\}=1$ from the definition.
+
+## The three basic test inputs
+
+The professor opens with a strong claim <Src p="1" />:
+
+> *Bir kontrol sisteminde üç temel giriş fonksiyonu vardır: birim basamak, rampa ve impulse fonksiyonu.* — A control system has three basic input functions: the unit step, the ramp and the impulse. Every input a system may meet can be expressed through these three, as their components or as sums of their components.
+
+Why these three? Because each one asks the system a different, very clear question:
+
+| Input | Turkish | Everyday picture | Question it asks the system |
+|---|---|---|---|
+| Step $A\,u(t)$ | basamak | flip a switch; change the set-point | "Can you move to a new constant value, and how well?" |
+| Ramp $A\,t$ | rampa | a target moving at constant speed | "Can you *follow* something that keeps changing?" |
+| Impulse $\delta(t)$ | impulse | a hammer blow, a sudden kick | "How do you react to a short shock, and do you calm down afterwards?" |
+
+And the claim "everything else is built from these" is very practical: a pulse is a step up followed by a step down; a "rise then hold" signal is a ramp minus a delayed ramp, and so on. We will build such signals below.
+
+### Step function
+
+<Def term="Step function" tr="Basamak fonksiyonu">
+
+A signal that is 0 before $t=0$ and jumps instantly to a constant value $A$ at $t=0$ <Src p="1" />:
+
+$$
+x(t)=\begin{cases}A, & t>0\\ 0, & t<0\end{cases}
+$$
+
+If $A=1$ it is the **unit step** (<Term en="unit step" tr="birim basamak" />), written $u(t)$. Any step can then be written $x(t)=A\cdot u(t)$.
+
+</Def>
+
+<StepFunctionPlot />
+
+**Reading the graph.** The horizontal axis is time $t$, the vertical axis is the signal $x(t)$. For negative time the signal sits at 0; at $t=0$ it jumps vertically to $A$ and stays there forever. The professor's sketch has exactly this shape, with the level labelled "A".
+
+**Symbols.** $A$ is the size of the jump (volts, °C, km/h… whatever the input physically is). $u(t)$ is the dimensionless "switch-on" function. Multiplying by $A$ just stretches it vertically.
+
+**Why it exists.** A step is the simplest possible change: "from now on, be at a new value". Almost every set-point change in practice (thermostat, cruise control, a motor told to go to a new angle) is a step.
+
+**The value exactly at $t=0$.** The notes leave $u(0)$ undefined (they write $t>0$ and $t<0$). It does not matter: a single instant has zero duration and never changes an integral or a physical response.
+
+**Shifting.** A step that switches on at $t=t_0$ instead of $0$ is $A\,u(t-t_0)$: the expression $t-t_0$ becomes positive only after $t_0$.
+
+<Tip title="Sketching a step in the exam">
+
+Draw the axes, mark the level $A$ on the vertical axis, draw a horizontal line at 0 up to $t=0$ (or $t_0$), a vertical jump, then a horizontal line at $A$. Label it $A\,u(t)$. Nothing more is needed.
+
+</Tip>
+
+### Impulse function
+
+<Def term="Impulse function" tr="Impulse fonksiyonu">
+
+A signal that is zero everywhere except at $t=0$, where it is "infinitely tall" <Src p="2" />:
+
+$$
+x(t)=\begin{cases}0, & t\neq 0\\ \infty, & t=0\end{cases}
+$$
+
+The **unit impulse** $\delta(t)$ (<Term en="unit impulse" tr="birim impulse" />) is *defined* as the derivative of the unit step, and its total area is 1:
+
+$$
+\delta(t)=\frac{du(t)}{dt},\qquad \int_{-\infty}^{\infty}\delta(t)\,dt=1
+$$
+
+</Def>
+
+<ImpulsePlot />
+
+**Reading the graph.** The impulse is drawn as a vertical **arrow** at $t=0$. The arrow is a convention: its height does not show a value (the value is "infinite"), it shows the **area** (also called the *strength* or *weight*) of the impulse. A unit impulse has area 1; $5\,\delta(t)$ is drawn as an arrow labelled 5.
+
+**Physical picture.** Hit a bell with a hammer. The force is huge but lasts only a millisecond. What matters for the bell is not the peak force (which is hard even to measure) but the **total push** = force × time = area under the force curve. The impulse is the idealisation "all of that push delivered in zero time". Its area is what counts.
+
+**Why "∞ at one point" needs care.** A normal function that is nonzero at just one point has integral 0 (one point has no width). So $\delta$ is not an ordinary function; think of it as the **limit of ever-narrower, ever-taller pulses whose area stays exactly 1**. The explorer in the next section shows this limit happening.
+
+### Ramp function
+
+<Def term="Ramp function" tr="Rampa fonksiyonu">
+
+A signal that is 0 before $t=0$ and then grows linearly with slope $A$ <Src p="2" />:
+
+$$
+x(t)=\begin{cases}At, & t\ge 0\\ 0, & t<0\end{cases}
+$$
+
+If $A=1$ it is the **unit ramp** (<Term en="unit ramp" tr="birim rampa" />). On p. 2 the notes write it $R(t)$, on p. 10 $r(t)$. It is the integral of the unit step, so $u(t)=\dfrac{dR(t)}{dt}$.
+
+</Def>
+
+<RampFunctionPlot />
+
+**Reading the graph.** Zero for negative time; from the origin a straight line rises. The professor marks $t=1$ on the time axis and draws dashed guides to the value $A$: at $t=1$ the ramp equals $A\cdot 1=A$. That is the quickest way to show the **slope** on a sketch: slope = rise/run = $A/1=A$.
+
+**Physical picture.** A radar antenna tracking an aircraft flying past at constant angular speed must follow a ramp-shaped angle. Can the antenna keep up, or does it lag behind by a constant amount? That is what the ramp test reveals.
+
+<Uncertain title="Notation: R(t), r(t) and the reference r(t)">
+
+The notes use three overlapping symbols:
+
+- p. 2: the unit ramp is called $R(t)$ (capital R);
+- p. 10: the unit ramp is called $r(t)$ (lower case);
+- p. 4: $r(t)=1$ is the **reference** (desired output), which for a step test is the unit step itself.
+
+The mathematics is not affected, but read each formula in context. In this module we write the unit ramp as $r(t)$ in the Laplace part (as on p. 10), and $r$ means "desired value" in the performance criteria section. Later modules use $r(t)$ / $R(s)$ for the reference input of a control loop.
+
+</Uncertain>
+
+<Note title="Step uses t > 0, ramp uses t ≥ 0">
+
+On p. 1 the step is defined for $t>0$, on p. 2 the ramp for $t\ge 0$. This is harmless: the ramp is continuous ($0\cdot A=0$ at $t=0$ either way), and the step's value at the single instant $t=0$ never matters.
+
+</Note>
+
+### How the three inputs are related
+
+The professor writes two relations <Src p="2" />:
+
+$$
+\delta(t)=\frac{du(t)}{dt}\qquad\qquad u(t)=\frac{dR(t)}{dt}
+$$
+
+So the three inputs form a **chain**: differentiate a ramp and you get a step; differentiate a step and you get an impulse. Read backwards: integrate an impulse and you get a step; integrate a step and you get a ramp.
+
+$$
+r(t)\ \xrightarrow{\ d/dt\ }\ u(t)\ \xrightarrow{\ d/dt\ }\ \delta(t)
+\qquad\qquad
+\delta(t)\ \xrightarrow{\ \int\ }\ u(t)\ \xrightarrow{\ \int\ }\ r(t)
+$$
+
+**Ramp → step (easy part).** The slope of the unit ramp is 0 for $t<0$ (flat line) and 1 for $t>0$ (line of slope 1). "Slope 0 then slope 1" is exactly the unit step. With the integral: for $t>0$,
+
+$$
+\int_{0}^{t}u(\tau)\,d\tau=\int_0^t 1\,d\tau=t=r(t),
+$$
+
+and for $t<0$ the integrand is 0, so the integral is 0. ✔
+
+**Step → impulse (the subtle part).** The step is flat everywhere except at $t=0$, so its slope is 0 everywhere except at $t=0$. At $t=0$ it climbs a height of 1 in **zero time**: the slope there is "infinite". Infinite at one point, zero elsewhere: that is exactly the impulse picture of p. 2. And the total climb is 1, which is why the impulse has **area 1**:
+
+$$
+\int_{-\infty}^{t}\delta(\tau)\,d\tau=u(t)\quad\Longrightarrow\quad \int_{-\infty}^{\infty}\delta(\tau)\,d\tau=u(\infty)-u(-\infty)=1-0=1.
+$$
+
+To see this as a limit, replace the ideal step by a "nearly-step" $u_\varepsilon(t)$ that climbs from 0 to 1 linearly in $\varepsilon$ seconds. Its derivative is a rectangular pulse of width $\varepsilon$ and height $1/\varepsilon$, so its area is $\varepsilon\cdot\frac1\varepsilon=1$ **no matter how small $\varepsilon$ is**. As $\varepsilon\to0$, $u_\varepsilon\to u$ and the pulse becomes taller and thinner but keeps area 1: it becomes $\delta(t)$.
+
+<StepToImpulseExplorer />
+
+<Intuition>
+
+Area of the impulse = total change of the step. Slope of the ramp = height of the step. Remember these two sentences and you can rebuild both relations in an exam.
+
+</Intuition>
+
+### Building other inputs from the three
+
+The professor's claim that every input is a combination of these three is something you will use constantly. Two rules make it work:
+
+- **scaling**: $A\,u(t)$, $A\,r(t)$, $A\,\delta(t)$ change the height / slope / area to $A$;
+- **shifting**: replacing $t$ by $t-t_0$ delays the signal so that it starts at $t_0$.
+
+<TestInputExplorer />
+
+<Example title="A scaled and shifted step">
+
+<Step title="Given">
+
+A heater's power is 0 until $t=2$ s and then 3 kW forever. Write it with the basic functions, and find its derivative.
+
+</Step>
+
+<Step title="Recognise the shape">
+
+A constant level switched on at one instant is a step. Height $A=3$, switch-on time $t_0=2$.
+
+</Step>
+
+<Step title="Write it">
+
+$$
+x(t)=3\,u(t-2)=\begin{cases}3, & t>2\\ 0, & t<2\end{cases}
+$$
+
+Check: at $t=1$, $t-2=-1<0$ so $u=0$, $x=0$ ✔; at $t=5$, $t-2=3>0$, $x=3$ ✔.
+
+</Step>
+
+<Step title="Derivative">
+
+Using $\frac{du}{dt}=\delta$ and the chain rule (the inner derivative $\frac{d}{dt}(t-2)=1$):
+
+$$
+\frac{dx}{dt}=3\,\delta(t-2)
+$$
+
+an impulse of **area 3** at $t=2$: the jump of height 3 happens in zero time.
+
+</Step>
+
+<Answer>
+
+$x(t)=3\,u(t-2)$, and $\dfrac{dx}{dt}=3\,\delta(t-2)$.
+
+</Answer>
+
+</Example>
+
+<Example title="A ramp with slope A">
+
+<Step title="Given">
+
+A motor's angle reference starts at 0 and increases by 5° every second from $t=0$. Write it, give its value at $t=4$ s and its derivative.
+
+</Step>
+
+<Step title="Write it">
+
+Constant rate of increase means a ramp with slope $A=5$ °/s:
+
+$$
+\theta_{ref}(t)=5\,t\ \ (t\ge0),\qquad \theta_{ref}(t)=5\,r(t).
+$$
+
+</Step>
+
+<Step title="Value at t = 4 s">
+
+$\theta_{ref}(4)=5\cdot4=20°$.
+
+</Step>
+
+<Step title="Derivative">
+
+$\dfrac{d}{dt}\,5\,r(t)=5\,u(t)$: the angular **speed** is a step of 5 °/s. This is $u=\dfrac{dr}{dt}$ scaled by 5.
+
+</Step>
+
+<Answer>
+
+$\theta_{ref}(t)=5\,r(t)$, $\theta_{ref}(4)=20°$, $\dot\theta_{ref}(t)=5\,u(t)$.
+
+</Answer>
+
+</Example>
+
+<Example title="Building a pulse and a ramp-and-hold signal">
+
+<Step title="Given">
+
+(a) A rectangular pulse of height 2 between $t=1$ and $t=3$. (b) A signal that rises as $t$ from $t=0$ to $t=2$ and then stays at 2. Express both with the basic functions.
+
+</Step>
+
+<Step title="(a) Pulse = step up, then step down">
+
+Switch on 2 at $t=1$: $2u(t-1)$. Switch it off at $t=3$ by adding a step of $-2$: $-2u(t-3)$.
+
+$$
+p(t)=2u(t-1)-2u(t-3)
+$$
+
+Check three regions: $t<1$: $0-0=0$ ✔; $1<t<3$: $2-0=2$ ✔; $t>3$: $2-2=0$ ✔.
+
+</Step>
+
+<Step title="(b) Ramp-and-hold = ramp minus delayed ramp">
+
+Start a unit ramp at 0: $r(t)$. At $t=2$ we want the slope to drop from 1 to 0, so we subtract a unit ramp starting at $t=2$, namely $r(t-2)=(t-2)u(t-2)$:
+
+$$
+x(t)=r(t)-r(t-2)
+$$
+
+Check: $0<t<2$: $t-0=t$ ✔; $t>2$: $t-(t-2)=2$ ✔.
+
+</Step>
+
+<Step title="Derivatives as a sanity check">
+
+$p'(t)=2\delta(t-1)-2\delta(t-3)$ (an up-kick and a down-kick). $x'(t)=u(t)-u(t-2)$: a unit pulse from 0 to 2, which is exactly the slope of the ramp-and-hold signal ✔.
+
+</Step>
+
+<Answer>
+
+$p(t)=2u(t-1)-2u(t-3)$, $\quad x(t)=r(t)-r(t-2)$.
+
+</Answer>
+
+</Example>
+
+## Stability (BIBO)
+
+<Def term="Stability" tr="Kararlılık">
+
+A system is stable if its output shows **bounded deviations** in response to **bounded input changes**; equivalently, it shows **bounded output for bounded input**: <Term en="BIBO — Bounded Input, Bounded Output" tr="sınırlı giriş, sınırlı çıkış" /> <Src p="3" />.
+
+</Def>
+
+"Bounded" (*sınırlı*) simply means "never larger than some finite number". Written as mathematics:
+
+$$
+\text{if } \lvert u(t)\rvert\le M_u \text{ for all } t,\ \text{ then } \lvert y(t)\rvert\le M_y \text{ for all } t,
+$$
+
+where $M_u$ and $M_y$ are finite numbers, and this must hold for **every** bounded input. A step of height 1, a sine wave, a pulse: all bounded. A ramp is **not** bounded (it grows forever), so the ramp is never used to *test* BIBO stability.
+
+**Why we care.** An unstable system is useless and often dangerous: the heater whose temperature keeps rising, the motor that spins faster and faster, the amplifier that screams (feedback howl), the aircraft whose oscillation grows. Stability is the first thing checked, before any performance criterion makes sense.
+
+### Stable and unstable responses
+
+The professor sketches two pictures, each with the input level shown as a dashed line labelled "giriş" (input) <Src p="3" />. Below they are redrawn with **real functions chosen to have the same shape**. The exact formulas are illustrative only; they are not in the notes.
+
+<StablePlot />
+
+**Kararlı sistem (stable system).** Both outputs start at 0 and end up at the input level.
+
+- Blue: rises fast, overshoots to about 1.5 times the input, swings below, then above, with each swing smaller, and settles. Illustrative function: $y=1-e^{-0.45t}\left(\cos 2.2t+\frac{0.45}{2.2}\sin 2.2t\right)$. The factor $e^{-0.45t}$ shrinks the oscillation, which is why it dies out.
+- Pink: rises smoothly without ever overshooting and creeps up to the input level. Illustrative function: $y=1-e^{-0.9t}$.
+
+Both are bounded (they never exceed about 1.53), so they satisfy BIBO for this input.
+
+<UnstablePlot />
+
+**Unstable system.** In the professor's right-hand sketch both curves start at the input level, and both escape.
+
+- Blue: slowly at first, then ever faster, it grows without limit. Illustrative: $y=1+0.08\,(e^{0.35t}-1)$. The exponent $+0.35t$ is positive, so $e^{0.35t}\to\infty$.
+- Pink: oscillates around the input, but every swing is **bigger** than the last. Illustrative: $y=1+0.05\,e^{0.3t}\sin 2.5t$. The envelope $0.05\,e^{0.3t}$ grows, so the oscillation is unbounded even though it keeps returning to the input line.
+
+<Intuition>
+
+The difference between "stable oscillation" (blue, left) and "unstable oscillation" (pink, right) is only the **sign of the exponent in the envelope**: $e^{-0.45t}$ shrinks, $e^{+0.3t}$ grows. That is exactly the "sönüm–yükselme" (decay–growth) idea on p. 8 and the reason the s-plane is split into a left (stable) and right (unstable) half. See [The exponential building block](#/m/02/the-exponential-building-block).
+
+</Intuition>
+
+<Example title="BIBO check of five responses">
+
+<Step title="Given">
+
+A system receives the bounded input $u(t)=$ unit step. Five different systems give the outputs below. Which outputs are bounded, and what can we conclude?
+
+(a) $y=1-e^{-2t}$ (b) $y=t$ (c) $y=e^{-t}\sin 5t$ (d) $y=e^{0.1t}\cos t$ (e) $y=3+2e^{-t}$
+
+</Step>
+
+<Step title="Method">
+
+Check whether $\lvert y(t)\rvert$ stays below a fixed number for all $t\ge0$. Exponentials with a **negative** exponent die out; any positive exponent or any unchecked growth (like $t$) is unbounded. Use $\lvert\sin\rvert\le1$, $\lvert\cos\rvert\le1$.
+
+</Step>
+
+<Step title="Each case">
+
+(a) $0\le e^{-2t}\le1$, so $0\le y\le1$: **bounded**.
+
+(b) $y=t\to\infty$: **unbounded**.
+
+(c) $\lvert y\rvert\le e^{-t}\cdot1\le1$: **bounded** (and it decays to 0).
+
+(d) $\lvert y\rvert$ reaches $e^{0.1t}$ whenever $\cos t=\pm1$, e.g. $t=2\pi k$, and $e^{0.1t}\to\infty$: **unbounded** (growing oscillation).
+
+(e) $3\le y\le 5$: **bounded**.
+
+</Step>
+
+<Step title="Conclusion">
+
+Systems (b) and (d) are **not BIBO stable**: we found a bounded input (the step) that produces an unbounded output. One counter-example is enough to prove instability.
+
+For (a), (c), (e) the step test is *consistent* with stability, but strictly BIBO asks for every bounded input; a single test cannot *prove* stability. (Later modules give a test based on the system's poles that does prove it.)
+
+</Step>
+
+<Answer>
+
+Bounded: (a), (c), (e). Unbounded → system unstable: (b), (d).
+
+</Answer>
+
+</Example>
+
+<Example title="An integrator is not BIBO stable">
+
+<Step title="Given">
+
+A water tank fed by a pump: the water level is the integral of the inflow, $y(t)=\int_0^t u(\tau)\,d\tau$. Is this BIBO stable?
+
+</Step>
+
+<Step title="Try a bounded input">
+
+Let the pump run at constant rate 1: $u(t)=u(t)$ (unit step, bounded by 1). Using the relation $r(t)=\int_0^t u\,d\tau$ from p. 2:
+
+$$
+y(t)=\int_0^t 1\,d\tau=t=r(t).
+$$
+
+</Step>
+
+<Step title="Conclude">
+
+The output is a ramp, which grows without bound (the tank overflows). Bounded input, unbounded output: **not BIBO stable**.
+
+</Step>
+
+<Answer>
+
+The integrator is not BIBO stable: a unit step in gives a unit ramp out.
+
+</Answer>
+
+</Example>
+
+<Mistake title="'The output oscillates, so the system is unstable'">
+
+Oscillation alone says nothing. The blue curve on the left of p. 3 oscillates and is stable; the pink curve on the right oscillates and is unstable. Look at the **envelope**: shrinking → stable, growing → unstable.
+
+</Mistake>
+
+<Note title="Borderline case">
+
+A response such as $y=1-\cos 3t$ oscillates forever with constant amplitude. It is bounded for the step input, yet it never settles, and such a system can be driven to unbounded output by a sine input at the same frequency. Do not call it "stable" in an exam without qualification; the notes' stable sketches always **settle**. This borderline case is treated properly once poles are introduced.
+
+</Note>
+
+## Step response performance criteria
+
+<Src p="4" /> *Sistem Çıkışı ve Kontrol Kriterleri* (System Output and Control Criteria). To measure a system's **performance** we take certain measurements on its output. The professor's advice: the best way to understand these measurements is to look at an example **unit step response** (<Term en="unit step response" tr="birim basamak tepkesi" />).
+
+Why the step? Because it is the most common real command (a new set-point), it is easy to generate in a lab (flip a switch), and every quality of interest (speed, overshoot, oscillation, accuracy) shows up clearly in it.
+
+### The annotated unit step response
+
+Here is the professor's figure, redrawn from a real underdamped response (a curve that overshoots and oscillates while settling). The values ($y_{ss}=0.9$ etc.) are chosen to match the shape of the sketch; the notes give no numbers.
+
+<AnnotatedStepResponse />
+
+What the figure shows, piece by piece (match each item with the sketch on p. 4):
+
+- **$r(t)=1$** (upper dashed line): the desired output. The input is a unit step, so we *want* the output to become 1.
+- **$y_{ss}$** (lower dashed line): where the output actually ends up. In the sketch it is a little **below** 1.
+- **$t_r$**: the first moment the curve reaches the $y_{ss}$ line.
+- **$t_p$**: the moment of the highest peak.
+- **$m$**: the blue double arrow from the peak **down to $y_{ss}$** (not down to 1!).
+- **$t_s$**: the moment after which the curve stays close to $y_{ss}$.
+- **$e_{ss}$**: the gap between the two dashed lines at the right end (the light-blue arrows).
+- **Geçici Durum / Kalıcı Durum**: the part of the response before settling is the <Term en="transient state" tr="geçici durum" />; afterwards the <Term en="steady state" tr="kalıcı durum" />.
+
+<StepCriteriaExplorer />
+
+Play with the knobs: the "damping knob" $\xi$ controls how oscillatory the curve is (small $\xi$ → big overshoot, many swings), and the "speed knob" $\omega_n$ stretches or compresses the time axis. Notice:
+
+- $e_{ss}$ depends **only** on $y_{ss}$, not on how the curve gets there;
+- $m$ (as a percentage of $y_{ss}$) depends only on $\xi$; doubling $\omega_n$ halves $t_r$, $t_p$, $t_s$ but leaves $m\%$ unchanged;
+- a tighter tolerance (2% instead of 5%) gives a **later** $t_s$.
+
+The formulas behind these observations (for this particular kind of curve) are derived in [Module 08](#/m/08). In this module we only need the **definitions** and the ability to read values off a curve.
+
+### Definitions of the parameters
+
+<Src p="5" /> The professor defines five quantities.
+
+<Def term="Rise time t_r" tr="Yükselme süresi">
+
+The time from the start ($t=0$) until the system output reaches its steady-state value $y_{ss}$ for the **first** time.
+
+</Def>
+
+*Why it matters:* it measures how **fast** the system reacts. A cruise control with $t_r=2$ s feels lively, one with $t_r=20$ s feels sluggish.
+
+<Note title="Other rise-time definitions you may meet">
+
+The professor uses the "0 → 100% of $y_{ss}$" definition (and underlines **ilk**, *first*). Many textbooks instead use 10% → 90% of $y_{ss}$, mainly because a response that never overshoots (like $1-e^{-t}$) reaches 100% only at $t=\infty$. With the professor's definition such a response has $t_r=\infty$; see the [first-order example](#/m/02/ex-a-response-with-no-overshoot). In this course, use the professor's definition unless a question says otherwise.
+
+</Note>
+
+<Def term="Steady-state value y_ss" tr="Kalıcı durum değeri">
+
+The final value the output goes to as $t\to\infty$, once all changes in the output have died out:
+
+$$
+y_{ss}=\lim_{t\to\infty}y(t).
+$$
+
+</Def>
+
+<Def term="Maximum overshoot m" tr="Maksimum aşım">
+
+The **largest** deviation of the response **above** the steady-state value:
+
+$$
+m=y_{max}-y_{ss}=y(t_p)-y_{ss}.
+$$
+
+</Def>
+
+*Why it matters:* overshoot means the system goes **past** the target. For a robot arm it may hit something; for a heater it means discomfort; for a voltage regulator it may damage electronics. It is often quoted as a percentage of the final value: $\%m=100\,\dfrac{m}{y_{ss}}$.
+
+<Uncertain title="m or M?">
+
+The overshoot symbol in the notes (p. 4 and p. 5) looks like a lower-case $m$; it could be meant as $M$. We use $m$ as written. The **peak time** $t_p$ appears on the figure but has no separate definition in the text: it is the time at which the maximum $y_{max}$ (and hence $m$) occurs.
+
+</Uncertain>
+
+<Def term="Settling time t_s" tr="Yerleşme süresi">
+
+The time at which the deviation of the response from its steady-state value enters the desired **tolerance band** (and stays inside it from then on).
+
+</Def>
+
+*Why it matters:* it tells you when the system has "calmed down" and can be treated as finished. The tolerance is chosen by the designer; typical values are $\pm2\%$ or $\pm5\%$ of $y_{ss}$. The notes do not fix a percentage, so an exam question must state it.
+
+<Note title="Correction to the notes: 'first enters' vs 'enters and stays'">
+
+The notes say $t_s$ is "the **first** instant at which the deviation enters the tolerance band". Taken literally that would be wrong for an oscillating response: the curve first passes *through* the band on its way up (near $t_r$!) and then leaves it again at the overshoot. The intended meaning, and the one shown in the professor's own figure (where $t_s$ is marked at the end of the oscillations), is: **the instant after which the response remains inside the band for good**. The explorer above shows both numbers: "first entry into band" is close to $t_r$, while the true $t_s$ is much later.
+
+</Note>
+
+<Def term="Steady-state error e_ss" tr="Kalıcı durum hatası">
+
+The difference between the desired output value (1 in our example) and the system's steady-state value $y_{ss}$:
+
+$$
+e_{ss}=r-y_{ss}=1-y_{ss}\qquad(\text{unit step input}).
+$$
+
+</Def>
+
+*Why it matters:* it measures **accuracy**. If you set the thermostat to 22 °C and the room settles at 21.5 °C, the steady-state error is 0.5 °C, forever.
+
+<Note title="Correction to the notes: (ess) should be (y_ss)">
+
+In the definition on p. 5 the notes write "Sistem kalıcı durum değeri **(ess)** ile istenilen çıkış değeri arasındaki farktır". The parenthesis should read $(y_{ss})$: the steady-state **value** is $y_{ss}$, and $e_{ss}$ is the **difference** $1-y_{ss}$, as the figure on p. 4 shows (arrows between the $r(t)=1$ line and the $y_{ss}$ line).
+
+</Note>
+
+**Sign of $e_{ss}$.** With $e_{ss}=1-y_{ss}$, a system that ends **below** the target has positive error, one that ends **above** it has negative error. Some books quote $\lvert e_{ss}\rvert$; state which you use.
+
+**Transient and steady state.** Everything that happens before the response settles (the rise, the overshoot, the swings) is the **transient** (*geçici durum*): it is temporary and dies out in a stable system. What is left forever is the **steady state** (*kalıcı durum*). $t_r$, $t_p$, $m$, $t_s$ describe the transient; $y_{ss}$ and $e_{ss}$ describe the steady state. $t_s$ is the border between them.
+
+<Tip title="Sketching the annotated response in an exam">
+
+1. Draw axes; mark $r=1$ and (if different) $y_{ss}$ as two dashed horizontal lines.
+2. Start the curve at the origin, rise steeply, cross $y_{ss}$ (drop a dashed line: $t_r$), cross 1, reach one clear peak (dashed line: $t_p$), come back down below $y_{ss}$, a smaller bump, and flatten onto $y_{ss}$ (arrow: $t_s$).
+3. Add the double arrow peak → $y_{ss}$ labelled $m$, the gap 1 − $y_{ss}$ labelled $e_{ss}$, and the words *Geçici Durum ← | → Kalıcı Durum* above $t_s$.
+
+Each swing should be visibly smaller than the previous one; otherwise you have drawn an unstable or borderline system.
+
+</Tip>
+
+### Reading the parameters off a response
+
+<Example title="Reading the criteria off a response">
+
+<Step title="Given">
+
+A system's response to a unit step is
+
+$$
+y(t)=0.8\left[1-e^{-t}\left(\cos 2t+0.5\sin 2t\right)\right],\quad t\ge0.
+$$
+
+Find $y_{ss}$, $e_{ss}$, $t_r$, $t_p$, $m$ (and %$m$), and $t_s$ for a $\pm2\%$ band.
+
+</Step>
+
+<Step title="Steady-state value and error">
+
+As $t\to\infty$, $e^{-t}\to0$ while $\cos 2t+0.5\sin2t$ stays between $-1.12$ and $1.12$, so their product $\to0$:
+
+$$
+y_{ss}=0.8\,[1-0]=0.8,\qquad e_{ss}=1-0.8=0.2.
+$$
+
+</Step>
+
+<Step title="Rise time: first time y = y_ss">
+
+$y=0.8$ requires $e^{-t}(\cos2t+0.5\sin2t)=0$. Since $e^{-t}\neq0$:
+
+$$
+\cos2t+0.5\sin2t=0\ \Rightarrow\ \tan 2t=-2.
+$$
+
+$\arctan(-2)=-1.1071$, and the first **positive** solution is one period ($\pi$) later: $2t=\pi-1.1071=2.0344$, so
+
+$$
+t_r=1.0172\ \text{s}.
+$$
+
+</Step>
+
+<Step title="Peak time: where the slope is zero">
+
+Differentiate the bracket with the product rule, $\frac{d}{dt}[fg]=f'g+fg'$, with $f=e^{-t}$, $g=\cos2t+0.5\sin2t$:
+
+$$
+\frac{d}{dt}\Big[e^{-t}g\Big]=-e^{-t}(\cos2t+0.5\sin2t)+e^{-t}(-2\sin2t+\cos2t)=-2.5\,e^{-t}\sin2t.
+$$
+
+So $\dot y=0.8\cdot2.5\,e^{-t}\sin2t=2e^{-t}\sin 2t$, which is zero when $\sin2t=0$: $t=0,\ \tfrac{\pi}{2},\ \pi,\dots$ The first maximum (after the start) is
+
+$$
+t_p=\frac{\pi}{2}=1.5708\ \text{s}.
+$$
+
+</Step>
+
+<Step title="Overshoot">
+
+At $t_p$: $\cos\pi=-1$, $\sin\pi=0$, so the bracket $=1-e^{-\pi/2}(-1)=1+e^{-\pi/2}=1+0.2079=1.2079$.
+
+$$
+y_{max}=0.8\cdot1.2079=0.9663,\qquad m=0.9663-0.8=0.1663,\qquad \%m=\frac{0.1663}{0.8}\cdot100=20.8\%.
+$$
+
+Note $y_{max}<1$: the output never even reaches the desired value, yet it overshoots its **own** final value. That is why $m$ is measured from $y_{ss}$.
+
+</Step>
+
+<Step title="Settling time (±2%)">
+
+The band is $0.8\pm0.016$, i.e. $[0.784,\ 0.816]$. The deviation is $\lvert y-0.8\rvert=0.8\,e^{-t}\lvert\cos2t+0.5\sin2t\rvert$. Reading the plot (or evaluating numerically), the last time the curve is outside the band is about
+
+$$
+t_s\approx3.74\ \text{s}.
+$$
+
+A quick upper bound without a plot: $\lvert\cos2t+0.5\sin2t\rvert\le\sqrt{1^2+0.5^2}=1.118$, so the deviation is at most $0.8\cdot1.118\,e^{-t}$; this is below $0.016$ once $e^{-t}\le0.0179$, i.e. $t\ge4.02$ s. The true $t_s$ (3.74 s) must be, and is, before this bound.
+
+</Step>
+
+<ReadingExamplePlot />
+
+<Answer>
+
+$y_{ss}=0.8$, $e_{ss}=0.2$, $t_r=1.017$ s, $t_p=\pi/2=1.571$ s, $y_{max}=0.966$, $m=0.166$ (20.8%), $t_s(2\%)\approx3.74$ s.
+
+</Answer>
+
+<Step title="Sanity check">
+
+$t_r<t_p<t_s$ ✔ (rise, then peak, then settle). The curve at $t=0$: $0.8[1-1\cdot(1+0)]=0$ ✔ (starts at rest). The next minimum is at $t=\pi$: $0.8(1-e^{-\pi})=0.765$, inside a 5% band but outside the 2% band, consistent with $t_s(2\%)>\pi$ ✔.
+
+</Step>
+
+</Example>
+
+<Example title="A response with no overshoot">
+
+<Step title="Given">
+
+A unit step applied to a system gives $y(t)=2\left(1-e^{-t/3}\right)$. Find $y_{ss}$, $e_{ss}$, $m$, $t_r$, $t_s(2\%)$.
+
+</Step>
+
+<Step title="Steady state">
+
+$e^{-t/3}\to0$, so $y_{ss}=2$ and $e_{ss}=1-2=-1$. The output ends **above** the desired value 1 (negative error).
+
+</Step>
+
+<Step title="Overshoot">
+
+$e^{-t/3}$ decreases monotonically, so $y$ increases monotonically towards 2 and never exceeds it: $m=0$.
+
+</Step>
+
+<Step title="Rise time (professor's definition)">
+
+$y=y_{ss}=2$ requires $e^{-t/3}=0$, which never happens for finite $t$: $t_r=\infty$. (This is the edge case where the 10–90% definition is more useful: it would give $t_r=3\ln 9=6.59$ s.)
+
+</Step>
+
+<Step title="Settling time">
+
+Deviation $\lvert y-2\rvert=2e^{-t/3}$. Inside $\pm2\%$ of $y_{ss}$ means $2e^{-t/3}\le0.02\cdot2$, i.e. $e^{-t/3}\le0.02$:
+
+$$
+-\frac t3\le\ln0.02=-3.912\ \Rightarrow\ t_s=3\cdot3.912=11.74\ \text{s}.
+$$
+
+Because the curve is monotonic it never leaves the band again, so "first entry" and "stays inside" coincide here.
+
+</Step>
+
+<Answer>
+
+$y_{ss}=2$, $e_{ss}=-1$, $m=0$, $t_r=\infty$ (professor's definition), $t_s=3\ln50\approx11.74$ s.
+
+</Answer>
+
+</Example>
+
+## Transfer function
+
+<Def term="Transfer function" tr="Transfer fonksiyonu">
+
+The transfer function is the **mathematical expression of a system's input/output relationship** <Src p="6" />.
+
+</Def>
+
+In words: it is the "rule" that tells you what comes out when you put something in. Once you have it, you can predict the output for any input, judge stability, and compute all the criteria above **without** building or testing the system again.
+
+The professor names two ways to obtain it <Src p="6" />:
+
+1. **Analytically** (*analitik yolla*): write the physical laws of the system (circuit analysis, Newton's laws, …) and derive the relation. The RC circuit below is an example.
+2. **From measurements** (<Term en="system identification" tr="sistem tanımlama" />): apply **test signals** (*test işaretleri*: exactly the step, ramp, impulse of this module) to a real physical object, record the outputs, and find the mathematical relation that reproduces them. Examples in the notes: **transformer tests** and **electrical measurements of the human body**.
+
+### System identification
+
+Why would you identify a system from measurements instead of deriving it? Because often the inside is unknown or too complicated. You cannot write Kirchhoff's laws for a human arm's tissue, and a power transformer's internal losses are easier to measure than to calculate. So you treat the object as a black box: put a step in, record the response, and fit a model.
+
+<Intuition>
+
+The step response figure of p. 4 is also an identification tool. If a measured step response settles at 0.8 with no overshoot, you already know the model must have "gain" 0.8 and no oscillatory behaviour; if it overshoots by 20%, the model must contain oscillation that decays at a certain rate. The criteria $y_{ss}$, $m$, $t_p$, $t_s$ are the fingerprints from which the model is reconstructed.
+
+</Intuition>
+
+### A differential-equation model
+
+The professor notes that the structures met most often when identifying systems are **differential equations** (*türevsel / diferansiyel eşitlikler*), and gives an example <Src p="6" />:
+
+$$
+\frac{d^2y(t)}{dt^2}+2\frac{dy(t)}{dt}+3y(t)=4\frac{du(t)}{dt}+5u(t)
+$$
+
+Here $y(t)$ is the output and $u(t)$ is a **general input** (not necessarily the unit step; the same letter is unfortunately used for both).
+
+**Why differential equations?** Physical systems store energy (a capacitor stores charge, a mass stores momentum, a tank stores water). Stored energy cannot change instantly, so the output depends on **rates of change**, not only on present values. Rates of change are derivatives.
+
+**How to read it.**
+
+- Left side: the output and its derivatives, each with a constant coefficient (1, 2, 3). The highest derivative is the 2nd, so this is a **second-order** system (it can oscillate, like the curve on p. 4).
+- Right side: the input and its derivatives (coefficients 4, 5). The $\frac{du}{dt}$ term means the system reacts not just to the input's value but also to how fast it changes.
+- All coefficients are constants: the system is **linear and time-invariant**.
+
+<Example title="The professor's ODE example" src="6">
+
+<Step title="Given">
+
+$\ddot y+2\dot y+3y=4\dot u+5u$ (dots denote time derivatives). The notes only state this equation. Let us extract what we can **without** solving it, and see what its transfer function will look like.
+
+</Step>
+
+<Step title="Steady state for a constant input">
+
+Let the input be constant, $u=U_0$ (e.g. a step after it has switched on). If the system settles, $y$ becomes constant: $\dot y=\ddot y=0$; and $\dot u=0$ because $U_0$ is constant. The equation collapses to
+
+$$
+3y_{ss}=5U_0\quad\Rightarrow\quad y_{ss}=\frac{5}{3}U_0.
+$$
+
+For a unit step: $y_{ss}=\frac53\approx1.667$ and $e_{ss}=1-\frac53=-\frac23$.
+
+</Step>
+
+<Step title="Why solving it is hard work">
+
+To get $y(t)$ itself we would have to solve a second-order ODE (homogeneous + particular solution + initial conditions), and **redo everything for every new input**. That is precisely the professor's complaint on p. 8, and the reason for the Laplace transform.
+
+</Step>
+
+<Step title="What the transfer function will be (preview)">
+
+The trick (justified properly in [Module 03](#/m/03)) is to try exponential signals: if $u=U e^{st}$ and $y=Y e^{st}$ then each $\frac{d}{dt}$ just multiplies by $s$ (because $\frac{d}{dt}e^{st}=s\,e^{st}$):
+
+$$
+(s^2+2s+3)\,Y e^{st}=(4s+5)\,U e^{st}\ \Rightarrow\ \frac{Y}{U}=\frac{4s+5}{s^2+2s+3}.
+$$
+
+With the Laplace transform and zero initial conditions this becomes the transfer function $\dfrac{Y(s)}{U(s)}=\dfrac{4s+5}{s^2+2s+3}$. Check: at $s=0$ (a constant input is $e^{0t}$) it gives $\frac{5}{3}$, the same steady-state gain found above ✔.
+
+</Step>
+
+<Answer>
+
+Second-order linear ODE; constant input $U_0$ ⇒ $y_{ss}=\tfrac53U_0$; its transfer function (once Laplace is available) is $\dfrac{4s+5}{s^2+2s+3}$.
+
+</Answer>
+
+</Example>
+
+## Modelling a series RC circuit
+
+The professor's worked example <Src p="7" /> is the simplest circuit with memory: a source, a resistor and a capacitor in one loop. The question written next to it is $\dfrac{V_c}{V_s}=?$, i.e. "what is the input/output relation (transfer function) of this circuit?".
+
+<RCCircuit />
+
+**Components.**
+
+- $V_s$: the independent voltage source, the **input** (+ at the top).
+- $R$: the resistor in the top wire. Element law (Ohm): voltage across it $=R\cdot I$.
+- $C$: the capacitor on the right branch. Element law: $I=C\dfrac{dV_c}{dt}$ (current = rate at which charge $q=CV_c$ accumulates).
+- $V_c$: the voltage across the capacitor, + at the top, the **output**.
+- $I$: the single loop current, flowing clockwise (to the right through $R$, down through $C$).
+
+<Example title="Series RC circuit model" src="7">
+
+<Step title="Capacitor law">
+
+The loop current flows into the + plate of the capacitor:
+
+$$
+I=C\frac{dV_c}{dt}.
+$$
+
+</Step>
+
+<Step title="Resistor law + KVL">
+
+Going around the loop (Kirchhoff's voltage law), the source voltage is shared by $R$ and $C$: $V_s=V_R+V_c$, so $V_R=V_s-V_c$. Ohm's law then gives the same current:
+
+$$
+I=\frac{V_s-V_c}{R}.
+$$
+
+</Step>
+
+<Step title="Equate the two expressions for I">
+
+It is one series loop, so both expressions describe the same current (this is also KCL at the top-right node):
+
+$$
+\frac{V_s-V_c}{R}=C\frac{dV_c}{dt}.
+$$
+
+</Step>
+
+<Step title="Rearrange: input on one side, output on the other">
+
+Multiply both sides by $R$: $V_s-V_c=RC\dfrac{dV_c}{dt}$. Add $V_c$:
+
+$$
+\boxed{V_s=R\,C\,\frac{dV_c}{dt}+V_c}
+$$
+
+</Step>
+
+<Answer>
+
+$V_s=RC\,\dfrac{dV_c}{dt}+V_c$: a first-order linear differential equation linking input $V_s$ and output $V_c$.
+
+</Answer>
+
+<Step title="What the notes conclude">
+
+*Burada, herhangi bir $V_s$ girişine karşı $V_c$ çıkışını bulmak için çözümleme yapmak gerekir.* To find the output $V_c$ for a given input $V_s$ we have to **solve** this differential equation, and solve it again for every new input. The question $V_c/V_s=?$ is deliberately left open: a ratio of time functions is meaningless for a differential equation, which motivates the Laplace transform on the next pages.
+
+</Step>
+
+</Example>
+
+**Checks on the equation.**
+
+- *Units:* $R$ in Ω, $C$ in F; Ω·F = (V/A)(A·s/V) = s. So $RC\,\frac{dV_c}{dt}$ has units s·V/s = V ✔.
+- *DC steady state:* if $V_s=V$ is constant and the circuit settles, $\frac{dV_c}{dt}=0$, so $V_c=V$: a fully charged capacitor blocks DC, no current flows, no voltage drops across $R$ ✔.
+- *At the instant of switching:* if $V_c(0)=0$, then $\frac{dV_c}{dt}(0)=\frac{V}{RC}$: the capacitor starts charging at its fastest rate.
+
+<Note title="Forward pointer: the transfer function V_c/V_s">
+
+Using the same exponential trick as for the ODE example (each $\frac{d}{dt}\to s$), the equation becomes $V_s=RCs\,V_c+V_c$, hence
+
+$$
+\frac{V_c(s)}{V_s(s)}=\frac{1}{RCs+1}.
+$$
+
+The notes do not write this here; [Module 05](#/m/05) completes this exact example with the Laplace transform.
+
+</Note>
+
+To connect with the performance criteria: for a step source $V_s=V\,u(t)$ and an initially empty capacitor, the solution of the equation is $V_c(t)=V\left(1-e^{-t/RC}\right)$. You can verify it by substitution: $\frac{dV_c}{dt}=\frac{V}{RC}e^{-t/RC}$, so $RC\frac{dV_c}{dt}+V_c=Ve^{-t/RC}+V-Ve^{-t/RC}=V$ ✔, and $V_c(0)=0$ ✔. (How to *find* such solutions systematically is what the Laplace transform is for.)
+
+<RCStepExplorer />
+
+Reading the explorer with the p. 5 definitions: $y_{ss}=V$, $e_{ss}=0$ relative to the commanded $V$, $m=0$, $t_s(2\%)=RC\ln50\approx3.9\,RC$, and $t_r=\infty$ under the professor's 0 → 100% definition (the curve approaches $V$ but never reaches it). The response is bounded for this bounded input, consistent with the RC circuit being stable.
+
+<Example title="Series RC circuit with numbers">
+
+<Step title="Given">
+
+$R=10$ kΩ, $C=100$ μF, $V_s$ = a 5 V step. Write the differential equation and find the final capacitor voltage and the final current.
+
+</Step>
+
+<Step title="Time constant">
+
+$RC=10\times10^{3}\ \Omega\cdot100\times10^{-6}\ \text{F}=1\ \text{s}$.
+
+</Step>
+
+<Step title="Equation">
+
+$$
+V_s=1\cdot\frac{dV_c}{dt}+V_c,\qquad\text{i.e. }\ \frac{dV_c}{dt}+V_c=5\ \ (t>0).
+$$
+
+</Step>
+
+<Step title="Steady state">
+
+Settled ⇒ $\frac{dV_c}{dt}=0$ ⇒ $V_c=5$ V. Current: $I=C\frac{dV_c}{dt}=0$ (equivalently $I=\frac{5-5}{10^4}=0$).
+
+</Step>
+
+<Answer>
+
+$\dfrac{dV_c}{dt}+V_c=V_s$ (with $RC=1$ s); $V_c\to5$ V, $I\to0$ A.
+
+</Answer>
+
+</Example>
+
+<Example title="Series RL circuit model">
+
+<Step title="Given">
+
+Replace the capacitor by an inductor $L$ (same loop: source, $R$, $L$). The output is the loop current $i(t)$. Derive the differential equation.
+
+</Step>
+
+<RLCircuit />
+
+<Step title="Element laws">
+
+Resistor: $V_R=R\,i$. Inductor: $V_L=L\dfrac{di}{dt}$ (an inductor resists changes of current).
+
+</Step>
+
+<Step title="KVL around the loop">
+
+$$
+V_s=V_R+V_L=R\,i+L\frac{di}{dt}.
+$$
+
+</Step>
+
+<Step title="Interpretation">
+
+Same structure as the RC circuit (first order). Divide by $R$: $\frac{L}{R}\frac{di}{dt}+i=\frac{V_s}{R}$; the time constant is $L/R$ instead of $RC$. DC steady state: $\frac{di}{dt}=0$ ⇒ $i=V_s/R$ (a settled inductor is a short circuit).
+
+</Step>
+
+<Answer>
+
+$V_s=L\dfrac{di}{dt}+R\,i$; for a constant source, $i_{ss}=V_s/R$.
+
+</Answer>
+
+</Example>
+
+<Example title="RC circuit with the output across R">
+
+<Step title="Given">
+
+The same series loop, but the output is the resistor voltage $V_R$. Find the differential equation between $V_s$ and $V_R$.
+
+</Step>
+
+<RCOutputRCircuit />
+
+<Step title="Relations available">
+
+KVL: $V_s=V_c+V_R$. Ohm: $I=\dfrac{V_R}{R}$. Capacitor: $I=C\dfrac{dV_c}{dt}$.
+
+</Step>
+
+<Step title="Eliminate V_c">
+
+From KVL, $V_c=V_s-V_R$, so $\dfrac{dV_c}{dt}=\dfrac{dV_s}{dt}-\dfrac{dV_R}{dt}$. Equate the two currents:
+
+$$
+\frac{V_R}{R}=C\left(\frac{dV_s}{dt}-\frac{dV_R}{dt}\right).
+$$
+
+</Step>
+
+<Step title="Rearrange">
+
+Multiply by $R$ and collect output terms on the left:
+
+$$
+RC\frac{dV_R}{dt}+V_R=RC\frac{dV_s}{dt}.
+$$
+
+</Step>
+
+<Answer>
+
+$RC\,\dfrac{dV_R}{dt}+V_R=RC\,\dfrac{dV_s}{dt}$. Like the professor's ODE on p. 6, the **derivative of the input** appears on the right.
+
+</Answer>
+
+<Step title="Sanity check">
+
+Constant $V_s$ ⇒ right side 0 ⇒ settled $V_R=0$: the charged capacitor blocks DC, so no current and no resistor voltage ✔. The same loop gives different equations depending on which voltage we call the output: the transfer function belongs to an input–output **pair**, not just to the circuit.
+
+</Step>
+
+</Example>
+
+## Why the Laplace transform?
+
+<Src p="8" /> The professor's argument, step by step:
+
+1. For transfer functions expressed by **differential equations**, reaching the solution needs **tiring analytical methods**, and they must be **repeated every time the input changes**. (We just felt this with the RC circuit and the ODE.)
+2. To judge **stability**, we would need the **time-domain expression of the output for every input**: impossible in practice.
+3. Interpretations made directly from the differential-equation form are **limited and insufficient**.
+4. Therefore, instead of differential analysis, the <Term en="Laplace transform" tr="Laplace dönüşümü" /> approach is preferred. It frees us from computationally heavy methods such as differential analysis and **convolution** (*konvolüsyon*, the time-domain operation that gives the output of a system for an arbitrary input; you do not need its details here).
+
+<Intuition>
+
+Logarithms turned multiplication into addition, which is why engineers used slide rules. The Laplace transform does the same trick one level up: it turns **differentiation into multiplication by $s$**, so a differential equation becomes an algebraic equation. Solve the algebra, transform back, done.
+
+</Intuition>
+
+### The exponential building block
+
+The notes continue: *in the Laplace transform we look at the correlation between the system functions and the $e^{st}$ space. Because the s-plane covers both the real and the imaginary axes, it covers all frequency-plane solutions too* <Src p="8" />.
+
+Why $e^{st}$? Because it is the one function whose derivative is **itself times a constant**:
+
+$$
+\frac{d}{dt}e^{st}=s\,e^{st},\qquad \frac{d^2}{dt^2}e^{st}=s^2e^{st},\ \dots
+$$
+
+So when a linear differential equation "sees" an $e^{st}$ signal, every derivative becomes a factor $s$; that is exactly what we used in the ODE and RC examples.
+
+Here $s$ is a **complex number**, $s=\sigma+j\omega$, which we place as a point in the **s-plane** (*s-düzlemi*): horizontal axis = real part $\sigma$ (*reel eksen*), vertical axis = imaginary part $\omega$ (*sanal eksen*). Using $e^{a+b}=e^ae^b$:
+
+$$
+e^{st}=e^{(\sigma+j\omega)t}=e^{\sigma t}\cdot e^{j\omega t}.
+$$
+
+The professor lists what each part means <Src p="8" />:
+
+| Factor | Turkish label | Meaning |
+|---|---|---|
+| $e^{0}$ ($s=0$) | sabit | constant: $e^{0\cdot t}=1$ for all $t$ (a DC level) |
+| $e^{\mp t}$, generally $e^{\sigma t}$ | sönüm – yükselme | $\sigma<0$: decay (damping); $\sigma>0$: growth |
+| $e^{j\omega t}=\cos\omega t+j\sin\omega t$ | salınım – faz | oscillation at $\omega$ rad/s, with a phase |
+
+So one complex number $s$ describes a whole family of signals: constants, decaying or growing exponentials, pure sinusoids, and decaying or growing oscillations. Every curve on p. 3 is of this type: the stable ones have $\sigma<0$ (left half of the s-plane), the unstable ones $\sigma>0$ (right half). The imaginary axis ($\sigma=0$) is pure sinusoids, i.e. the frequency domain; this is what "the s-plane also covers all frequency-plane solutions" means.
+
+<ExpSTExplorer />
+
+<Uncertain title="e^{∓t} or e^{±t}?">
+
+The sign in front of $t$ on p. 8 reads as "∓" (it could be "±"). The meaning is the same either way: $e^{-t}$ is a decay (*sönüm*), $e^{+t}$ is a growth (*yükselme*).
+
+</Uncertain>
+
+### Euler's formula
+
+The professor uses <Src p="8" />
+
+$$
+e^{j\omega t}=\cos\omega t+j\sin\omega t.
+$$
+
+**Where it comes from (sketch).** Use the power series $e^{x}=1+x+\frac{x^2}{2!}+\frac{x^3}{3!}+\dots$ with $x=j\theta$, and $j^2=-1$, $j^3=-j$, $j^4=1$:
+
+$$
+e^{j\theta}=\Big(1-\frac{\theta^2}{2!}+\frac{\theta^4}{4!}-\dots\Big)+j\Big(\theta-\frac{\theta^3}{3!}+\dots\Big)=\cos\theta+j\sin\theta.
+$$
+
+**What it tells us.**
+
+- $\lvert e^{j\omega t}\rvert=\sqrt{\cos^2\omega t+\sin^2\omega t}=1$: it neither grows nor decays, it just **rotates** around the unit circle, $\omega$ radians per second. Its real part is the oscillation $\cos\omega t$, its angle $\omega t$ is the phase: hence *salınım–faz*.
+- Adding $e^{j\omega t}$ and $e^{-j\omega t}=\cos\omega t-j\sin\omega t$ cancels the imaginary parts: $\cos\omega t=\dfrac{e^{j\omega t}+e^{-j\omega t}}{2}$. So real sinusoids are sums of two $e^{st}$ signals with $s=\pm j\omega$.
+
+<Example title="Reading signals off the s-plane">
+
+<Step title="Given">
+
+Describe the time signal $e^{st}$ (or its real part) for $s=0$, $s=-2$, $s=1$, $s=j3$, $s=-1+j2$.
+
+</Step>
+
+<Step title="Each case, using e^{st} = e^{σt}(cos ωt + j sin ωt)">
+
+- $s=0$: $e^{0}=1$, a **constant** (sabit).
+- $s=-2$: $\sigma=-2,\ \omega=0$: $e^{-2t}$, pure **decay**, halves roughly every 0.35 s ($\ln2/2$).
+- $s=1$: $e^{t}$, pure **growth** (unbounded).
+- $s=j3$: $\sigma=0$: $e^{j3t}=\cos3t+j\sin3t$, real part $\cos3t$: **oscillation** at 3 rad/s with constant amplitude.
+- $s=-1+j2$: real part $e^{-t}\cos2t$: **decaying oscillation** (like the blue stable curve on p. 3).
+
+</Step>
+
+<Answer>
+
+Left half-plane ($\sigma<0$) → decays; right half-plane ($\sigma>0$) → grows; imaginary axis → constant-amplitude oscillation; origin → constant.
+
+</Answer>
+
+<Step title="Link to the professor's ODE">
+
+Trying $y=e^{st}$ in the unforced ODE $\ddot y+2\dot y+3y=0$ gives $s^2+2s+3=0$, so $s=\dfrac{-2\pm\sqrt{4-12}}{2}=-1\pm j\sqrt2$. Both points lie in the left half-plane: the system's own (natural) motion is $e^{-t}$ times an oscillation at $\sqrt2\approx1.414$ rad/s, which decays. That is a stable, oscillatory system, like the left sketch of p. 3.
+
+</Step>
+
+</Example>
+
+## The Laplace transform
+
+### Laplace definition
+
+<Def term="Laplace transform" tr="Laplace dönüşümü">
+
+Let $f(t)$ be a time-domain function (*zaman bölgesi fonksiyonu*). Its Laplace transform is <Src p="9" />
+
+$$
+\L\{f(t)\}=F(s)=\int_{0}^{\infty}f(t)\,e^{-st}\,dt.
+$$
+
+</Def>
+
+**Every symbol.**
+
+- $f(t)$: the signal in time (input, output, anything), considered for $t\ge0$.
+- $e^{-st}$: the **kernel**; it "measures" how much of the exponential behaviour $e^{st}$ is in $f$. Multiplying by $e^{-st}$ and integrating is the "correlation with the $e^{st}$ space" of p. 8.
+- $s=\sigma+j\omega$: a complex variable. The result $F(s)$ is a function of $s$, not of $t$: time has been integrated away.
+- $\int_0^\infty$: only $t\ge0$ counts (we start observing a system when we switch it on).
+
+**Convergence.** The integral must be finite. Since $\lvert e^{-st}\rvert=e^{-\sigma t}$, a large enough $\sigma=\mathrm{Re}\,s$ makes $e^{-st}$ shrink fast and tames signals like 1 or $t$. For the three basic signals, $\mathrm{Re}\,s>0$ is enough.
+
+**What you get.** $F(s)$ is an algebraic expression in $s$ (like $\frac1s$). Its properties (derivatives become $s$, inverse transform, tables) are developed in depth in [Module 03](#/m/03). Here we compute the three transforms the notes derive.
+
+<LaplaceIntegralExplorer />
+
+### Transform of the unit step
+
+<Example title="Laplace transform of the unit step" src="9">
+
+<Step title="Set up">
+
+$u(t)=1$ for $t>0$ (and 0 for $t<0$, which the integral does not see anyway). Put it in the definition:
+
+$$
+\L\{u(t)\}=\int_0^\infty 1\cdot e^{-st}\,dt.
+$$
+
+</Step>
+
+<Step title="Antiderivative">
+
+$\dfrac{d}{dt}\left(-\dfrac1s e^{-st}\right)=-\dfrac1s\cdot(-s)\,e^{-st}=e^{-st}$, so $\displaystyle\int e^{-st}dt=-\frac1s e^{-st}$.
+
+</Step>
+
+<Step title="Evaluate the limits">
+
+$$
+\int_0^\infty e^{-st}dt=-\frac1s\Big[e^{-st}\Big]_0^\infty=-\frac1s\Big(\lim_{t\to\infty}e^{-st}-e^{0}\Big).
+$$
+
+For $\mathrm{Re}\,s>0$, $\lvert e^{-st}\rvert=e^{-\sigma t}\to0$. And $e^0=1$:
+
+$$
+=-\frac1s\,(0-1)=\frac1s.
+$$
+
+</Step>
+
+<Answer>
+
+$$
+\L\{u(t)\}=\frac1s\qquad(\mathrm{Re}\,s>0)
+$$
+
+</Answer>
+
+<Step title="Check">
+
+The explorer above computes the area under $e^{-st}$ numerically: at $s=1$ the area is 1, at $s=2$ it is 0.5 = $1/2$ ✔.
+
+</Step>
+
+</Example>
+
+<Uncertain title="Faint minus sign on p. 9">
+
+In the first integral of this derivation the minus sign in $e^{-st}$ is very faint in the notes and could be read as $e^{st}$. The next step uses $e^{-st}$, and the definition has $e^{-st}$, so $e^{-st}$ is intended. (With $e^{+st}$ the integral would diverge.)
+
+</Uncertain>
+
+<Example title="Laplace transform of A times u(t)">
+
+<Step title="Given">
+
+Find $\L\{A\,u(t)\}$ from the definition, then $\L\{3\,u(t)\}$.
+
+</Step>
+
+<Step title="Constant comes out of the integral">
+
+$$
+\L\{A u(t)\}=\int_0^\infty A\,e^{-st}dt=A\int_0^\infty e^{-st}dt=A\cdot\frac1s=\frac{A}{s}.
+$$
+
+</Step>
+
+<Answer>
+
+$\L\{A\,u(t)\}=\dfrac{A}{s}$; $\ \L\{3u(t)\}=\dfrac3s$.
+
+</Answer>
+
+</Example>
+
+### Transform of the unit ramp
+
+The notes state the result directly, $\L\{r(t)\}=\int_0^\infty t\,e^{-st}dt=\frac1{s^2}$ <Src p="10" />. Here are the missing steps.
+
+<Example title="Laplace transform of the unit ramp" src="10">
+
+<Step title="Set up">
+
+$r(t)=t$ for $t\ge0$:
+
+$$
+\L\{r(t)\}=\int_0^\infty t\,e^{-st}\,dt.
+$$
+
+A product of $t$ and an exponential: use **integration by parts**, $\displaystyle\int_0^\infty a\,db=\Big[a\,b\Big]_0^\infty-\int_0^\infty b\,da$.
+
+</Step>
+
+<Step title="Choose the parts">
+
+Take $a=t$ (it becomes simpler when differentiated) and $db=e^{-st}dt$:
+
+$$
+da=dt,\qquad b=-\frac1s e^{-st}.
+$$
+
+</Step>
+
+<Step title="Apply the formula">
+
+$$
+\int_0^\infty t\,e^{-st}dt=\Big[-\frac{t}{s}e^{-st}\Big]_0^\infty-\int_0^\infty\Big(-\frac1s e^{-st}\Big)dt=\Big[-\frac{t}{s}e^{-st}\Big]_0^\infty+\frac1s\int_0^\infty e^{-st}dt.
+$$
+
+</Step>
+
+<Step title="Boundary term">
+
+At $t=0$: $-\frac0s e^0=0$. As $t\to\infty$: $t\,e^{-st}=\dfrac{t}{e^{st}}$ is of the form $\frac{\infty}{\infty}$; by L'Hôpital's rule (differentiate top and bottom) it equals $\lim\dfrac{1}{s\,e^{st}}=0$ for $\mathrm{Re}\,s>0$. The exponential beats the linear growth. So the bracket is $0-0=0$.
+
+</Step>
+
+<Step title="Remaining integral">
+
+The remaining integral is the unit-step transform we just found:
+
+$$
+\frac1s\int_0^\infty e^{-st}dt=\frac1s\cdot\frac1s=\frac1{s^2}.
+$$
+
+</Step>
+
+<Answer>
+
+$$
+\L\{r(t)\}=\frac{1}{s^2}\qquad(\mathrm{Re}\,s>0)
+$$
+
+</Answer>
+
+<Step title="Check">
+
+Numerically at $s=1$: $\int_0^\infty te^{-t}dt=1=1/1^2$ ✔; at $s=2$: $0.25$ ✔ (see the explorer). Pattern: the ramp is the integral of the step, and its transform is the step's transform divided by one more $s$.
+
+</Step>
+
+</Example>
+
+<Example title="Laplace transform of A times t">
+
+<Step title="Given">
+
+Find $\L\{A\,t\}$ ($t\ge0$) from the definition, then $\L\{5t\}$ and $\L\{4+6t\}$.
+
+</Step>
+
+<Step title="Pull out the constant">
+
+$$
+\L\{A t\}=\int_0^\infty A\,t\,e^{-st}dt=A\int_0^\infty t\,e^{-st}dt=\frac{A}{s^2}.
+$$
+
+So $\L\{5t\}=\dfrac5{s^2}$.
+
+</Step>
+
+<Step title="A sum">
+
+An integral of a sum is the sum of the integrals:
+
+$$
+\L\{4+6t\}=\int_0^\infty(4+6t)e^{-st}dt=4\int_0^\infty e^{-st}dt+6\int_0^\infty te^{-st}dt=\frac4s+\frac6{s^2}=\frac{4s+6}{s^2}.
+$$
+
+</Step>
+
+<Answer>
+
+$\L\{At\}=\dfrac{A}{s^2}$, $\ \L\{5t\}=\dfrac5{s^2}$, $\ \L\{4+6t\}=\dfrac{4s+6}{s^2}$.
+
+</Answer>
+
+</Example>
+
+### Transform of the unit impulse
+
+The notes redraw the impulse and define it on p. 10 as
+
+$$
+\delta(t)=\begin{cases}1, & t=0\\ 0, & t\neq0\end{cases}\qquad\text{(as written on p. 10)}
+$$
+
+<Note title="Correction to the notes: δ(0) = 1 versus δ(0) = ∞">
+
+On p. 2 the impulse is "$\infty$ at $t=0$" with $\int\delta\,dt=1$; on p. 10 it is written "1 at $t=0$". **The p. 2 version is the correct one** for the continuous-time (Dirac) impulse. A function equal to 1 at a single point and 0 elsewhere has **area 0**, not 1, and its Laplace transform would be 0.
+
+Read the "1" on p. 10 as the impulse's **strength (area)**, which is also the label you write next to the arrow. (A value of exactly 1 at $n=0$ *is* the correct definition of the **discrete-time** unit impulse $\delta[n]$, which may be where the shorthand comes from.)
+
+The good news: the derivation below never uses "$\delta(0)=1$". It uses only that $\delta$ is zero away from $t=0$ and that its **area is 1**. So $\L\{\delta\}=1$ is correct.
+
+</Note>
+
+<Example title="Laplace transform of the unit impulse" src="10">
+
+<Step title="Set up">
+
+$$
+\L\{\delta(t)\}=\int_{0^-}^{\infty}\delta(t)\,e^{-st}\,dt.
+$$
+
+The lower limit is written $0^-$ ("just before 0") so that the whole impulse, which sits exactly at $t=0$, is inside the integration range. The notes write 0; see the remark below.
+
+</Step>
+
+<Step title="Sifting property">
+
+$\delta(t)$ is zero everywhere except at $t=0$, so in the product $\delta(t)e^{-st}$ only the value of $e^{-st}$ **at $t=0$** matters: $\delta(t)\,e^{-st}=\delta(t)\,e^{-s\cdot0}=\delta(t)\,e^{0}$. Since $e^0=1$ is a constant it comes out of the integral:
+
+$$
+\int_{0^-}^{\infty}\delta(t)\,e^{-st}dt=e^{0}\int_{0^-}^{\infty}\delta(t)\,dt.
+$$
+
+</Step>
+
+<Step title="Unit area">
+
+The integral of $\delta$ over any range that contains $t=0$ is its area, 1:
+
+$$
+=1\cdot1=1.
+$$
+
+</Step>
+
+<Answer>
+
+$$
+\L\{\delta(t)\}=1\qquad(\text{for every } s)
+$$
+
+</Answer>
+
+<Step title="Interpretation">
+
+An impulse contains "every $e^{st}$ equally": its transform is a constant. That is why the impulse is such a powerful test signal: the response to $\delta(t)$ reveals the system's own transfer function directly (developed in later modules).
+
+</Step>
+
+</Example>
+
+<Note title="Why 0⁻ and not 0">
+
+With a lower limit of exactly 0, the impulse sits on the boundary and $\int_0^\infty\delta\,dt$ is ambiguous (half of a symmetric pulse would give $\tfrac12$). Engineering convention uses $0^-$ so that impulses at $t=0$ are fully counted. For signals without an impulse at 0 (step, ramp) it makes no difference whether the limit is $0^-$ or 0.
+
+</Note>
+
+The same reasoning gives $\L\{A\,\delta(t)\}=A$: an impulse of area $A$ has transform $A$.
+
+### Table of basic transforms
+
+<KeyFormula title="The three basic inputs and their transforms">
+
+$$
+\begin{array}{c|c|c}
+\text{signal} & \text{time function } (t\ge0) & \L\{\cdot\}\\\hline
+\text{unit impulse} & \delta(t) & 1\\
+\text{unit step} & u(t)=1 & \dfrac1s\\[4pt]
+\text{unit ramp} & r(t)=t & \dfrac1{s^2}
+\end{array}
+$$
+
+</KeyFormula>
+
+Notice the pattern that mirrors the chain of p. 2: impulse → (integrate) → step → (integrate) → ramp corresponds to $1\to\frac1s\to\frac1{s^2}$. **Integration in time = division by $s$**; differentiation = multiplication by $s$. This is exactly the simplification that made the professor prefer Laplace over differential analysis. For scaled inputs: $A\delta\to A$, $Au\to\frac{A}{s}$, $At\to\frac{A}{s^2}$.
+
+## How to solve exam problems
+
+<Procedure title="Writing or sketching test inputs">
+
+1. Identify the shape: constant after a jump → step; constant slope → ramp; a short kick → impulse.
+2. Read off the size: step height $A$, ramp slope $A$ (value at 1 s after the start), impulse area $A$.
+3. Read off the start time $t_0$ and replace $t$ by $t-t_0$.
+4. For combined shapes, add or subtract steps/ramps where the level or slope changes; check each time region.
+5. For derivatives: ramp → step (height = slope), step → impulse (area = jump size).
+
+</Procedure>
+
+<Procedure title="Deciding BIBO stability from a response">
+
+1. Make sure the input is bounded (step, pulse, sinusoid: yes; ramp: no, do not use it).
+2. Look for growth: positive exponents $e^{+at}$, factors $t$, $t^2$, growing envelopes → unbounded → **unstable**.
+3. If every term is a constant, a decaying exponential, or a bounded sinusoid times a decaying exponential → bounded and settling → consistent with **stable**.
+4. Constant-amplitude oscillation that never settles → borderline; say so.
+
+</Procedure>
+
+<Procedure title="Reading t_r, t_p, m, t_s, y_ss, e_ss">
+
+1. $y_{ss}$ first: the limit as $t\to\infty$ (or the flat end of a plot).
+2. $e_{ss}=1-y_{ss}$ for a unit step (keep the sign).
+3. $t_r$: first time $y=y_{ss}$ (professor's definition). Solve $y(t)=y_{ss}$ for the smallest positive $t$.
+4. $t_p$: first maximum, from $\dot y=0$ or the plot; $y_{max}=y(t_p)$.
+5. $m=y_{max}-y_{ss}$ (from $y_{ss}$, not from 1); $\%m=100\,m/y_{ss}$.
+6. $t_s$: the tolerance must be given (2% or 5%); find the last time $\lvert y-y_{ss}\rvert$ exceeds tolerance·$y_{ss}$.
+7. Check the order $t_r<t_p<t_s$ for an overshooting response.
+
+</Procedure>
+
+<Procedure title="Modelling a circuit with a differential equation">
+
+1. Mark input, output, current directions and polarities.
+2. Write element laws: $V_R=RI$, $I=C\frac{dV_c}{dt}$, $V_L=L\frac{di}{dt}$.
+3. Write KVL around the loop (or KCL at a node).
+4. Eliminate everything except input and output; output terms on one side, input terms on the other.
+5. Check units and the DC steady state ($\frac{d}{dt}=0$).
+
+</Procedure>
+
+<Procedure title="Laplace transform from the definition">
+
+1. Write $F(s)=\int_0^\infty f(t)e^{-st}dt$; pull constants out.
+2. Constant integrand → $\int e^{-st}dt=-\frac1s e^{-st}$.
+3. $t\cdot e^{-st}$ → integration by parts with $a=t$, $db=e^{-st}dt$.
+4. Impulse → sifting: replace $e^{-st}$ by its value at the impulse location, then use area.
+5. Evaluate limits with $\mathrm{Re}\,s>0$ ($e^{-st}\to0$, $te^{-st}\to0$).
+
+</Procedure>
+
+<Mistake title="Measuring the overshoot from r = 1">
+
+The notes' figure measures $m$ from $y_{ss}$. If $y_{ss}=0.8$ and $y_{max}=0.966$, the overshoot is 0.166, not "−0.034, so no overshoot".
+
+</Mistake>
+
+<Mistake title="Writing δ(0) = 1 and then integrating">
+
+If you treat $\delta$ as an ordinary function with $\delta(0)=1$, every integral involving it is 0. Always think "area 1 concentrated at one point".
+
+</Mistake>
+
+<Mistake title="Forgetting the minus in the kernel">
+
+The kernel is $e^{-st}$. With $e^{+st}$ the integrals of 1 and $t$ diverge.
+
+</Mistake>
+
+<Mistake title="Dropping the boundary term in integration by parts">
+
+$\big[-\frac{t}{s}e^{-st}\big]_0^\infty$ is zero, but you must show why ($t e^{-st}\to0$ for $\mathrm{Re}\,s>0$); examiners look for it.
+
+</Mistake>
+
+<Mistake title="Settling time = first entry into the band">
+
+For an oscillating response the curve passes through the band long before it settles. $t_s$ is when it enters **and stays**.
+
+</Mistake>
+
+## Practice exercises
+
+<Exercise title="Name the three test inputs" kind="concept" level={1}>
+
+Name the three basic input functions of a control system in English and Turkish, give the time function of the unit version of each, and state which one is the derivative of which.
+
+<Solution>
+
+- Unit step (*birim basamak*): $u(t)=1$ for $t>0$, 0 for $t<0$.
+- Unit ramp (*birim rampa*): $r(t)=t$ for $t\ge0$, 0 for $t<0$.
+- Unit impulse (*birim impulse*): $\delta(t)=0$ for $t\neq0$, "infinite" at $t=0$, with $\int_{-\infty}^\infty\delta\,dt=1$.
+
+Derivatives: $\dfrac{dr}{dt}=u$ and $\dfrac{du}{dt}=\delta$. Check: the ramp's slope is 0 then 1 (a step); the step's jump of 1 in zero time is an infinitely tall spike of area 1 (an impulse).
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Step of height four" kind="formula" level={1}>
+
+Write the signal that is 0 before $t=0$ and $-4$ afterwards using $u(t)$, and give its derivative.
+
+<Solution>
+
+Height $A=-4$, start $t_0=0$: $x(t)=-4u(t)$. Derivative: $\dfrac{dx}{dt}=-4\delta(t)$, an impulse of area $-4$ (drawn as a downward arrow). Check: for $t>0$, $x=-4\cdot1=-4$ ✔; for $t<0$, $x=0$ ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Evaluate a delayed negative step" kind="calc" level={1}>
+
+Let $x(t)=-2u(t-1)$. Find $x(0.5)$ and $x(1.5)$, and sketch $x(t)$.
+
+<Solution>
+
+$t=0.5$: $t-1=-0.5<0\Rightarrow u=0\Rightarrow x(0.5)=0$.
+
+$t=1.5$: $t-1=0.5>0\Rightarrow u=1\Rightarrow x(1.5)=-2$.
+
+Sketch: zero up to $t=1$, then a vertical drop to $-2$, then constant at $-2$. Check: a negative $A$ just flips the step downward.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Decompose a rise-and-hold signal" kind="graph" level={2}>
+
+A signal is 0 for $t<0$, equals $3t$ for $0\le t<2$, and equals 6 for $t\ge2$. Express it using ramps and find its derivative. Sketch both.
+
+<Hint>Where does the slope change, and by how much?</Hint>
+
+<Solution>
+
+The slope is 3 on $[0,2)$ and 0 afterwards. Start a ramp of slope 3 at 0: $3r(t)$. At $t=2$ cancel the slope with $-3r(t-2)$:
+
+$$
+x(t)=3r(t)-3r(t-2).
+$$
+
+Check: $0<t<2$: $3t-0=3t$ ✔. $t>2$: $3t-3(t-2)=6$ ✔.
+
+Derivative (ramp → step): $\dfrac{dx}{dt}=3u(t)-3u(t-2)$, a pulse of height 3 from $t=0$ to $t=2$ (the slope of the original signal) ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Why delta of zero is not one" kind="edge" level={2}>
+
+On p. 10 the notes write $\delta(t)=1$ for $t=0$ and 0 otherwise; on p. 2 they write $\infty$ at $t=0$ and $\int\delta\,dt=1$. Which is right for the continuous-time impulse, and why does $\L\{\delta\}=1$ still come out correctly?
+
+<Solution>
+
+The p. 2 picture is correct. A function equal to 1 at one point and 0 elsewhere has integral 0 (a point has zero width), so it could not have area 1, and its Laplace transform would be 0. The Dirac impulse is the limit of pulses of width $\varepsilon$ and height $1/\varepsilon$, whose area is always 1; its "value" at 0 is unbounded.
+
+The derivation $\int_{0^-}^\infty\delta(t)e^{-st}dt=e^0\int\delta\,dt=1$ uses only (i) $\delta=0$ away from $t=0$ (so $e^{-st}$ can be replaced by $e^{0}$) and (ii) area $=1$. It never uses "$\delta(0)=1$", so the result is right. The "1" on p. 10 is best read as the impulse's strength (area). (A value 1 at $n=0$ is the correct definition for the *discrete* impulse $\delta[n]$.)
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Which outputs are bounded" kind="concept" level={2}>
+
+For a unit step input, five systems give (a) $5e^{-2t}$, (b) $te^{-t}$, (c) $e^{t}\sin t$, (d) $1-\cos3t$, (e) $\ln(1+t)$. Which outputs are bounded? Which systems are certainly not BIBO stable?
+
+<Solution>
+
+(a) $0<5e^{-2t}\le5$: bounded.
+
+(b) $te^{-t}\ge0$; its derivative $e^{-t}(1-t)$ is zero at $t=1$, the maximum is $1\cdot e^{-1}=0.368$, and it tends to 0 (exponential beats $t$): bounded.
+
+(c) $\lvert e^t\sin t\rvert$ reaches $e^{t}$ at $t=\frac\pi2+2\pi k$ → unbounded.
+
+(d) $0\le1-\cos3t\le2$: bounded, but never settles (borderline case).
+
+(e) $\ln(1+t)\to\infty$ (slowly, but without limit): unbounded.
+
+Certainly not BIBO stable: (c) and (e), because a bounded input produced an unbounded output. (a), (b), (d) pass this one test, but one test cannot prove BIBO stability; (d) in particular is borderline.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Is a pure integrator stable" kind="problem" level={2}>
+
+A system's output is $y(t)=4\int_0^t u(\tau)\,d\tau$. Apply a unit step and decide whether the system is BIBO stable. What is the output at $t=10$ s?
+
+<Solution>
+
+With $u=1$ for $t>0$: $y(t)=4\int_0^t1\,d\tau=4t=4r(t)$, a ramp of slope 4 (using $r=\int u$). $y(10)=40$, and $y\to\infty$. Bounded input, unbounded output ⇒ **not BIBO stable**. Check: the derivative of the output, $4u(t)$, is 4 times the input, as it must be for $y=4\int u$ ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Read criteria from a fast response" kind="graph" level={2}>
+
+A unit-step response is $y(t)=1.2\left[1-e^{-2t}(\cos4t+0.5\sin4t)\right]$. Find $y_{ss}$, $e_{ss}$, $t_r$, $t_p$, $y_{max}$ and $m$ (absolute and %).
+
+<Hint>Same structure as the worked example "Reading the criteria off a response", with time compressed by 2.</Hint>
+
+<Solution>
+
+$y_{ss}=1.2$ (the exponential term vanishes). $e_{ss}=1-1.2=-0.2$ (the output ends above the target).
+
+$t_r$: $\cos4t+0.5\sin4t=0\Rightarrow\tan4t=-2\Rightarrow4t=\pi-1.1071=2.0344\Rightarrow t_r=0.5086$ s.
+
+$t_p$: $\frac{d}{dt}\left[e^{-2t}(\cos4t+0.5\sin4t)\right]=e^{-2t}\left[-2\cos4t-\sin4t-4\sin4t+2\cos4t\right]=-5e^{-2t}\sin4t$. Zero at $4t=\pi$: $t_p=\pi/4=0.7854$ s.
+
+$y_{max}=1.2\left[1+e^{-\pi/2}\right]=1.2\cdot1.2079=1.4495$.
+
+$m=1.4495-1.2=0.2495$; $\%m=0.2495/1.2\cdot100=20.8\%$.
+
+Check: same %$m$ as in the worked example (same oscillation shape, only faster and scaled), and $t_r$, $t_p$ are exactly half of 1.0172 and 1.5708 ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="First-order criteria" kind="calc" level={2}>
+
+A unit-step response is $y(t)=0.5\left(1-e^{-t/2}\right)$. Find $y_{ss}$, $e_{ss}$, $m$, $t_s$ for a 2% band, and $t_r$ with the professor's definition.
+
+<Solution>
+
+$y_{ss}=0.5$; $e_{ss}=1-0.5=0.5$; $m=0$ (monotonic rise).
+
+$t_s$: $\lvert y-0.5\rvert=0.5e^{-t/2}\le0.02\cdot0.5\Rightarrow e^{-t/2}\le0.02\Rightarrow t\ge2\ln50=2\cdot3.912=7.82$ s.
+
+$t_r$: $y=0.5$ needs $e^{-t/2}=0$ → never: $t_r=\infty$ (this is why 10–90% definitions exist).
+
+Check: at $t=7.82$, $y=0.5(1-0.02)=0.49$, exactly 2% below $y_{ss}$ ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Settling time when the band is left again" kind="edge" level={2}>
+
+A response enters the $\pm5\%$ band at $t=1.0$ s, leaves it at $t=1.6$ s (overshoot), re-enters at $t=2.3$ s and then stays inside. What is $t_s$? What would a literal reading of the notes' wording give?
+
+<Solution>
+
+$t_s=2.3$ s: the instant after which the response stays inside the band. A literal reading of "the first instant the deviation enters the band" would give 1.0 s, which is wrong because the response leaves the band afterwards; the professor's own figure marks $t_s$ at the end of the oscillations, confirming the "enters and stays" meaning.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Steady state of the professor's ODE" kind="prof" level={2}>
+
+For $\ddot y+2\dot y+3y=4\dot u+5u$, find the settled output when the input is the constant $u=2$ (applied long ago). What is its order? Which term shows the system reacts to the rate of change of the input?
+
+<Solution>
+
+Constant input ⇒ $\dot u=0$; settled output ⇒ $\dot y=\ddot y=0$. Then $3y=5\cdot2=10\Rightarrow y=\dfrac{10}{3}\approx3.33$.
+
+Order: 2 (highest output derivative is $\ddot y$). The term $4\dot u$ makes the output respond to how fast the input changes.
+
+Check with the transfer function preview: $\frac{4s+5}{s^2+2s+3}$ at $s=0$ is $\frac53$; times 2 gives $\frac{10}3$ ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="RC circuit with given values" kind="circuit" level={2}>
+
+In the series RC circuit of p. 7, $R=2$ kΩ and $C=500$ μF, and $V_s=10$ V constant for $t>0$ with $V_c(0)=0$. (a) Write the differential equation with numbers. (b) Find the final $V_c$ and the final current. (c) Find the initial current and initial $\frac{dV_c}{dt}$.
+
+<Solution>
+
+(a) $RC=2000\cdot500\times10^{-6}=1$ s, so $V_s=1\cdot\frac{dV_c}{dt}+V_c$, i.e. $\frac{dV_c}{dt}+V_c=10$.
+
+(b) Settled: $\frac{dV_c}{dt}=0\Rightarrow V_c=10$ V; $I=C\frac{dV_c}{dt}=0$.
+
+(c) At $t=0^+$: $V_c=0$, so $I=\frac{V_s-V_c}{R}=\frac{10}{2000}=5$ mA, and $\frac{dV_c}{dt}=\frac{I}{C}=\frac{0.005}{500\times10^{-6}}=10$ V/s. Check with the equation: $\frac{dV_c}{dt}=10-V_c=10-0=10$ V/s ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="RL circuit with the resistor voltage as output" kind="circuit" level={3}>
+
+In a series loop of $V_s$, $R$ and $L$ (current $i$), take the output to be the resistor voltage $V_R=Ri$. Derive the differential equation between $V_s$ and $V_R$ and find the DC steady state.
+
+<Solution>
+
+KVL: $V_s=Ri+L\frac{di}{dt}$. Substitute $i=\frac{V_R}{R}$, $\frac{di}{dt}=\frac1R\frac{dV_R}{dt}$:
+
+$$
+V_s=V_R+\frac{L}{R}\frac{dV_R}{dt}.
+$$
+
+Same form as the RC equation, with time constant $L/R$ instead of $RC$. DC: $\frac{dV_R}{dt}=0\Rightarrow V_R=V_s$ (the settled inductor is a short circuit, so the entire source voltage is across $R$). Units check: H/Ω = (V·s/A)/(V/A) = s ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="State the Laplace definition" kind="formula" level={1}>
+
+Write the definition of the Laplace transform, name each part, and say why the lower limit is 0 (or $0^-$).
+
+<Solution>
+
+$\L\{f(t)\}=F(s)=\int_0^\infty f(t)e^{-st}dt$. $f(t)$: time-domain function; $e^{-st}$: kernel; $s=\sigma+j\omega$: complex variable; $F(s)$: transform (a function of $s$ only, since $t$ is integrated out). Lower limit 0: we consider signals from the moment the system is switched on; written $0^-$ when an impulse at $t=0$ must be fully included.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Transforms of scaled inputs" kind="calc" level={2}>
+
+Using the definition (and the three basic results), find $\L\{7u(t)\}$, $\L\{3t\}$, $\L\{-2\delta(t)\}$, $\L\{4+6t\}$.
+
+<Solution>
+
+Constants come out of the integral:
+
+- $\L\{7u\}=7\cdot\frac1s=\frac7s$;
+- $\L\{3t\}=3\cdot\frac1{s^2}=\frac3{s^2}$;
+- $\L\{-2\delta\}=-2\cdot1=-2$;
+- $\L\{4+6t\}=\frac4s+\frac6{s^2}=\frac{4s+6}{s^2}$ (integral of a sum = sum of integrals).
+
+Check: at $s=1$, $\int_0^\infty(4+6t)e^{-t}dt=4\cdot1+6\cdot1=10$ and $\frac{4+6}{1}=10$ ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Laplace transform of t squared" kind="calc" level={3}>
+
+Using integration by parts twice (or once plus the ramp result), show that $\L\{t^2\}=\dfrac{2}{s^3}$ for $\mathrm{Re}\,s>0$.
+
+<Hint>Take $a=t^2$, $db=e^{-st}dt$.</Hint>
+
+<Solution>
+
+With $a=t^2$, $da=2t\,dt$, $b=-\frac1se^{-st}$:
+
+$$
+\int_0^\infty t^2e^{-st}dt=\Big[-\frac{t^2}{s}e^{-st}\Big]_0^\infty+\frac2s\int_0^\infty te^{-st}dt.
+$$
+
+Boundary term: 0 at $t=0$; at $\infty$, $t^2e^{-st}\to0$ (L'Hôpital twice: $\frac{t^2}{e^{st}}\to\frac{2t}{se^{st}}\to\frac{2}{s^2e^{st}}\to0$). The remaining integral is the ramp transform $\frac1{s^2}$:
+
+$$
+\L\{t^2\}=\frac2s\cdot\frac1{s^2}=\frac2{s^3}.
+$$
+
+Check at $s=1$: $\int_0^\infty t^2e^{-t}dt=2!=2=\frac{2}{1}$ ✔.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Interpret points of the s-plane" kind="concept" level={2}>
+
+Describe the time behaviour of $e^{st}$ (real part) for $s=0$, $s=-3$, $s=2$, $s=j5$, $s=-1+j4$, $s=0.5+j4$, and say which correspond to the professor's stable and unstable sketches.
+
+<Solution>
+
+Using $e^{st}=e^{\sigma t}(\cos\omega t+j\sin\omega t)$:
+
+- $s=0$: constant 1 (*sabit*).
+- $s=-3$: $e^{-3t}$, decay (*sönüm*), stable.
+- $s=2$: $e^{2t}$, growth (*yükselme*), like the blue unstable curve.
+- $s=j5$: $\cos5t$, constant-amplitude oscillation (*salınım*), borderline.
+- $s=-1+j4$: $e^{-t}\cos4t$, decaying oscillation, like the blue stable curve.
+- $s=0.5+j4$: $e^{0.5t}\cos4t$, growing oscillation, like the pink unstable curve.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Laplace of the step at a negative s" kind="edge" level={3}>
+
+Try to compute $\L\{u(t)\}$ at $s=-1$ directly from the definition. What happens, and what does it tell you about the condition $\mathrm{Re}\,s>0$?
+
+<Solution>
+
+$\int_0^\infty e^{-(-1)t}dt=\int_0^\infty e^{t}dt=\big[e^t\big]_0^\infty=\infty$: the integral diverges. The formula $\frac1s$ would give $-1$, which is meaningless here. The derivation needed $e^{-st}\to0$ as $t\to\infty$, which requires $\mathrm{Re}\,s>0$. The result $\frac1s$ is valid only in that region (the region of convergence). At $s=0$ the integral $\int_0^\infty1\,dt$ also diverges.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Euler's formula values" kind="formula" level={1}>
+
+Use Euler's formula to evaluate $e^{j\pi/2}$, $e^{j\pi}$ and $\lvert e^{j3t}\rvert$, and write $\cos\omega t$ using exponentials.
+
+<Solution>
+
+$e^{j\pi/2}=\cos\frac\pi2+j\sin\frac\pi2=0+j=j$. $e^{j\pi}=\cos\pi+j\sin\pi=-1$. $\lvert e^{j3t}\rvert=\sqrt{\cos^23t+\sin^23t}=1$ for all $t$.
+
+$e^{j\omega t}+e^{-j\omega t}=(\cos\omega t+j\sin\omega t)+(\cos\omega t-j\sin\omega t)=2\cos\omega t$, so $\cos\omega t=\dfrac{e^{j\omega t}+e^{-j\omega t}}{2}$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="From impulse to ramp in the s-domain" kind="problem" level={3}>
+
+Using the table of basic transforms and the relations $\delta=\frac{du}{dt}$, $u=\frac{dr}{dt}$, state the rule that connects integration in time with the $s$-domain. Then use it to predict $\L\{\int_0^t r(\tau)d\tau\}$ and check against the previous exercise.
+
+<Solution>
+
+Impulse → step → ramp are successive integrals, and their transforms are $1\to\frac1s\to\frac1{s^2}$: each integration divides by $s$.
+
+$\int_0^t r(\tau)d\tau=\int_0^t\tau\,d\tau=\frac{t^2}{2}$. Predicted transform: $\frac{1}{s^2}\cdot\frac1s=\frac1{s^3}$. From the previous exercise, $\L\{\frac{t^2}2\}=\frac12\cdot\frac2{s^3}=\frac1{s^3}$ ✔.
+
+</Solution>
+
+</Exercise>

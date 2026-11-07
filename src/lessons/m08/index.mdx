@@ -1,0 +1,1287 @@
+import { DominantExamplePlot, DominantTermsPlot, ZeroEffectPlot, CriteriaSketchPlot, PoleAngleFigure, PeakDerivativePlot, EnvelopePlot, ExampleBD, ExampleResponsePlot, CriteriaExplorer, FarPoleExplorer, ZeroExplorer } from './widgets'
+
+## What is this about?
+
+Real systems are rarely exactly first or second order. A DC motor driving a load through a gearbox, a room heated by a radiator whose water must warm up first, an aircraft pitch loop with an actuator — when you write the transfer function honestly, the denominator has three, four or more roots. Solving those exactly is possible (partial fractions, exactly as before), but an engineer wants something faster: *a way to look at the poles and immediately predict how the response will look* — how fast it rises, how much it overshoots, how long it takes to settle.
+
+This module gives you exactly that, in two halves:
+
+1. **<Term en="Dominant poles" tr="Baskın kutuplar" />** (pp. 1–4). In a <Term en="higher-order control system" tr="yüksek dereceden kontrol sistemi" /> every pole contributes its own exponential term with its own <Term en="time constant" tr="zaman sabiti" />. Poles far to the left die out almost immediately; the poles closest to the $j\omega$ axis decay slowest and therefore *dominate* what you see. So a complicated system often behaves like a simple first- or second-order one. We also see what a **zero** does to the response.
+2. **<Term en="Mathematical definition of the control criteria" tr="Kontrol kriterlerinin matematiksel tanımı" />** (pp. 5–10). In [Module 02](#/m/02) you met rise time, peak time, overshoot and settling time as words on a sketch. In [Module 07](#/m/07) you derived the underdamped second-order step response. Here we combine the two: we *derive* formulas that compute $t_r$, $t_p$, $m$ and $t_s$ directly from $\xi$ and $\omega_n$.
+
+<Intuition>
+
+Think of a step response as a choir: each pole sings one exponential "voice". A pole at $s=-10$ sings loudly for a tenth of a second and then falls silent; a pole at $s=-1$ keeps singing for several seconds. If you record the choir after the first half second, you essentially only hear the slow voice. That slow voice is the **dominant pole**. If the dominant poles are a complex pair, the "song" is the familiar damped oscillation of a second-order system — and then the formulas of the second half of this module tell you its rise time, peak, overshoot and settling time without plotting anything.
+
+</Intuition>
+
+**After this module you can:**
+
+- split a higher-order step response into one term per pole, give each term its time constant $\tau=1/\lvert\operatorname{Re}p\rvert$, and judge stability from the sign of the real parts;
+- identify the dominant poles and decide whether a second-order approximation is trustworthy;
+- explain (and compute) why a zero close to the dominant poles increases overshoot and speeds up the rise;
+- derive and use $t_r=\dfrac{\pi-\cos^{-1}\xi}{\omega}$, $t_p=\dfrac{\pi}{\omega}$, $m=e^{-\xi\pi/\sqrt{1-\xi^2}}$, $t_s=\dfrac{4}{\xi\omega_n}$ (2 %) or $\dfrac{3}{\xi\omega_n}$ (5 %);
+- solve the professor's type of exam problem: given a unity-feedback loop, find all transient parameters and sketch the response — and also run the formulas backwards (from specifications to $\xi,\omega_n$).
+
+## Higher-order systems
+
+<Src p="1" /> The page title is *Yüksek Dereceden Kontrol Sistemleri* — higher-order control systems. The professor's key statement:
+
+<Def term="Higher-order system" tr="Yüksek dereceli kontrol sistemi">
+
+A system whose transfer function has many denominator roots (poles) — *payda kökü yani kutup sayısı fazladır*. When it is split into <Term en="partial fractions" tr="basit kesirler" />, each fraction is solved with the first- and second-order methods you already know, and the **sum of these independent solutions gives the general solution** (*bağımsız çözümlerin toplamı genel çözümü verir*). <Src p="1" />
+
+</Def>
+
+So nothing new is needed to *solve* a higher-order system. For a step input $R(s)=1/s$ and distinct poles $p_1,\dots,p_n$:
+
+$$
+Y(s)=T(s)\,\frac1s=\frac{A_0}{s}+\frac{A_1}{s-p_1}+\frac{A_2}{s-p_2}+\dots+\frac{A_n}{s-p_n}
+$$
+
+and with $\Li\left\{\dfrac{1}{s-p}\right\}=e^{pt}$:
+
+$$
+y(t)=\underbrace{A_0}_{\text{steady state}}+\underbrace{A_1e^{p_1t}+A_2e^{p_2t}+\dots+A_ne^{p_nt}}_{\text{one transient term per pole}}
+$$
+
+A complex-conjugate pair $p=-\alpha\pm j\omega$ gives one combined term $e^{-\alpha t}(B\cos\omega t+C\sin\omega t)$ — the second-order solution of [Module 07](#/m/07).
+
+### Each pole has its own time constant
+
+A real pole at $s=p=-a$ (with $a>0$) produces the term $A\,e^{-at}=A\,e^{-t/\tau}$ with
+
+$$
+\tau=\frac1a=\frac{1}{\lvert\operatorname{Re}p\rvert}.
+$$
+
+For a complex pair $-\alpha\pm j\omega$ the oscillation is wrapped in the envelope $e^{-\alpha t}$, so the time constant of the pair is $\tau=1/\alpha$, again $1/\lvert\operatorname{Re}p\rvert$. The imaginary part sets *how fast it oscillates*; only the real part sets *how fast it dies out*.
+
+The professor's three observations <Src p="1" />:
+
+| Pole location | Time constant | What its term does |
+|---|---|---|
+| Real part far left (towards $-\infty$) | small $\tau$ | dies out quickly (*daha çabuk sönümlenir*) |
+| Real part negative but close to $0$ | large $\tau$ | dies out slowly, long decay time (*sönüm süresi uzun*) |
+| Real part positive | — ($e^{+at}$ grows) | **unstable output** (*kararsız çıkış*) |
+
+<Note title="Correction to the notes (p. 1)">
+
+The notes say about poles whose real part is near 0: *"zaman sabiti **düşük** olacağından sönüm süresi uzun olacaktır"* ("since the time constant is **low**, the decay time is long"). This is a slip: a pole near the origin has a **large** time constant, $\tau=1/\lvert\operatorname{Re}p\rvert$ (e.g. $p=-0.1$ gives $\tau=10$ s). The sentence should read *"zaman sabiti **yüksek** olacağından sönüm süresi uzun olacaktır"*. The conclusion (long decay) is correct.
+
+</Note>
+
+### Stability from the sign of the real part
+
+Each term behaves like $e^{(\operatorname{Re}p)\,t}$ in magnitude:
+
+- $\operatorname{Re}p<0$: the term decays to zero — it is a *transient*.
+- $\operatorname{Re}p>0$: the term grows without bound — the output is unstable, however small its coefficient $A$ is.
+- $\operatorname{Re}p=0$ (on the $j\omega$ axis): the term neither grows nor decays (a constant or a sustained oscillation).
+
+So the whole system is stable only if **every** pole is in the left half-plane. One bad pole is enough to ruin everything, because a growing exponential eventually beats every decaying one.
+
+## Dominant poles
+
+<Src p="1" /> *Bu durumda, genel çözümde sağ tarafta kalan kutuptan gelen bileşenin etkisi daha baskın olacaktır* — the component coming from the pole furthest to the **right** (closest to the $j\omega$ axis, among the stable poles) is the most dominant in the general solution.
+
+<Def term="Dominant poles" tr="Baskın kutuplar">
+
+The pole (or complex pair) of a stable system that lies closest to the imaginary axis. Its term has the largest time constant, so after the fast terms have died out, the response is essentially that term alone. <Src p="1" />
+
+</Def>
+
+<SPlane poles={[{ re: -1, im: 0, label: 's_1=-1' }, { re: -10, im: 0, label: 's_2=-10' }]} range={12} caption="Poles of T(s)=10/((s+10)(s+1)): s₁ = −1 is the dominant pole (closest to the jω axis)." />
+
+<Example title="Dominant pole of 10/((s+10)(s+1))" src="2">
+
+<Step title="Given and asked">
+
+$T(s)=\dfrac{Y(s)}{R(s)}=\dfrac{10}{(s+10)(s+1)}$. Find the unit step response, the term contributed by each pole and its time constant, and compare the two terms at $t=0.5$ s.
+
+</Step>
+
+<Step title="Poles">
+
+The denominator roots are $s_1=-1$ and $s_2=-10$. Both are negative → stable.
+
+</Step>
+
+<Step title="Partial fractions of the step response">
+
+$$
+Y(s)=\frac{10}{s(s+1)(s+10)}=\frac{A_0}{s}+\frac{A_1}{s+1}+\frac{A_2}{s+10}
+$$
+
+Cover-up rule (multiply by the factor and set $s$ to its root):
+
+$$
+A_0=\left.\frac{10}{(s+1)(s+10)}\right|_{s=0}=\frac{10}{10}=1,\qquad
+A_1=\left.\frac{10}{s(s+10)}\right|_{s=-1}=\frac{10}{(-1)(9)}=-\frac{10}{9},
+$$
+
+$$
+A_2=\left.\frac{10}{s(s+1)}\right|_{s=-10}=\frac{10}{(-10)(-9)}=\frac{1}{9}.
+$$
+
+</Step>
+
+<Step title="Time response">
+
+$$
+y(t)=1-\frac{10}{9}e^{-t}+\frac19e^{-10t}
+$$
+
+Check: $y(0)=1-\frac{10}{9}+\frac19=0$ ✓ (a step into a strictly proper system starts at zero); $y(\infty)=1=T(0)$ ✓ (final value theorem).
+
+</Step>
+
+<Step title="Each pole's term and time constant">
+
+From $s_1=-1$: $-\frac{10}{9}e^{-t}$, time constant $\tau_1=1$ s.
+From $s_2=-10$: $\frac19e^{-10t}$, time constant $\tau_2=0.1$ s.
+
+</Step>
+
+<Step title="Numerical comparison at t = 0.5 s">
+
+$e^{-0.5}=0.6065$ while $e^{-10\cdot0.5}=e^{-5}=0.00674$. Including the coefficients: $\frac{10}{9}(0.6065)=0.6739$ versus $\frac19(0.00674)=0.00075$. The slow term is about **900 times** bigger. Half a second after the step, the far pole has practically vanished.
+
+</Step>
+
+<Answer>
+
+$y(t)=1-\frac{10}{9}e^{-t}+\frac19e^{-10t}$. The pole $s_1=-1$ ($\tau=1$) is dominant; the term of $s_2=-10$ ($\tau=0.1$) decays ten times faster **and** starts with a coefficient ten times smaller, so the system behaves essentially like $\dfrac{1}{s+1}$.
+
+</Answer>
+
+</Example>
+
+<Note title="Correction to the notes (p. 2)">
+
+Two small slips on page 2:
+
+- The notes write "$e^{10t}=0{,}00674$". The minus sign is missing: the value $0.00674$ is $e^{-10t}$ at $t=0.5$, i.e. $e^{-5}$. ($e^{+5}$ would be $148.4$.)
+- The notes say *"zaman sabiti **yüksek** olan $s_2$ kökü"* ("the root $s_2$ with the high time constant"). But $s_2=-10$ has the **small** time constant $\tau_2=0.1$, as the notes themselves state two lines earlier. The intended meaning is "the root $s_2$ with the large magnitude" (or "with the small time constant"): its term decays fast and contributes little to the total response.
+
+</Note>
+
+<DominantTermsPlot />
+
+<DominantExamplePlot />
+
+How to read the second graph: the thick curve is the exact $y(t)$. The pink dashed curve keeps only the dominant term ($1-\frac{10}{9}e^{-t}$): it is wrong only during the first ~0.3 s (it even starts at $-0.11$, because we threw away the $+\frac19$ that made $y(0)=0$), and after that it lies on top of the exact curve — at $t=0.5$ the two differ by $0.00075$. The blue dashed curve is the **reduced model** $\frac{1}{s+1}$ obtained by deleting the far pole *and keeping the DC gain* ($\frac{10}{(s+10)(s+1)}\approx\frac{10}{10(s+1)}$); it reaches the right final value and has the right shape, but runs slightly ahead (maximum error $0.077$), because the deleted pole really did add a small delay of about $\tau_2=0.1$ s. Both are "dominant-pole approximations"; the second is the one you use to predict specifications.
+
+### Why far poles have small coefficients
+
+<Src p="2" /> The professor adds a second reason why far poles matter little: *when computing the partial-fraction numerator coefficients for far-away roots, the absolute value of the denominator turns out large, so the coefficient is small — especially when the denominator degree is high.*
+
+Look at the cover-up computation of $A_2$ above: we evaluate the *other* factors at $s=-10$, getting $(-10)(-9)=90$, a big number in the denominator, so $A_2=10/90$ is small. For the near pole we evaluate at $s=-1$, getting $(-1)(9)=-9$, a smaller number, so $\lvert A_1\rvert=10/9$ is large. In general, for $Y(s)=\dfrac{K}{s\prod(s-p_i)}$:
+
+$$
+A_k=\frac{K}{p_k\prod_{i\neq k}(p_k-p_i)}
+$$
+
+A far pole $p_k$ is far from *every* other pole and from the origin, so each factor in the denominator is large; the more poles there are, the more large factors multiply together. A far pole is therefore doubly weak: **small coefficient** and **fast decay**.
+
+<Intuition>
+
+A fast pole is like a very quick follower: it reaches its own little equilibrium almost instantly, so the slow part of the system "sees" it as a plain gain. That is exactly why replacing $\frac{10}{s+10}$ by its DC value $1$ gives a good model.
+
+</Intuition>
+
+### How to decide whether a pole is dominant
+
+The notes give the principle (closest to the $j\omega$ axis dominates) and the numerical illustration $e^{-0.5}$ versus $e^{-5}$ — a pole ten times further left has a term that is $e^{-4.5}\approx1/90$ as large after half a time constant of the slow pole, and also a smaller coefficient. A practical **rule of thumb** used by engineers, consistent with that comparison:
+
+<Tip title="Rule of thumb (not a theorem)">
+
+If the other poles have real parts at least about **5 times** further from the $j\omega$ axis than the dominant pole(s), and there is no zero near the dominant poles, the response can be predicted from the dominant poles alone (keeping the correct DC gain). With a ratio of 5, when the dominant term has fallen to $e^{-1}$, the far term has fallen to $e^{-5}\approx0.007$ of its initial value. The closer the ratio is to 1, the worse the approximation.
+
+</Tip>
+
+Try it — the interactive below keeps the second-order system of pages 3–4, $\frac{25}{s^2+6s+25}$ (poles $-3\pm j4$, $\xi=0.6$, $\omega_n=5$), and adds a real pole at $s=-p$ with the DC gain kept at 1. Watch the full response approach the dashed second-order curve as $p$ grows, and watch the far pole's coefficient shrink.
+
+<FarPoleExplorer />
+
+<Example title="Third-order system with a far pole">
+
+<Step title="Given and asked">
+
+$T(s)=\dfrac{400}{(s+20)(s^2+4s+20)}$. Is a second-order approximation justified? If so, predict $\%m$, $t_p$ and $t_s$ (2 %).
+
+</Step>
+
+<Step title="Poles and DC gain">
+
+$s^2+4s+20=0\Rightarrow s=-2\pm j4$; the third pole is $s=-20$. DC gain $T(0)=\frac{400}{20\cdot20}=1$.
+
+</Step>
+
+<Step title="Dominance check">
+
+Real parts: $-2$ (pair) and $-20$. Ratio $20/2=10\ge5$ → the pair $-2\pm j4$ is dominant. Coefficient of the far pole in the step response (cover-up):
+
+$$
+A=\left.\frac{400}{s(s^2+4s+20)}\right|_{s=-20}=\frac{400}{(-20)(400-80+20)}=\frac{400}{-6800}=-0.0588
+$$
+
+Small, and it decays with $\tau=0.05$ s.
+
+</Step>
+
+<Step title="Second-order approximation">
+
+Keep the DC gain: $T(s)\approx\dfrac{20}{s^2+4s+20}$. Then $\omega_n^2=20\Rightarrow\omega_n=4.472$, $2\xi\omega_n=4\Rightarrow\xi=\frac{2}{4.472}=0.4472$, $\alpha=2$, $\omega=4$.
+
+$$
+\%m=100\,e^{-\xi\pi/\sqrt{1-\xi^2}}=100\,e^{-0.4472\pi/0.8944}=100\,e^{-\pi/2}=20.79\,\%
+$$
+
+$t_p=\pi/\omega=\pi/4=0.785$ s, $t_s=4/(\xi\omega_n)=4/2=2$ s.
+
+</Step>
+
+<Answer>
+
+Dominant pair $-2\pm j4$; predicted $\%m\approx20.8\,\%$, $t_p\approx0.79$ s, $t_s\approx2$ s. (A numerical evaluation of the exact third-order response gives $\%m=20.2\,\%$, $t_p=0.84$ s, $t_s=1.92$ s — the approximation is good; the far pole just adds a small delay.)
+
+</Answer>
+
+</Example>
+
+<Example title="When the extra pole is not far enough">
+
+<Step title="Given">
+
+$T(s)=\dfrac{60}{(s+3)(s^2+4s+20)}$, again DC gain $\frac{60}{3\cdot20}=1$, pair $-2\pm j4$, but now the real pole is at $-3$.
+
+</Step>
+
+<Step title="Ratio and coefficient">
+
+Ratio of real parts $3/2=1.5$ — far below 5. The real pole's step-response coefficient:
+
+$$
+A=\left.\frac{60}{s(s^2+4s+20)}\right|_{s=-3}=\frac{60}{(-3)(9-12+20)}=\frac{60}{-51}=-1.176
+$$
+
+This is *not* small — it is as large as the steady-state value itself.
+
+</Step>
+
+<Answer>
+
+The second-order formulas would predict $20.8\,\%$ overshoot at $t_p=0.785$ s, but the true response overshoots only about $4.1\,\%$, at $t\approx1.19$ s. The slow real pole drags the whole response down: the approximation is **not** valid. Lesson: "closest to the $j\omega$ axis" tells you which poles dominate, but you also need enough *separation* for the other poles to be negligible.
+
+</Answer>
+
+</Example>
+
+## Effect of a system zero
+
+<Src p="3" /> *Sistem Sıfırının Etkisi* — the effect of the system zero. Poles decide *which* exponentials appear; zeros (roots of the numerator) decide *how much* of each appears. The professor shows this with one second-order system and two zero positions.
+
+### The three step responses
+
+<Example title="A zero at -25 and at -5 added to 25/(s^2+6s+25)" src="3–4">
+
+<Step title="Given">
+
+$T(s)=\dfrac{25}{s^2+6s+25}$: $\omega_n^2=25\Rightarrow\omega_n=5$, $2\xi\omega_n=6\Rightarrow\xi=0.6$, poles $s=-3\pm j4$. Compare its unit step response with the responses after adding a zero at $s=-25$ and at $s=-5$, the latter "without affecting the steady-state gain" (*kalıcı durum kazancını etkilemeyecek şekilde*).
+
+</Step>
+
+<Step title="No zero: partial fractions">
+
+$$
+Y(s)=\frac{25}{s^2+6s+25}\cdot\frac1s=\frac{A}{s}+\frac{Bs+C}{s^2+6s+25}
+$$
+
+$A=\left.\frac{25}{s^2+6s+25}\right|_{s=0}=1$. Multiply out: $25=(s^2+6s+25)+(Bs+C)s$. Comparing $s^2$: $0=1+B\Rightarrow B=-1$. Comparing $s$: $0=6+C\Rightarrow C=-6$. Complete the square, $s^2+6s+25=(s+3)^2+4^2$:
+
+$$
+Y(s)=\frac1s-\frac{s+6}{(s+3)^2+4^2}=\frac1s-\frac{(s+3)}{(s+3)^2+4^2}-\frac34\cdot\frac{4}{(s+3)^2+4^2}
+$$
+
+</Step>
+
+<Step title="No zero: inverse Laplace">
+
+Using $\Li\left\{\frac{s+a}{(s+a)^2+\omega^2}\right\}=e^{-at}\cos\omega t$ and $\Li\left\{\frac{\omega}{(s+a)^2+\omega^2}\right\}=e^{-at}\sin\omega t$:
+
+$$
+y(t)=1-0.75\,e^{-3t}\sin4t-e^{-3t}\cos4t
+$$
+
+This is the general formula $1-e^{-\alpha t}\left[\cos\omega t+\frac{\xi}{\sqrt{1-\xi^2}}\sin\omega t\right]$ with $\alpha=3$, $\omega=4$, $\frac{\xi}{\sqrt{1-\xi^2}}=\frac{0.6}{0.8}=0.75$.
+
+</Step>
+
+<Step title="Zero at s = −25">
+
+$T_1(s)=\dfrac{s+25}{s^2+6s+25}$ (DC gain $25/25=1$). $Y_1=\dfrac{s+25}{s(s^2+6s+25)}$, $A=1$, and $s+25=(s^2+6s+25)+(Bs+C)s$ gives $B=-1$, $6+C=1\Rightarrow C=-5$:
+
+$$
+Y_1(s)=\frac1s-\frac{(s+3)+2}{(s+3)^2+4^2}\quad\Rightarrow\quad y_1(t)=1-0.5\,e^{-3t}\sin4t-e^{-3t}\cos4t
+$$
+
+</Step>
+
+<Step title="Zero at s = −5 (DC gain kept)">
+
+$T_2(s)=\dfrac{5(s+5)}{s^2+6s+25}$; the factor 5 makes $T_2(0)=\frac{25}{25}=1$. $5s+25=(s^2+6s+25)+(Bs+C)s$ gives $B=-1$, $6+C=5\Rightarrow C=-1$:
+
+$$
+Y_2(s)=\frac1s-\frac{(s+3)-2}{(s+3)^2+4^2}\quad\Rightarrow\quad y_2(t)=1+0.5\,e^{-3t}\sin4t-e^{-3t}\cos4t
+$$
+
+</Step>
+
+<Step title="Checks">
+
+All three start at $y(0)=1-0-1=0$ and end at $1$ ✓. Peak values (numerically): $y$: $1.095$ at $0.785$ s ($9.48\,\%$); $y_1$: $1.097$ at $0.740$ s ($9.70\,\%$); $y_2$: $1.195$ at $0.509$ s ($19.4\,\%$).
+
+</Step>
+
+<Answer>
+
+$y(t)=1-0.75e^{-3t}\sin4t-e^{-3t}\cos4t$, $y_1(t)=1-0.5e^{-3t}\sin4t-e^{-3t}\cos4t$, $y_2(t)=1+0.5e^{-3t}\sin4t-e^{-3t}\cos4t$. The far zero ($-25$) changes almost nothing; the zero at $-5$, close to the dominant poles ($\lvert-3\pm j4\rvert=5$), nearly doubles the overshoot and makes the response much faster.
+
+</Answer>
+
+</Example>
+
+<Note title="Correction to the notes (p. 3): the coefficient is 0.75, not 0.6">
+
+The notes give $y(t)=1-\mathbf{0{,}6}\,e^{-3t}\sin(4t)-e^{-3t}\cos(4t)$. The correct coefficient is $0.75$:
+
+- From the partial fractions above: $\frac{s+6}{(s+3)^2+16}$ splits as $(s+3)+3$, and $3=\frac34\cdot4$, so the sine coefficient is $\frac34$.
+- From the general formula: the coefficient is $\frac{\xi}{\sqrt{1-\xi^2}}=\frac{0.6}{0.8}=0.75$. The value $0.6$ is $\xi$ itself — most likely the $\sqrt{1-\xi^2}$ was forgotten.
+- Independent check: a step response of a system with no zeros must start with zero slope ($\dot y(0)=\lim s\cdot sY(s)=\lim\frac{25s}{s^2+6s+25}\cdot\frac{s}{s}\to0$). Differentiating $1-c\,e^{-3t}\sin4t-e^{-3t}\cos4t$ at $t=0$ gives $-4c+3$, which is zero only for $c=0.75$.
+- Consistency with the notes' own $y_1$: below we show $y_1=y+\frac{1}{25}\dot y$; that gives $-0.75+0.25=-0.5$, exactly the $0.5$ the notes have for $y_1$. With $0.6$ it would not work.
+
+</Note>
+
+<ZeroEffectPlot />
+
+<Src p="4" /> The graph reproduces the professor's figure with the exact functions. All three curves start at the origin and settle at 1. $y_2$ (zero at $-5$) rises first and has the highest peak; $y_1$ (zero at $-25$) is barely distinguishable from $y$; $y$ (no zero) is the slowest with the smallest overshoot. The professor's conclusion: *a zero far from the dominant poles has a small, negligible effect; as zeros approach the dominant poles their effect on the response becomes larger* (*baskın kutuplara yaklaştıkça sıfırların sistem cevabı üzerindeki etkisi daha yüksek olmaktadır*).
+
+<SPlane poles={[{ re: -3, im: 4, label: '-3+j4' }, { re: -3, im: -4, label: '-3-j4' }]} zeros={[{ re: -25, im: 0, label: '-25' }, { re: -5, im: 0, label: '-5' }]} range={28} imRange={6} caption="Dominant poles −3 ± j4 with the two zero positions of the example." />
+
+### Why a nearby zero increases overshoot
+
+Write the zero so that the DC gain stays 1: $T_z(s)=\dfrac{s+z}{z}\,T(s)$, zero at $s=-z$. Then
+
+$$
+T_z(s)=T(s)+\frac1z\,s\,T(s)\quad\Rightarrow\quad Y_z(s)=Y(s)+\frac1z\,sY(s).
+$$
+
+Multiplying by $s$ in the Laplace domain is differentiation in time (because $y(0)=0$, $\L\{\dot y\}=sY(s)-y(0)=sY(s)$). Therefore
+
+$$
+y_z(t)=y(t)+\frac1z\,\frac{dy}{dt}.
+$$
+
+For our system $\dot y(t)$ is the impulse response $\Li\left\{\frac{25}{(s+3)^2+4^2}\right\}=\frac{25}{4}e^{-3t}\sin4t=6.25\,e^{-3t}\sin4t$. So
+
+- $z=25$: $y_1=y+0.25\,e^{-3t}\sin4t$ → coefficient $-0.75+0.25=-0.5$ ✓;
+- $z=5$: $y_2=y+1.25\,e^{-3t}\sin4t$ → coefficient $-0.75+1.25=+0.5$ ✓.
+
+**Physical meaning:** a zero adds a bit of the *derivative* of the response to the response. While $y$ is rising, $\dot y>0$, so the added term pushes the output up → **faster rise and higher peak**. The size of the push is $1/z$: a far zero (large $z$) adds almost nothing, a zero near the poles adds a lot. (A zero closer than the poles' natural frequency, like $z=5=\omega_n$ here, already doubles the overshoot.)
+
+<ZeroExplorer />
+
+<Example title="Zero at -10 with the same poles">
+
+<Step title="Given">
+
+$T(s)=\dfrac{2.5(s+10)}{s^2+6s+25}$ (DC gain $\frac{25}{25}=1$). Find $y(t)$ and compare its overshoot with the zero-free system.
+
+</Step>
+
+<Step title="Shortcut with the derivative rule">
+
+$z=10$: $y_z=y+\frac{1}{10}\cdot6.25e^{-3t}\sin4t$, so the sine coefficient is $-0.75+0.625=-0.125$:
+
+$$
+y_z(t)=1-e^{-3t}\cos4t-0.125\,e^{-3t}\sin4t
+$$
+
+</Step>
+
+<Step title="Check with partial fractions">
+
+$2.5s+25=(s^2+6s+25)+(Bs+C)s$: $B=-1$, $6+C=2.5\Rightarrow C=-3.5$. Remainder $-\frac{s+3.5}{(s+3)^2+16}=-\frac{(s+3)+0.5}{(s+3)^2+16}$, and $0.5=0.125\cdot4$ ✓.
+
+</Step>
+
+<Answer>
+
+$y_z(t)=1-e^{-3t}\cos4t-0.125e^{-3t}\sin4t$. Numerically the peak is $1.113$ at $t=0.656$ s ($11.3\,\%$), versus $9.48\,\%$ at $0.785$ s without the zero: between the far-zero case ($-25$) and the near-zero case ($-5$), as expected.
+
+</Answer>
+
+</Example>
+
+## Mathematical definition of the control criteria
+
+<Src p="5" /> *İkinci dereceden düşük sönümlü bir sistemin cevabı genel sistem tepkesine ait tüm kriterlerin gösterimini barındırmaktadır* — the response of a second-order **underdamped** (*düşük sönümlü*) system displays all the criteria of a general system response. That is why we derive the criteria on it — and thanks to the dominant-pole idea, these formulas also predict higher-order systems with a dominant complex pair.
+
+### The underdamped response
+
+From [Module 07](#/m/07), for $T(s)=\dfrac{\omega_n^2}{s^2+2\xi\omega_n s+\omega_n^2}$ with $0<\xi<1$ and a unit step: <Src p="5" />
+
+<KeyFormula title="Underdamped unit step response">
+
+$$
+y(t)=1-e^{-\alpha t}\left[\cos\omega t+\frac{\xi}{\sqrt{1-\xi^2}}\sin\omega t\right],\qquad \alpha=\xi\omega_n,\quad \omega=\omega_n\sqrt{1-\xi^2}
+$$
+
+</KeyFormula>
+
+- $\xi$ — damping ratio; $\omega_n$ — natural frequency (rad/s);
+- $\alpha=\xi\omega_n$ — decay rate = minus the real part of the poles; $1/\alpha$ is the time constant of the envelope;
+- $\omega=\omega_n\sqrt{1-\xi^2}$ — damped frequency = imaginary part of the poles $s=-\alpha\pm j\omega$;
+- $\theta$ — the angle between the pole ray and the negative real axis: $\cos\theta=\dfrac{\alpha}{\omega_n}=\xi$, $\tan\theta=\dfrac{\omega}{\alpha}=\dfrac{\sqrt{1-\xi^2}}{\xi}$.
+
+<PoleAngleFigure />
+
+A compact form that we will use to check every result: since $\sin\theta=\sqrt{1-\xi^2}$ and $\cos\theta=\xi$,
+
+$$
+\cos\omega t+\frac{\xi}{\sqrt{1-\xi^2}}\sin\omega t=\frac{\sin\theta\cos\omega t+\cos\theta\sin\omega t}{\sqrt{1-\xi^2}}=\frac{\sin(\omega t+\theta)}{\sqrt{1-\xi^2}}
+$$
+
+(identity $\sin(A+B)=\sin A\cos B+\cos A\sin B$), so
+
+$$
+y(t)=1-\frac{e^{-\alpha t}}{\sqrt{1-\xi^2}}\sin(\omega t+\theta).
+$$
+
+<CriteriaSketchPlot />
+
+<Src p="5" /> The professor's general graph: the curve starts at 0 with zero slope, crosses the final value $y_{ss}=1$ at $t_r$, peaks at $t_p$ (the blue arrow $m$ is the overshoot above 1), dips below 1, rises again with a smaller second overshoot and stays inside a tolerance band from $t_s$ onwards. The graph above is the exact response for $\xi=0.4$, $\omega_n=1$ with the ±2 % band shaded. *Kriterlere ilişkin matematiksel tanımları sırasıyla inceleyelim* — let us go through the criteria one by one.
+
+### Rise time
+
+<Def term="Rise time" tr="Yükselme süresi">
+
+$t_r$: the time at which the underdamped response first reaches its final value, $y(t_r)=1$ (0→100 % rise time). <Src p="6" />
+
+</Def>
+
+**Derivation** <Src p="6" />. Set $y(t_r)=1$:
+
+$$
+1-e^{-\alpha t_r}\left[\cos\omega t_r+\frac{\xi}{\sqrt{1-\xi^2}}\sin\omega t_r\right]=1
+\;\Rightarrow\;
+e^{-\alpha t_r}\left[\cos\omega t_r+\frac{\xi}{\sqrt{1-\xi^2}}\sin\omega t_r\right]=0.
+$$
+
+An exponential is never zero ($e^{-\alpha t_r}\neq0$), so the bracket must vanish:
+
+$$
+\cos\omega t_r+\frac{\xi}{\sqrt{1-\xi^2}}\sin\omega t_r=0
+\;\Rightarrow\;
+\frac{\sin\omega t_r}{\cos\omega t_r}=\tan\omega t_r=-\frac{\sqrt{1-\xi^2}}{\xi}=-\frac{\omega}{\alpha}
+$$
+
+(the last step: multiply numerator and denominator by $\omega_n$). Hence
+
+$$
+t_r=\frac1\omega\tan^{-1}\left(-\frac{\omega}{\alpha}\right).
+$$
+
+**Choosing the right branch — the important subtlety.** $\tan$ repeats every $\pi$, so $\tan\omega t_r=-\omega/\alpha$ has infinitely many solutions. Which one is the rise time?
+
+- For $0<\omega t<\pi/2$ both $\cos$ and $\sin$ are positive, so the bracket is positive and cannot be zero.
+- The bracket can vanish only where $\cos\omega t_r<0$ and $\sin\omega t_r>0$: the **second quadrant**, $\pi/2<\omega t_r<\pi$. That is the first crossing.
+- A calculator's $\tan^{-1}$ returns values in $(-\pi/2,\pi/2)$; for the negative argument $-\omega/\alpha$ it returns $-\theta$, a negative angle — giving a negative "time". Adding $\pi$ (the period of $\tan$) moves it into the second quadrant:
+
+$$
+\tan^{-1}\left(-\frac{\omega}{\alpha}\right)=\pi-\tan^{-1}\left(\frac{\omega}{\alpha}\right)=\pi-\cos^{-1}\xi,
+$$
+
+because $\tan^{-1}(\omega/\alpha)=\theta$ and $\cos\theta=\xi$. Geometrically, $\pi-\theta$ is the angle of the pole $-\alpha+j\omega$ measured from the positive real axis — the notes call it the angle of the conjugate root (*eşlenik diğer kökün açısı*) <Src p="6" />.
+
+<KeyFormula title="Rise time">
+
+$$
+t_r=\frac{\pi-\cos^{-1}\xi}{\omega}=\frac{\pi-\theta}{\omega}\qquad(\theta\ \text{in radians})
+$$
+
+</KeyFormula>
+
+Cross-check with the compact form: $y=1$ ⇔ $\sin(\omega t+\theta)=0$ ⇔ $\omega t+\theta=\pi$ (first time after $t=0$, since $\omega t+\theta$ starts at $\theta\in(0,\pi/2)$) ⇔ $t_r=(\pi-\theta)/\omega$ ✓.
+
+**What it tells you:** a larger $\omega$ (poles higher up) means a faster rise; a smaller $\xi$ means a larger $\theta$ and therefore a smaller numerator $\pi-\theta$, so lightly damped systems rise faster — and pay for it with overshoot.
+
+### Peak time
+
+<Def term="Peak time" tr="Tepe zamanı">
+
+$t_p$: the time of the first (largest) maximum of $y(t)$. <Src p="7" />
+
+</Def>
+
+**Derivation** <Src p="7" />. At a maximum the derivative is zero (*türevini sıfıra eşitlemeliyiz*). Differentiate with the product rule, $\frac{d}{dt}\left[e^{-\alpha t}f(t)\right]=e^{-\alpha t}\left(f'(t)-\alpha f(t)\right)$, with $k=\frac{\xi}{\sqrt{1-\xi^2}}$ and $f=\cos\omega t+k\sin\omega t$:
+
+$$
+\frac{dy}{dt}=e^{-\alpha t}\left(\alpha\cos\omega t+\omega\sin\omega t+k\alpha\sin\omega t-k\omega\cos\omega t\right)
+$$
+
+Set it to zero at $t=t_p$. Now use $k\omega=\frac{\xi}{\sqrt{1-\xi^2}}\,\omega_n\sqrt{1-\xi^2}=\xi\omega_n=\alpha$, i.e. $\alpha=\frac{\xi}{\sqrt{1-\xi^2}}\omega$: the two cosine terms cancel ($\alpha\cos-\alpha\cos=0$). The sine terms combine:
+
+$$
+\omega+k\alpha=\omega_n\sqrt{1-\xi^2}+\frac{\xi^2\omega_n}{\sqrt{1-\xi^2}}=\frac{\omega_n\left[(1-\xi^2)+\xi^2\right]}{\sqrt{1-\xi^2}}=\frac{\omega_n}{\sqrt{1-\xi^2}}
+$$
+
+so
+
+$$
+\frac{dy}{dt}=\frac{\omega_n}{\sqrt{1-\xi^2}}\,e^{-\alpha t}\sin\omega t=0\quad\Rightarrow\quad\sin\omega t_p=0\quad\Rightarrow\quad\omega t_p=0,\pi,2\pi,3\pi,\dots
+$$
+
+$\omega t=0$ is the flat start (not a peak); the first value after 0 is $\pi$:
+
+<KeyFormula title="Peak time">
+
+$$
+t_p=\frac{\pi}{\omega}=\frac{\pi}{\omega_n\sqrt{1-\xi^2}}
+$$
+
+</KeyFormula>
+
+<Note title="Correction to the notes (p. 7)">
+
+The derivative is written with the factor $e^{\alpha t_p}$. It should be $e^{-\alpha t_p}$ (the exponential in $y$ is $e^{-\alpha t}$). The bracket is correct and the result is unaffected, because either exponential is non-zero and drops out when the expression is set to zero. Also, the relation written as "$\alpha=\frac{\xi}{\sqrt{1-\xi^2}}\omega$" has an extra stroke in the handwriting; it is an equality, as shown above.
+
+</Note>
+
+Two useful facts hidden in this derivation:
+
+- $\dot y(t)$ is the **impulse response** of $T(s)$ (because $\L\{\dot y\}=sY(s)=T(s)$). The step response peaks exactly where the impulse response crosses zero.
+- Odd multiples $\omega t=\pi,3\pi,\dots$ are maxima, even multiples $2\pi,4\pi,\dots$ are minima: the oscillation's half-period is exactly $\pi/\omega$.
+
+<PeakDerivativePlot />
+
+### Maximum overshoot
+
+<Def term="Maximum overshoot" tr="Maksimum aşma">
+
+The overshoot is computed as a **ratio** (*oransal olarak hesaplanır*) relative to the final value: <Src p="7" />
+
+$$
+m=\frac{y(t_p)-y(\infty)}{y(\infty)}\qquad\text{or}\qquad \%m=\frac{y(t_p)-y(\infty)}{y(\infty)}\times100.
+$$
+
+</Def>
+
+**Derivation** <Src p="8" />. Substitute $\omega t_p=\pi$ into $y(t)$: $\cos\pi=-1$, $\sin\pi=0$:
+
+$$
+y(t_p)=1-e^{-\alpha t_p}\left[-1+0\right]=1+e^{-\xi\omega_n(\pi/\omega)}.
+$$
+
+With $y(\infty)=1$:
+
+$$
+m=\frac{y(t_p)-1}{1}=e^{-\xi\omega_n\pi/\omega},\qquad\text{and since}\ \frac{\omega_n}{\omega}=\frac{1}{\sqrt{1-\xi^2}}:
+$$
+
+<KeyFormula title="Maximum overshoot">
+
+$$
+m=e^{-\xi\pi/\sqrt{1-\xi^2}},\qquad \%m=100\,e^{-\xi\pi/\sqrt{1-\xi^2}}
+$$
+
+</KeyFormula>
+
+<Note title="Correction to the notes (p. 8)">
+
+The notes write $y(t_p)=1-e^{-\xi\omega_n(\pi/\omega)}$. The sign must be **plus**: at $\omega t_p=\pi$ the bracket equals $\cos\pi=-1$, and $1-e^{-\alpha t_p}\cdot(-1)=1+e^{-\alpha t_p}$. A peak is *above* the final value, so it must be $1+$ something positive. The next line of the notes, $m=+e^{-\xi\omega_n(\pi/\omega)}$, is only consistent with the plus sign — the final formula for $m$ is correct.
+
+</Note>
+
+**What it tells you:** $m$ depends **only on $\xi$** — not on $\omega_n$. Speeding a system up (larger $\omega_n$) with the same damping leaves the overshoot unchanged. Some values: $\xi=0.2\to52.7\,\%$, $\xi=0.4\to25.4\,\%$, $\xi=0.6\to9.48\,\%$, $\xi=0.7\to4.6\,\%$, $\xi=0.8\to1.5\,\%$.
+
+If the system has DC gain $K\neq1$ ($T(s)=K\frac{\omega_n^2}{s^2+2\xi\omega_n s+\omega_n^2}$), the whole response is multiplied by $K$, so $y(\infty)=K$ and $y(t_p)=K(1+m)$ — the *ratio* $m$ is the same.
+
+### Settling time
+
+<Def term="Settling time" tr="Yerleşme süresi">
+
+$t_s$: the time after which the response stays within a tolerance band (*tolerans aralığı*) around its final value. The notes take $t_s\approx4\tau$ (sometimes $5\tau$) for a 2 % band, and $3\tau$ for a 5 % band, where $\tau=1/(\xi\omega_n)$. <Src p="8" />
+
+</Def>
+
+**Where it comes from.** From the compact form, the deviation from the final value is
+
+$$
+y(t)-1=-\frac{e^{-\alpha t}}{\sqrt{1-\xi^2}}\sin(\omega t+\theta),\qquad \lvert y(t)-1\rvert\le\frac{e^{-\xi\omega_n t}}{\sqrt{1-\xi^2}}.
+$$
+
+The oscillation lives inside the **envelope** $1\pm\frac{e^{-\xi\omega_n t}}{\sqrt{1-\xi^2}}$, a first-order decay with time constant $\tau=\frac{1}{\xi\omega_n}=\frac1\alpha$ — the time constant of the real part of the poles, exactly as in the first section. The notes' rule uses the simplified envelope $e^{-\xi\omega_n t}$ (dropping $\frac{1}{\sqrt{1-\xi^2}}$):
+
+- 2 % band: $e^{-\xi\omega_n t_s}=0.02\Rightarrow\xi\omega_n t_s=\ln50=3.91\approx4$;
+- 5 % band: $e^{-\xi\omega_n t_s}=0.05\Rightarrow\xi\omega_n t_s=\ln20=3.00\approx3$.
+
+<KeyFormula title="Settling time (envelope approximation)">
+
+$$
+t_s=4\tau=\frac{4}{\xi\omega_n}\ \ (\pm2\,\%),\qquad t_s=3\tau=\frac{3}{\xi\omega_n}\ \ (\pm5\,\%)
+$$
+
+</KeyFormula>
+
+<Note title="It is an approximation">
+
+$t_s=4/(\xi\omega_n)$ is an estimate based on the envelope, not the exact last crossing of the band. The true curve touches the envelope only at isolated instants, so it can enter the band for good a bit earlier (or, for larger $\xi$ where $\frac{1}{\sqrt{1-\xi^2}}$ matters, slightly later). For the worked example below the formula gives $0.667$ s while the exact curve settles in the 2 % band at $0.594$ s. Exams use the formula.
+
+</Note>
+
+<EnvelopePlot />
+
+### Interactive criteria explorer
+
+Move $\xi$ and $\omega_n$ and watch the formulas act on the curve. Things to try: keep $\xi=0.6$ and change $\omega_n$ — $m$ stays at $9.48\,\%$ while all times scale as $1/\omega_n$. Keep $\omega_n$ fixed and lower $\xi$ — the pole ray swings towards the $j\omega$ axis ($\theta$ grows), overshoot grows, rise gets faster, settling gets slower. Switch the band between 2 % and 5 %.
+
+<CriteriaExplorer />
+
+### Summary of the criteria
+
+| Criterion | Turkish | Formula | Depends on |
+|---|---|---|---|
+| Rise time | Yükselme süresi | $t_r=\dfrac{\pi-\cos^{-1}\xi}{\omega}$ | $\xi$ and $\omega$ |
+| Peak time | Tepe zamanı | $t_p=\dfrac{\pi}{\omega}$ | imaginary part $\omega$ only |
+| Max. overshoot | Maksimum aşma | $m=e^{-\xi\pi/\sqrt{1-\xi^2}}$ | $\xi$ only |
+| Settling time | Yerleşme süresi | $t_s=\dfrac{4}{\xi\omega_n}$ (2 %), $\dfrac{3}{\xi\omega_n}$ (5 %) | real part $\alpha$ only |
+
+Reading it with the s-plane: poles **higher** (larger $\omega$) → shorter $t_p$, $t_r$; poles **further left** (larger $\alpha$) → shorter $t_s$; ray **closer to the real axis** (smaller $\theta$, larger $\xi$) → smaller overshoot.
+
+## Worked example: unity feedback
+
+<Src p="9" /> *Şekildeki sistemin birim basamak tepkesinin geçici durum parametrelerini bulunuz* — find the transient-state parameters (*geçici durum parametreleri*) of the unit step response of the system in the figure.
+
+<ExampleBD />
+
+<Example title="Transient parameters of G = 70/(s^2+12s+30) with unity feedback" src="9–10">
+
+<Step title="Closed-loop transfer function">
+
+Unity negative feedback: $T(s)=\dfrac{G(s)}{1+G(s)}$. Multiply numerator and denominator by $s^2+12s+30$:
+
+$$
+T(s)=\frac{70}{s^2+12s+30+70}=\frac{70}{s^2+12s+100}
+$$
+
+</Step>
+
+<Step title="Match the standard form">
+
+$$
+T(s)=0.7\,\frac{(10)^2}{s^2+2\cdot10\cdot0.6\,s+(10)^2}
+$$
+
+$\omega_n^2=100\Rightarrow\omega_n=10$ rad/s; $2\xi\omega_n=12\Rightarrow\xi=\frac{12}{20}=0.6$; DC gain $K=\frac{70}{100}=0.7$. Since $0<\xi<1$ the response is underdamped and the formulas apply.
+
+</Step>
+
+<Step title="Poles">
+
+$s^2+12s+100=0\Rightarrow s_{1,2}=\frac{-12\pm\sqrt{144-400}}{2}=-6\pm j8$. So the decay rate is $\alpha=\xi\omega_n=6$ and $\omega=\omega_n\sqrt{1-\xi^2}=10\cdot0.8=8$ rad/s.
+
+</Step>
+
+<Step title="Angle θ">
+
+$$
+\theta=\tan^{-1}\frac{\sqrt{1-\xi^2}}{\xi}=\tan^{-1}\left(\frac{\sqrt{1-0.36}}{0.6}\right)=\tan^{-1}\left(\frac{0.8}{0.6}\right)=\tan^{-1}\left(\frac43\right)=53.13^\circ=0.9273\ \text{rad}
+$$
+
+(equivalently $\theta=\cos^{-1}0.6$).
+
+</Step>
+
+<Step title="Peak time">
+
+$$
+t_p=\frac{\pi}{\omega}=\frac{3.1416}{8}=0.3927\ \text{s}\approx0.39\ \text{s}
+$$
+
+</Step>
+
+<Step title="Maximum overshoot">
+
+$$
+\%m=100\,e^{-\xi\pi/\sqrt{1-\xi^2}}=100\,e^{-0.6\pi/0.8}=100\,e^{-3\pi/4}=100\cdot0.09478=9.48
+$$
+
+(the notes write 9.47 — truncated rather than rounded).
+
+</Step>
+
+<Step title="Peak value">
+
+The final value is not 1 but the DC gain: $y(\infty)=T(0)=0.7$. So
+
+$$
+y(t_p)=y(\infty)(1+m)=0.7+0.7\cdot\frac{9.478}{100}=0.7663
+$$
+
+</Step>
+
+<Step title="Rise time">
+
+$$
+t_r=\frac{\pi-\cos^{-1}(0.6)}{8}=\frac{3.1416-0.9273}{8}=\frac{2.2143}{8}=0.2768\ \text{s}
+$$
+
+(notes: 0.276 s). Note the angle is used in **radians**.
+
+</Step>
+
+<Step title="Settling time">
+
+$$
+t_s=\frac{4}{\xi\omega_n}=\frac{4}{0.6\cdot10}=\frac23=0.667\ \text{s}\quad(\pm2\,\%);\qquad\frac{3}{6}=0.5\ \text{s}\quad(\pm5\,\%)
+$$
+
+</Step>
+
+<Step title="The full response and sanity checks">
+
+$$
+y(t)=0.7\left[1-e^{-6t}\left(\cos8t+0.75\sin8t\right)\right]
+$$
+
+$y(0)=0.7(1-1)=0$ ✓; $y(\infty)=0.7=T(0)$ ✓; $y(0.3927)=0.7(1+e^{-6\cdot0.3927})=0.7(1+0.0948)=0.766$ ✓; $y(0.2768)=0.7$ ✓ (checked numerically). The steady-state error for a unit step is $1-0.7=0.3$ (see [Module 02](#/m/02)).
+
+</Step>
+
+<Answer>
+
+$T(s)=\dfrac{70}{s^2+12s+100}$, poles $-6\pm j8$, $\xi=0.6$, $\omega_n=10$, $\theta=53.13^\circ$; $t_r=0.277$ s, $t_p=0.393$ s, $\%m=9.48$, $y(t_p)=0.766$, $y(\infty)=0.7$, $t_s=0.667$ s (2 %).
+
+</Answer>
+
+</Example>
+
+<Note title="Corrections to the notes (p. 9)">
+
+- **"$\alpha=-6$"**: here the notes give the *real part of the root*, $-6$. In the response formula $y=1-e^{-\alpha t}[\dots]$ used on pp. 5–8, $\alpha=\xi\omega_n=+6$ is the positive decay rate. Use $\alpha=6$ in $e^{-\alpha t}$; plugging $-6$ would make the exponential grow. The later computations in the notes do not use $\alpha$, so the results are unaffected.
+- **"$\sqrt{1-3{,}6}$"**: should be $\sqrt{1-0{,}36}=\sqrt{1-\xi^2}=0.8$ ($\xi^2=0.36$). The following value $\tan^{-1}(4/3)$ is correct.
+- **"$e^{-\xi\pi\sqrt{1-\xi^2}}$"**: the division bar is missing — the exponent is $-\xi\pi/\sqrt{1-\xi^2}=-0.6\pi/0.8=-3\pi/4$, which is what the notes then use.
+
+</Note>
+
+<ExampleResponsePlot />
+
+<Src p="10" /> The professor's graph with the exact function: levels $0.7$ (final value) and $0.766$ (peak), time axis to $0.8$ s. The curve crosses $0.7$ at $t_r=0.277$ s, peaks at $t_p=0.393$ s, dips very slightly (minimum $0.7(1-m^2)=0.6937$ at $2t_p=0.785$ s) and is inside the shaded ±2 % band from about $0.59$ s; the formula's $t_s=0.667$ s is marked. One difference from the hand sketch: the true curve starts with **zero slope** (a second-order system with no zero cannot jump in velocity), whereas the sketch starts steeply.
+
+<Tip title="Sketching this in an exam">
+
+Draw the final-value line at $K$ (here 0.7) and a second line at $K(1+m)$. Mark $t_r$ on the time axis and let the curve start flat at the origin and cross $K$ there. Put the peak at $(t_p,\,K(1+m))$. The next extremum is a dip at $2t_p$ of depth $Km^2$ below $K$ — usually tiny. Then mark $t_s$ and let the curve flatten onto $K$.
+
+</Tip>
+
+## More worked examples
+
+<Example title="All criteria for xi = 0.5 and wn = 4">
+
+<Step title="Given">
+
+$T(s)=\dfrac{16}{s^2+4s+16}$: $\omega_n=4$ rad/s, $2\xi\omega_n=4\Rightarrow\xi=0.5$. Find $t_r$, $t_p$, $\%m$, $t_s$.
+
+</Step>
+
+<Step title="Pole parameters">
+
+$\alpha=\xi\omega_n=2$, $\omega=4\sqrt{1-0.25}=4\cdot0.8660=3.4641$ rad/s, $\theta=\cos^{-1}0.5=60^\circ=\pi/3=1.0472$ rad. Poles $-2\pm j3.464$.
+
+</Step>
+
+<Step title="Criteria">
+
+$t_r=\dfrac{\pi-\pi/3}{3.4641}=\dfrac{2.0944}{3.4641}=0.605$ s; $t_p=\dfrac{\pi}{3.4641}=0.907$ s;
+$\%m=100\,e^{-0.5\pi/0.8660}=100\,e^{-1.8138}=16.3$; $t_s=\dfrac{4}{2}=2$ s (2 %), $\dfrac32=1.5$ s (5 %).
+
+</Step>
+
+<Answer>
+
+$t_r=0.605$ s, $t_p=0.907$ s, $\%m=16.3\,\%$, $t_s=2$ s (2 %) / $1.5$ s (5 %). Sanity: $t_r<t_p<t_s$ ✓, and $\xi=0.5$ lies between $0.4$ (25 %) and $0.6$ (9.5 %) so $16\,\%$ is plausible ✓.
+
+</Answer>
+
+</Example>
+
+<Example title="Working backwards from overshoot and settling time">
+
+<Step title="Given and asked">
+
+A designer wants $\%m=10$ and $t_s=2$ s (2 % band). Find $\xi$, $\omega_n$, the pole locations and the corresponding $T(s)$ with unit DC gain.
+
+</Step>
+
+<Step title="Invert the overshoot formula">
+
+$m=e^{-\xi\pi/\sqrt{1-\xi^2}}\Rightarrow\ln m=-\dfrac{\xi\pi}{\sqrt{1-\xi^2}}$. Square: $(\ln m)^2(1-\xi^2)=\xi^2\pi^2$, so $(\ln m)^2=\xi^2\left(\pi^2+(\ln m)^2\right)$ and
+
+$$
+\xi=\frac{-\ln m}{\sqrt{\pi^2+(\ln m)^2}}
+$$
+
+(positive root, since $\ln m<0$). With $m=0.1$: $\ln0.1=-2.3026$, $(\ln m)^2=5.3019$, $\pi^2=9.8696$:
+
+$$
+\xi=\frac{2.3026}{\sqrt{15.1715}}=\frac{2.3026}{3.8951}=0.591
+$$
+
+</Step>
+
+<Step title="Use the settling time">
+
+$t_s=\dfrac{4}{\xi\omega_n}=2\Rightarrow\xi\omega_n=\alpha=2$, so $\omega_n=\dfrac{2}{0.591}=3.383$ rad/s and $\omega=\omega_n\sqrt{1-\xi^2}=3.383\cdot0.8066=2.729$ rad/s.
+
+</Step>
+
+<Step title="Transfer function">
+
+$\omega_n^2=11.45$, $2\xi\omega_n=4$: $T(s)=\dfrac{11.45}{s^2+4s+11.45}$, poles $-2\pm j2.729$.
+
+</Step>
+
+<Answer>
+
+$\xi=0.591$, $\omega_n=3.38$ rad/s, poles $-2\pm j2.73$. Check: $100e^{-0.591\pi/0.8066}=10.0\,\%$ ✓, $4/(0.591\cdot3.383)=2.00$ s ✓.
+
+</Answer>
+
+</Example>
+
+<Example title="Choosing a gain for a required damping ratio">
+
+<Step title="Given">
+
+Unity feedback with $G(s)=\dfrac{K}{s(s+8)}$. Find $K$ so that $\xi=0.6$, then the criteria.
+
+</Step>
+
+<Step title="Closed loop">
+
+$T(s)=\dfrac{K}{s(s+8)+K}=\dfrac{K}{s^2+8s+K}$, so $\omega_n^2=K$ and $2\xi\omega_n=8$.
+
+</Step>
+
+<Step title="Solve">
+
+$\omega_n=\dfrac{8}{2\cdot0.6}=6.667$ rad/s, $K=\omega_n^2=44.44$. Then $\alpha=4$, $\omega=6.667\cdot0.8=5.333$ rad/s.
+
+</Step>
+
+<Step title="Criteria">
+
+$\%m=9.48$ (only $\xi$ matters); $t_p=\pi/5.333=0.589$ s; $t_r=(\pi-0.9273)/5.333=0.415$ s; $t_s=4/4=1$ s.
+
+</Step>
+
+<Answer>
+
+$K=44.4$; $\%m=9.48\,\%$, $t_r=0.415$ s, $t_p=0.589$ s, $t_s=1$ s. DC gain $T(0)=K/K=1$, so here $y(t_p)=1.095$.
+
+</Answer>
+
+</Example>
+
+<Example title="Common mistakes on the professor's example">
+
+<Step title="Setting">
+
+Same system as pp. 9–10: $\xi=0.6$, $\omega_n=10$, $\omega=8$, $\theta=53.13^\circ$, DC gain 0.7. Here are four tempting wrong answers and why they are wrong.
+
+</Step>
+
+<Step title="Degrees instead of radians in t_r">
+
+$t_r=\dfrac{180-53.13}{8}=15.86$ "s" — nonsense, 50 times longer than the true response takes. The formula comes from $\omega t_r=\pi-\theta$, an angle in radians because $\omega$ is in rad/s. Correct: $(3.1416-0.9273)/8=0.277$ s.
+
+</Step>
+
+<Step title="Using ω_n instead of ω in t_p">
+
+$t_p=\pi/10=0.314$ s — too early. The oscillation runs at the damped frequency $\omega=\omega_n\sqrt{1-\xi^2}=8$. Correct: $\pi/8=0.393$ s.
+
+</Step>
+
+<Step title="Forgetting the DC gain">
+
+$y(t_p)=1+0.0948=1.095$ — but the output settles at $0.7$, not 1. Correct: $y(t_p)=0.7(1.0948)=0.766$.
+
+</Step>
+
+<Step title="Percent versus fraction">
+
+$y(t_p)=0.7(1+9.48)=7.34$ — the 9.48 is a percentage. Use $m=0.0948$ in formulas and multiply by 100 only for $\%m$.
+
+</Step>
+
+<Answer>
+
+Correct values: $t_r=0.277$ s, $t_p=0.393$ s, $y(t_p)=0.766$, $\%m=9.48$. Quick checks that catch these: $t_r<t_p$, $t_p$ equals half the oscillation period, the peak is a bit above the **final value** (not above 1).
+
+</Answer>
+
+</Example>
+
+## Edge cases
+
+- **$\xi\to0$ (undamped):** $\alpha\to0$, $m\to e^0=1$ (100 % overshoot, the response swings between 0 and 2), $t_s=4/(\xi\omega_n)\to\infty$ (never settles), $\theta\to90^\circ$ and $t_r\to\frac{\pi/2}{\omega_n}$, $t_p\to\pi/\omega_n$. Poles on the $j\omega$ axis.
+- **$\xi\to1$ (critical damping):** $\omega\to0$, so $t_p=\pi/\omega\to\infty$ and $t_r\to\infty$ (the formulas lose meaning — the response no longer crosses its final value), and $m\to e^{-\infty}=0$. The formulas of this module are **only for $0<\xi<1$**. For $\xi\ge1$ there is no overshoot and no peak.
+- **Negative real part becomes positive:** if any pole has $\operatorname{Re}p>0$, the "criteria" do not exist — the output diverges.
+- **Poles not well separated:** the dominant-pole approximation fails (see [How to decide whether a pole is dominant](#/m/08/how-to-decide-whether-a-pole-is-dominant) and the example "When the extra pole is not far enough").
+- **Zero near the dominant poles:** the second-order formulas underestimate overshoot and overestimate rise time; use $y_z=y+\frac1z\dot y$ or the full partial-fraction solution.
+- **DC gain ≠ 1:** $t_r$ is defined by reaching the **final value** $K$, $m$ is relative to $K$; $\xi$, $\omega_n$ and all times are unchanged by $K$.
+
+## How to solve exam problems
+
+<Procedure title="Transient parameters of a second-order (or dominant-pair) system">
+
+1. If a block diagram is given, find the closed-loop $T(s)$ (unity feedback: $T=\frac{G}{1+G}$).
+2. Write the denominator as $s^2+2\xi\omega_n s+\omega_n^2$ → read $\omega_n$ and $\xi$. Check $0<\xi<1$.
+3. DC gain $K=T(0)$ = final value for a unit step.
+4. Compute $\alpha=\xi\omega_n$, $\omega=\omega_n\sqrt{1-\xi^2}$, poles $-\alpha\pm j\omega$, $\theta=\cos^{-1}\xi$ (in radians for $t_r$).
+5. $t_r=(\pi-\theta)/\omega$, $t_p=\pi/\omega$, $\%m=100e^{-\xi\pi/\sqrt{1-\xi^2}}$, $y(t_p)=K(1+m)$, $t_s=4/\alpha$ (2 %) or $3/\alpha$ (5 %).
+6. Sketch: final line at $K$, peak at $(t_p,K(1+m))$, flat start, $t_r$, $t_s$ marked.
+7. Verify: $t_r<t_p<t_s$ (usually), $t_p$ = half period $\pi/\omega$, $y(0)=0$, $y(\infty)=K$.
+
+</Procedure>
+
+<Procedure title="Higher-order system: dominant poles">
+
+1. Find all poles; any with $\operatorname{Re}p>0$ → unstable, stop.
+2. Pick the pole(s) closest to the $j\omega$ axis: the dominant ones. Time constant of each: $\tau=1/\lvert\operatorname{Re}p\rvert$.
+3. Check separation (rule of thumb ≥ 5×) and that no zero lies near the dominant poles.
+4. Reduced model: keep the dominant poles, keep the DC gain $T(0)$.
+5. Apply the second-order formulas to the reduced model. If asked for the exact response, do partial fractions and show that the far-pole coefficient is small.
+
+</Procedure>
+
+<Procedure title="Working backwards from specifications">
+
+1. From $\%m$: $\xi=\dfrac{-\ln m}{\sqrt{\pi^2+\ln^2m}}$ (with $m$ as a fraction).
+2. From $t_s$: $\xi\omega_n=4/t_s$ (or $3/t_s$); from $t_p$: $\omega=\pi/t_p$; then $\omega_n$.
+3. Poles $-\xi\omega_n\pm j\omega_n\sqrt{1-\xi^2}$; $T(s)=\dfrac{\omega_n^2}{s^2+2\xi\omega_n s+\omega_n^2}$.
+
+</Procedure>
+
+<Mistake title="Degrees in the rise-time formula">
+
+$\cos^{-1}\xi$ must be in **radians** next to $\pi$. Set your calculator to RAD, or convert: $53.13^\circ=0.9273$ rad.
+
+</Mistake>
+
+<Mistake title="Using the calculator's arctan blindly">
+
+$\tan^{-1}(-\omega/\alpha)$ on a calculator gives a negative angle and a negative time. The rise time is on the branch $(\pi/2,\pi)$: add $\pi$, or simply use $t_r=(\pi-\cos^{-1}\xi)/\omega$.
+
+</Mistake>
+
+<Mistake title="ω versus ω_n">
+
+$t_p$ and $t_r$ use the **damped** frequency $\omega=\omega_n\sqrt{1-\xi^2}$; $t_s$ uses $\xi\omega_n$. Only $m$ is free of frequencies.
+
+</Mistake>
+
+<Mistake title="Final value is not always 1">
+
+If the numerator is not $\omega_n^2$, the final value is $K=T(0)$. Overshoot is relative: $y(t_p)=K(1+m)$, not $1+m$.
+
+</Mistake>
+
+<Mistake title="Percent versus fraction">
+
+$\%m=9.48$ means $m=0.0948$. Formulas like $y(t_p)=K(1+m)$ and the inversion $\xi=-\ln m/\sqrt{\pi^2+\ln^2m}$ need the fraction.
+
+</Mistake>
+
+<Mistake title="Time constant direction">
+
+Far from the $j\omega$ axis = **small** time constant = fast. Close to the axis = **large** time constant = slow = dominant. (The notes' wording slips on pp. 1–2 invert this; the mathematics doesn't.)
+
+</Mistake>
+
+### Turkish terms at a glance
+
+| Turkish | English |
+|---|---|
+| Yüksek dereceden kontrol sistemleri | Higher-order control systems |
+| Baskın kutuplar | Dominant poles |
+| Basit kesirler, pay katsayıları | Partial fractions, numerator coefficients (residues) |
+| Zaman sabiti, sönüm süresi, sönüm hızı | Time constant, decay time, decay rate |
+| Kararsız çıkış | Unstable output |
+| Sistem sıfırı, kalıcı durum kazancı | System zero, steady-state gain |
+| Düşük sönümlü | Underdamped |
+| Yükselme süresi ($t_r$) | Rise time |
+| Tepe zamanı ($t_p$) | Peak time |
+| Maksimum aşma ($m$) | Maximum overshoot |
+| Yerleşme süresi ($t_s$), tolerans aralığı | Settling time, tolerance band |
+| Geçici durum parametreleri | Transient-state parameters |
+| Eşlenik kök | Conjugate root |
+
+## Practice exercises
+
+<Exercise title="Which poles dominate" kind="concept" level={1}>
+
+A stable system has poles at $-2$, $-15$ and $-1\pm j3$. Which pole(s) are dominant, and what is the time constant of each?
+
+<Solution>
+
+Time constants $\tau=1/\lvert\operatorname{Re}p\rvert$: pole $-2$: $0.5$ s; pole $-15$: $0.067$ s; pair $-1\pm j3$: $1$ s. The pair $-1\pm j3$ is closest to the $j\omega$ axis (real part $-1$), has the largest time constant and is **dominant**. Note that the imaginary part (3) does not matter for dominance — only the real part does. Check of separation: the next pole ($-2$) is only 2× further left, so a pure second-order approximation would be rough.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Three poles with equal-size residues" kind="edge" level={2}>
+
+Find the unit step response of $T(s)=\dfrac{6}{(s+1)(s+2)(s+3)}$ and evaluate each term at $t=1$ s. Is the far pole's contribution small here?
+
+<Hint>Cover-up rule for each of the four fractions of $\frac{6}{s(s+1)(s+2)(s+3)}$.</Hint>
+
+<Solution>
+
+$A_0=\frac{6}{1\cdot2\cdot3}=1$; $A_1=\frac{6}{(-1)(1)(2)}=-3$; $A_2=\frac{6}{(-2)(-1)(1)}=3$; $A_3=\frac{6}{(-3)(-2)(-1)}=-1$.
+
+$$
+y(t)=1-3e^{-t}+3e^{-2t}-e^{-3t}
+$$
+
+Check: $y(0)=1-3+3-1=0$ ✓, $y(\infty)=1=T(0)$ ✓. At $t=1$: $-3e^{-1}=-1.104$, $3e^{-2}=0.406$, $-e^{-3}=-0.050$; $y(1)=0.253$.
+
+The far pole ($-3$) has coefficient $-1$, not small, because the poles are close together (the denominators $p_k\prod(p_k-p_i)$ are not large). Its term is still the smallest at $t=1$ ($0.05$), but the pole $-2$ term ($0.41$) is far from negligible. No single pole dominates strongly — dominance needs *separation*.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="The professor's comparison at t = 1 s" kind="prof" level={1}>
+
+For $y(t)=1-\frac{10}{9}e^{-t}+\frac19e^{-10t}$ (p. 2), compute both transient terms at $t=1$ s and their ratio.
+
+<Solution>
+
+$\frac{10}{9}e^{-1}=1.111\cdot0.3679=0.4088$; $\frac19e^{-10}=0.1111\cdot4.54\cdot10^{-5}=5.04\cdot10^{-6}$. Ratio $\approx81\,000$ (at $t=0.5$ s it was about 900). The ratio is $10\,e^{9t}$: it grows exponentially — the far pole becomes irrelevant ever faster. $y(1)=1-0.4088+0.000005=0.5912$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Criteria for xi = 0.7 and wn = 5" kind="formula" level={1}>
+
+Compute $t_r$, $t_p$, $\%m$ and $t_s$ (2 % and 5 %) for $\xi=0.7$, $\omega_n=5$ rad/s.
+
+<Solution>
+
+$\alpha=3.5$, $\omega=5\sqrt{1-0.49}=5\cdot0.7141=3.571$ rad/s, $\theta=\cos^{-1}0.7=0.7954$ rad $=45.57^\circ$.
+
+$t_r=\frac{3.1416-0.7954}{3.571}=0.657$ s; $t_p=\frac{\pi}{3.571}=0.880$ s; $\%m=100e^{-0.7\pi/0.7141}=100e^{-3.0795}=4.60$; $t_s=4/3.5=1.143$ s (2 %), $3/3.5=0.857$ s (5 %).
+
+Check: $t_r<t_p$ ✓; $\xi=0.7$ gives about 4.6 % — the classic "well-damped" value ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Criteria from pole positions" kind="calc" level={2}>
+
+A second-order system with unit DC gain has poles at $-4\pm j3$. Find $\omega_n$, $\xi$, $\theta$, $t_r$, $t_p$, $\%m$, $t_s$ (2 %).
+
+<Solution>
+
+$\alpha=4$, $\omega=3$, $\omega_n=\sqrt{4^2+3^2}=5$, $\xi=\alpha/\omega_n=0.8$, $\theta=\cos^{-1}0.8=36.87^\circ=0.6435$ rad.
+
+$t_r=\frac{\pi-0.6435}{3}=0.833$ s; $t_p=\frac{\pi}{3}=1.047$ s; $\%m=100e^{-0.8\pi/0.6}=100e^{-4.189}=1.52$; $t_s=\frac44=1$ s.
+
+Interesting: $t_s<t_p$ here! With heavy damping the tiny 1.5 % overshoot never leaves the 2 % band, and the formula $4/\alpha$ is only an envelope estimate. $T(s)=\frac{25}{s^2+8s+25}$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Specification from overshoot and peak time" kind="calc" level={2}>
+
+Find $\xi$, $\omega_n$ and the poles of a second-order system with $\%m=5$ and $t_p=1$ s.
+
+<Solution>
+
+$\ln0.05=-2.9957$. $\xi=\frac{2.9957}{\sqrt{9.8696+8.9744}}=\frac{2.9957}{4.3410}=0.690$.
+
+$t_p=\pi/\omega=1\Rightarrow\omega=\pi=3.1416$ rad/s. $\omega_n=\frac{\omega}{\sqrt{1-\xi^2}}=\frac{3.1416}{0.7237}=4.341$ rad/s. $\alpha=\xi\omega_n=2.996$. Poles $-3.00\pm j3.14$.
+
+Check: $100e^{-0.690\pi/0.7237}=5.0$ ✓. (Neat coincidence: $\omega_n$ equals $\sqrt{\pi^2+\ln^2m}$ because $t_p=1$.)
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Unity feedback with G = 80/(s^2+8s+20)" kind="prof" level={2}>
+
+Following the professor's example (pp. 9–10), find $T(s)$, $\xi$, $\omega_n$, the final value, $t_r$, $t_p$, $\%m$, $y(t_p)$, $t_s$ (2 %) for unity negative feedback with $G(s)=\dfrac{80}{s^2+8s+20}$.
+
+<Solution>
+
+$T=\frac{80}{s^2+8s+20+80}=\frac{80}{s^2+8s+100}=0.8\frac{10^2}{s^2+2\cdot10\cdot0.4s+10^2}$: $\omega_n=10$, $\xi=0.4$, $K=0.8$.
+
+$\alpha=4$, $\omega=10\sqrt{0.84}=9.165$ rad/s, $\theta=\cos^{-1}0.4=1.1593$ rad $=66.42^\circ$. Poles $-4\pm j9.165$.
+
+$t_r=\frac{3.1416-1.1593}{9.165}=0.216$ s; $t_p=\frac{\pi}{9.165}=0.343$ s; $\%m=100e^{-0.4\pi/0.9165}=100e^{-1.3711}=25.4$; $y(t_p)=0.8(1.2538)=1.003$; $t_s=4/4=1$ s.
+
+Note: the peak (1.003) is above 1 even though the final value is 0.8 — overshoot is always measured relative to the final value, never relative to the input. Steady-state error $1-0.8=0.2$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="A very far zero" kind="calc" level={2}>
+
+Add a zero at $s=-50$ to $\frac{25}{s^2+6s+25}$, keeping the DC gain 1. Write $y(t)$ and decide whether the zero matters.
+
+<Solution>
+
+$T=\frac{25}{50}\cdot\frac{s+50}{s^2+6s+25}=\frac{0.5(s+50)}{s^2+6s+25}$. With $y_z=y+\frac1{50}\dot y$ and $\dot y=6.25e^{-3t}\sin4t$: sine coefficient $-0.75+0.125=-0.625$:
+
+$$
+y(t)=1-e^{-3t}\cos4t-0.625e^{-3t}\sin4t
+$$
+
+Partial-fraction check: $0.5s+25=(s^2+6s+25)+(Bs+C)s\Rightarrow B=-1$, $C=-5.5$; $-(s+5.5)=-[(s+3)+2.5]$ and $2.5=0.625\cdot4$ ✓. Overshoot (numerically) $9.53\,\%$ versus $9.48\,\%$ — negligible, as the notes say for far zeros.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Reading xi and wn off a measured curve" kind="graph" level={2}>
+
+A measured unit step response of a second-order system settles at 1, has its first peak $1.2$ at $t=0.5$ s. Find $\xi$, $\omega_n$ and estimate $t_s$ (2 %).
+
+<Solution>
+
+$m=0.2$, $\ln0.2=-1.6094$: $\xi=\frac{1.6094}{\sqrt{9.8696+2.5903}}=\frac{1.6094}{3.5299}=0.456$.
+
+$t_p=0.5\Rightarrow\omega=\pi/0.5=6.283$ rad/s; $\omega_n=\frac{6.283}{\sqrt{1-0.2079}}=\frac{6.283}{0.8900}=7.06$ rad/s.
+
+$t_s=\frac{4}{0.456\cdot7.06}=\frac{4}{3.219}=1.24$ s.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Limits of the formulas" kind="edge" level={2}>
+
+What happens to $t_r$, $t_p$, $m$ and $t_s$ as (a) $\xi\to0$, (b) $\xi\to1$? Explain using the pole positions.
+
+<Solution>
+
+(a) $\xi\to0$: poles move onto the $j\omega$ axis ($\alpha\to0$, $\omega\to\omega_n$). $m\to e^{0}=1$ (100 %); $t_p\to\pi/\omega_n$; $\theta\to\pi/2$, so $t_r\to\frac{\pi/2}{\omega_n}$; $t_s=4/(\xi\omega_n)\to\infty$ — a sustained oscillation never settles.
+
+(b) $\xi\to1$: poles merge on the real axis ($\omega\to0$). $m\to e^{-\infty}=0$; $t_p=\pi/\omega\to\infty$ and $t_r=(\pi-\theta)/\omega$ with $\theta\to0$ gives $\pi/0\to\infty$: the response approaches the final value without ever crossing it, so "peak" and this rise time lose their meaning. $t_s\to4/\omega_n$ stays finite. The derivations assumed $0<\xi<1$ (they used $\sqrt{1-\xi^2}\neq0$).
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="A negative rise time from the calculator" kind="edge" level={1}>
+
+A student computes $t_r=\frac1\omega\tan^{-1}\left(-\frac\omega\alpha\right)$ for $\alpha=6$, $\omega=8$ and gets $-0.116$ s. What went wrong? Give the correct value.
+
+<Solution>
+
+The calculator returned $\tan^{-1}(-4/3)=-0.9273$ rad (principal branch $(-\pi/2,\pi/2)$), and $-0.9273/8=-0.116$. But at the first crossing $\cos\omega t_r<0$, $\sin\omega t_r>0$ — the second quadrant. Since $\tan$ has period $\pi$, add $\pi$: $\omega t_r=\pi-0.9273=2.2143$, $t_r=0.277$ s. Same as $(\pi-\cos^{-1}0.6)/8$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Why settling depends only on the real part" kind="concept" level={1}>
+
+Explain, using the step-response formula, why $t_s$ depends only on $\xi\omega_n$ while $t_p$ depends only on $\omega$.
+
+<Solution>
+
+$y(t)-1=-\frac{e^{-\xi\omega_n t}}{\sqrt{1-\xi^2}}\sin(\omega t+\theta)$. How *large* the deviation is at time $t$ is set by the envelope $e^{-\xi\omega_n t}$ — the real part of the poles. So the time to shrink into a band depends on $\xi\omega_n$: $t_s\approx4/(\xi\omega_n)$. *When* the extrema occur is set by the oscillating factor: $\dot y\propto\sin\omega t$ vanishes at $\omega t=\pi$, so $t_p=\pi/\omega$ — the imaginary part of the poles. In the s-plane: moving poles left shortens $t_s$; moving them up shortens $t_p$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Gain for xi = 0.5" kind="problem" level={2}>
+
+For unity feedback with $G(s)=\frac{K}{s(s+10)}$, find $K$ giving $\xi=0.5$, then $t_r$, $t_p$, $\%m$, $t_s$ (2 %).
+
+<Solution>
+
+$T=\frac{K}{s^2+10s+K}$: $2\xi\omega_n=10\Rightarrow\omega_n=10$, $K=100$. $\alpha=5$, $\omega=10\cdot0.8660=8.660$ rad/s, $\theta=\pi/3$.
+
+$t_r=\frac{\pi-\pi/3}{8.660}=\frac{2.0944}{8.660}=0.242$ s; $t_p=\frac{\pi}{8.660}=0.363$ s; $\%m=16.3$; $t_s=4/5=0.8$ s. DC gain 1.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Peak value with DC gain 2" kind="calc" level={1}>
+
+$T(s)=\frac{50}{s^2+6s+25}$. Find the final value, $\%m$ and the peak value $y(t_p)$ for a unit step.
+
+<Solution>
+
+$T=2\cdot\frac{25}{s^2+6s+25}$: $K=2$, $\omega_n=5$, $\xi=0.6$. $\%m=9.48$ (same as without the 2). $y(\infty)=2$, $y(t_p)=2(1.0948)=2.19$ at $t_p=\pi/4=0.785$ s. Using $1+m=1.095$ would be the DC-gain mistake.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Third-order system with dominant pair" kind="problem" level={3}>
+
+$T(s)=\dfrac{40}{(s+10)(s^2+2s+4)}$. (a) Find all poles and the DC gain. (b) Justify a dominant-pole approximation and write the reduced model. (c) Predict $\%m$, $t_p$, $t_r$, $t_s$ (2 %). (d) Compute the far pole's coefficient in the step response.
+
+<Solution>
+
+(a) $s^2+2s+4=0\Rightarrow s=-1\pm j\sqrt3$; third pole $-10$. $T(0)=\frac{40}{10\cdot4}=1$.
+
+(b) Real parts $-1$ and $-10$: ratio 10 ≥ 5, no zeros. Reduced model (DC gain kept): $T\approx\frac{4}{s^2+2s+4}$.
+
+(c) $\omega_n=2$, $\xi=\frac{2}{2\cdot2}=0.5$, $\alpha=1$, $\omega=\sqrt3=1.732$, $\theta=\pi/3$. $\%m=16.3$; $t_p=\pi/1.732=1.814$ s; $t_r=\frac{2\pi/3}{1.732}=1.209$ s; $t_s=4/1=4$ s.
+
+(d) $A=\left.\frac{40}{s(s^2+2s+4)}\right|_{s=-10}=\frac{40}{(-10)(100-20+4)}=\frac{40}{-840}=-0.0476$. Small, decays with $\tau=0.1$ s.
+
+Verification (numerical evaluation of the exact response): $\%m=15.9$, peak at $1.92$ s, 2 % settling at $4.13$ s — close to the predictions; the far pole adds a delay of roughly $0.1$ s.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Spot the slip on page 1" kind="concept" level={1}>
+
+The notes say: "Reel kısmı 0'a yakın negatif kutupların zaman sabiti düşük olacağından sönüm süresi uzun olacaktır." What is wrong, and what is the correct statement in terms of $\tau$?
+
+<Solution>
+
+For a pole with real part $-a$, $\tau=1/a$. A real part close to 0 means small $a$, hence a **large** time constant ("yüksek"), and a long decay — e.g. $-0.2$ gives $\tau=5$ s, $t_s\approx20$ s. The conclusion "decay time is long" is right; the reason should read "zaman sabiti yüksek olacağından".
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Ordering the curves of the zero figure" kind="graph" level={2}>
+
+In the figure of p. 4 (responses $y$, $y_1$, $y_2$), order the three curves by rise speed and by overshoot, and explain the ordering with $y_z=y+\frac1z\dot y$.
+
+<Solution>
+
+$\dot y\ge0$ during the first rise, so adding $\frac1z\dot y$ lifts the curve; the bigger $\frac1z$, the bigger the lift. $\frac1z$: $y$ has $0$, $y_1$ has $\frac1{25}=0.04$, $y_2$ has $\frac15=0.2$. Hence by speed and by overshoot: $y_2$ (19.4 %, peak at 0.51 s) > $y_1$ (9.7 %, 0.74 s) > $y$ (9.48 %, 0.785 s). $y_1$ and $y$ nearly coincide — the far zero is negligible.
+
+</Solution>
+
+</Exercise>

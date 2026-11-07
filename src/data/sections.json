@@ -1,0 +1,390 @@
+{
+ "01": [
+  {
+   "id": "what-is-this-about",
+   "title": "What is this about?"
+  },
+  {
+   "id": "what-is-a-control-system",
+   "title": "What is a control system?"
+  },
+  {
+   "id": "classifying-control-systems",
+   "title": "Classifying control systems"
+  },
+  {
+   "id": "open-loop-systems",
+   "title": "Open-loop systems"
+  },
+  {
+   "id": "closed-loop-systems",
+   "title": "Closed-loop systems"
+  },
+  {
+   "id": "open-loop-vs-closed-loop-comparison",
+   "title": "Open-loop vs closed-loop comparison"
+  },
+  {
+   "id": "negative-feedback",
+   "title": "Negative feedback"
+  },
+  {
+   "id": "disturbance-input-noise",
+   "title": "Disturbance input (noise)"
+  },
+  {
+   "id": "how-to-solve-exam-problems",
+   "title": "How to solve exam problems"
+  },
+  {
+   "id": "turkish-terminology",
+   "title": "Turkish terminology"
+  },
+  {
+   "id": "practice-exercises",
+   "title": "Practice exercises"
+  }
+ ],
+ "02": [
+  {
+   "id": "what-is-this-about",
+   "title": "What is this about?"
+  },
+  {
+   "id": "the-three-basic-test-inputs",
+   "title": "The three basic test inputs"
+  },
+  {
+   "id": "stability-bibo",
+   "title": "Stability (BIBO)"
+  },
+  {
+   "id": "step-response-performance-criteria",
+   "title": "Step response performance criteria"
+  },
+  {
+   "id": "transfer-function",
+   "title": "Transfer function"
+  },
+  {
+   "id": "modelling-a-series-rc-circuit",
+   "title": "Modelling a series RC circuit"
+  },
+  {
+   "id": "why-the-laplace-transform",
+   "title": "Why the Laplace transform?"
+  },
+  {
+   "id": "the-laplace-transform",
+   "title": "The Laplace transform"
+  },
+  {
+   "id": "how-to-solve-exam-problems",
+   "title": "How to solve exam problems"
+  },
+  {
+   "id": "practice-exercises",
+   "title": "Practice exercises"
+  }
+ ],
+ "03": [
+  {
+   "id": "what-is-this-about",
+   "title": "What is this about?"
+  },
+  {
+   "id": "the-definition",
+   "title": "The definition"
+  },
+  {
+   "id": "transforms-of-basic-functions",
+   "title": "Transforms of basic functions"
+  },
+  {
+   "id": "properties-of-the-laplace-transform",
+   "title": "Properties of the Laplace transform"
+  },
+  {
+   "id": "transform-table",
+   "title": "Transform table"
+  },
+  {
+   "id": "worked-examples-of-the-properties",
+   "title": "Worked examples of the properties"
+  },
+  {
+   "id": "inverse-laplace-transform",
+   "title": "Inverse Laplace transform"
+  },
+  {
+   "id": "partial-fraction-expansion",
+   "title": "Partial fraction expansion"
+  },
+  {
+   "id": "solving-differential-equations",
+   "title": "Solving differential equations"
+  },
+  {
+   "id": "edge-cases",
+   "title": "Edge cases"
+  },
+  {
+   "id": "how-to-solve-exam-problems",
+   "title": "How to solve exam problems"
+  },
+  {
+   "id": "practice-exercises",
+   "title": "Practice exercises"
+  }
+ ],
+ "04": [
+  {
+   "id": "what-is-this-about",
+   "title": "What is this about?"
+  },
+  {
+   "id": "operation-blocks-and-block-diagrams",
+   "title": "Operation blocks and block diagrams"
+  },
+  {
+   "id": "the-professors-two-loop-example",
+   "title": "The professor's two-loop example"
+  },
+  {
+   "id": "reduction-techniques",
+   "title": "Reduction techniques"
+  },
+  {
+   "id": "the-three-loop-example",
+   "title": "The three-loop example"
+  },
+  {
+   "id": "additional-worked-examples",
+   "title": "Additional worked examples"
+  },
+  {
+   "id": "edge-cases",
+   "title": "Edge cases"
+  },
+  {
+   "id": "how-to-solve-exam-problems",
+   "title": "How to solve exam problems"
+  },
+  {
+   "id": "practice-exercises",
+   "title": "Practice exercises"
+  }
+ ],
+ "05": [
+  {
+   "id": "what-is-this-about",
+   "title": "What is this about?"
+  },
+  {
+   "id": "from-circuit-to-transfer-function-the-chain",
+   "title": "From circuit to transfer function: the chain"
+  },
+  {
+   "id": "resistor",
+   "title": "Resistor"
+  },
+  {
+   "id": "capacitor",
+   "title": "Capacitor"
+  },
+  {
+   "id": "inductor",
+   "title": "Inductor"
+  },
+  {
+   "id": "element-summary-and-impedance",
+   "title": "Element summary and impedance"
+  },
+  {
+   "id": "rc-step-response-via-the-ode",
+   "title": "RC step response via the ODE"
+  },
+  {
+   "id": "second-way-impedances-and-voltage-divider",
+   "title": "Second way: impedances and voltage divider"
+  },
+  {
+   "id": "series-rlc-transfer-function",
+   "title": "Series RLC transfer function"
+  },
+  {
+   "id": "more-worked-examples",
+   "title": "More worked examples"
+  },
+  {
+   "id": "edge-cases",
+   "title": "Edge cases"
+  },
+  {
+   "id": "how-to-solve-exam-problems",
+   "title": "How to solve exam problems"
+  },
+  {
+   "id": "practice-exercises",
+   "title": "Practice exercises"
+  }
+ ],
+ "06": [
+  {
+   "id": "what-is-this-about",
+   "title": "What is this about?"
+  },
+  {
+   "id": "the-standard-first-order-loop",
+   "title": "The standard first-order loop"
+  },
+  {
+   "id": "unit-impulse-response",
+   "title": "Unit impulse response"
+  },
+  {
+   "id": "unit-step-response",
+   "title": "Unit step response"
+  },
+  {
+   "id": "unit-ramp-response",
+   "title": "Unit ramp response"
+  },
+  {
+   "id": "summary-of-the-three-responses",
+   "title": "Summary of the three responses"
+  },
+  {
+   "id": "explore-tau-and-k",
+   "title": "Explore tau and K"
+  },
+  {
+   "id": "example-1-with-dc-gain-below-one",
+   "title": "Example 1 with DC gain below one"
+  },
+  {
+   "id": "example-2-with-a-zero-at-the-origin",
+   "title": "Example 2 with a zero at the origin"
+  },
+  {
+   "id": "more-worked-examples",
+   "title": "More worked examples"
+  },
+  {
+   "id": "edge-cases",
+   "title": "Edge cases"
+  },
+  {
+   "id": "how-to-solve-exam-problems",
+   "title": "How to solve exam problems"
+  },
+  {
+   "id": "turkish-terms",
+   "title": "Turkish terms"
+  },
+  {
+   "id": "practice-exercises",
+   "title": "Practice exercises"
+  }
+ ],
+ "07": [
+  {
+   "id": "what-is-this-about",
+   "title": "What is this about?"
+  },
+  {
+   "id": "the-standard-second-order-system",
+   "title": "The standard second-order system"
+  },
+  {
+   "id": "three-damping-cases",
+   "title": "Three damping cases"
+  },
+  {
+   "id": "partial-fraction-toolkit",
+   "title": "Partial fraction toolkit"
+  },
+  {
+   "id": "unit-impulse-response",
+   "title": "Unit impulse response"
+  },
+  {
+   "id": "unit-step-response",
+   "title": "Unit step response"
+  },
+  {
+   "id": "unit-ramp-response",
+   "title": "Unit ramp response"
+  },
+  {
+   "id": "interactive-explorer",
+   "title": "Interactive explorer"
+  },
+  {
+   "id": "example-2-a-complete-problem",
+   "title": "Example 2: a complete problem"
+  },
+  {
+   "id": "additional-worked-examples",
+   "title": "Additional worked examples"
+  },
+  {
+   "id": "edge-cases-and-limits",
+   "title": "Edge cases and limits"
+  },
+  {
+   "id": "summary-of-results",
+   "title": "Summary of results"
+  },
+  {
+   "id": "how-to-solve-exam-problems",
+   "title": "How to solve exam problems"
+  },
+  {
+   "id": "practice-exercises",
+   "title": "Practice exercises"
+  }
+ ],
+ "08": [
+  {
+   "id": "what-is-this-about",
+   "title": "What is this about?"
+  },
+  {
+   "id": "higher-order-systems",
+   "title": "Higher-order systems"
+  },
+  {
+   "id": "dominant-poles",
+   "title": "Dominant poles"
+  },
+  {
+   "id": "effect-of-a-system-zero",
+   "title": "Effect of a system zero"
+  },
+  {
+   "id": "mathematical-definition-of-the-control-criteria",
+   "title": "Mathematical definition of the control criteria"
+  },
+  {
+   "id": "worked-example-unity-feedback",
+   "title": "Worked example: unity feedback"
+  },
+  {
+   "id": "more-worked-examples",
+   "title": "More worked examples"
+  },
+  {
+   "id": "edge-cases",
+   "title": "Edge cases"
+  },
+  {
+   "id": "how-to-solve-exam-problems",
+   "title": "How to solve exam problems"
+  },
+  {
+   "id": "practice-exercises",
+   "title": "Practice exercises"
+  }
+ ]
+}

@@ -1,0 +1,1640 @@
+import { StandardLoopBD, Example1BD, Example2BD, ClosedLoopBlock, SeriesRLC, ImpulseFamily, StepFamily, RampFamily, InitialSlopeZoom, Ex2Impulse, Ex2Step, Ex2Ramp, RampPhaseCheck, ResponseTrio, LimitPlots, SecondOrderExplorer } from './widgets'
+
+## What is this about?
+
+Push a car down at one corner and let go. Depending on how worn the shock absorbers are, the body either sinks back slowly without bouncing, returns as fast as possible without bouncing, or bobs up and down a few times before settling. Three very different behaviours — yet all three come from **one** equation with only two knobs: how "stiff and quick" the system is, and how much "friction" (damping) it has.
+
+That is exactly what a <Term en="second-order control system" tr="ikinci derece kontrol sistemi" /> is. Its output obeys a differential equation with a second derivative (a mass with a spring and a damper, an RLC circuit, a motor driving a load, a position servo in a feedback loop). In the previous module the first-order system could only rise smoothly like $1-e^{-t/\tau}$. A second-order system can also **overshoot and oscillate**, and that is what makes it both more useful (it can be fast) and more dangerous (it can ring).
+
+In this module the professor takes the standard second-order loop and works out, for every combination of
+
+- **input**: unit impulse, unit step, unit ramp, and
+- **damping case**: overdamped, critically damped, underdamped,
+
+the exact time response $y(t)$ (by partial fractions and the inverse Laplace transform) and the <Term en="steady-state error" tr="kalıcı durum hatası" />. These nine derivations are the core of the exam.
+
+Two numbers describe everything:
+
+- $\omega_n$ — the <Term en="natural frequency" tr="doğal frekans" /> in rad/s: how fast the system wants to move (how stiff the spring is relative to the mass).
+- $\xi$ — the <Term en="damping factor" tr="sönüm faktörü" /> (dimensionless; English books call it the damping ratio and often write $\zeta$): how strongly the motion is braked.
+
+**After this module you can:**
+
+- derive $T(s)=\dfrac{\omega_n^2}{s^2+2\xi\omega_n s+\omega_n^2}$ from the loop and read $\omega_n$, $\xi$, $\alpha$, $\omega$, $\theta$ and the roots off any second-order transfer function (also with a DC gain different from 1);
+- decide whether a system is overdamped, critically damped or underdamped and say what that means physically;
+- derive the impulse, step and ramp responses in all three cases with partial fractions (distinct, repeated and complex roots);
+- convert $\cos\omega t+\frac{\xi}{\sqrt{1-\xi^2}}\sin\omega t$ into a single shifted sine, and know why the ramp response has phase $2\theta$;
+- compute steady-state errors with $e_{ss}=\lim_{s\to0}s[R(s)-Y(s)]$;
+- sketch every response by hand, with the right start, slope and final behaviour.
+
+## The standard second-order system
+
+The professor starts from this loop <Src p="1" />:
+
+<StandardLoopBD />
+
+- $R(s)$ is the reference (input), $Y(s)$ the output, $E(s)=R(s)-Y(s)$ the error leaving the summing junction.
+- The forward block $G(s)=\dfrac{\omega_n^2}{s(s+2\xi\omega_n)}$ is the "plant plus controller". The factor $\frac1s$ is an integrator (for a motor: speed integrates to position); $\frac{1}{s+2\xi\omega_n}$ is a lag.
+- The feedback is unity (the output itself is subtracted), with a minus sign.
+
+<Def term="Natural frequency" tr="doğal frekans">
+
+$\omega_n$ (rad/s) is the <Term en="natural frequency of the system" tr="sistemin doğal frekansı" />: the frequency at which the system would oscillate forever if there were no damping at all ($\xi=0$). <Src p="1" />
+
+</Def>
+
+<Def term="Damping factor" tr="sönüm faktörü">
+
+$\xi$ is the <Term en="damping factor of the system" tr="sistemin sönüm faktörü" />. It measures how much the motion is braked: $\xi=0$ no braking (endless oscillation), small $\xi$ light braking (decaying oscillation), $\xi=1$ just enough braking to prevent any oscillation, $\xi>1$ heavy braking (sluggish). <Src p="1" />
+
+</Def>
+
+### Deriving the closed-loop transfer function
+
+The notes simply state the <Term en="general transfer function" tr="genel transfer fonksiyonu" />; here is where it comes from. Around the loop:
+
+$$
+E(s)=R(s)-Y(s),\qquad Y(s)=G(s)E(s)
+$$
+
+Substitute the first into the second and collect $Y(s)$:
+
+$$
+Y(s)=G(s)R(s)-G(s)Y(s)\ \Longrightarrow\ Y(s)\big[1+G(s)\big]=G(s)R(s)\ \Longrightarrow\ T(s)=\frac{Y(s)}{R(s)}=\frac{G(s)}{1+G(s)}
+$$
+
+Now insert $G(s)=\dfrac{\omega_n^2}{s(s+2\xi\omega_n)}$ and multiply numerator and denominator by $s(s+2\xi\omega_n)$:
+
+$$
+T(s)=\frac{\dfrac{\omega_n^2}{s(s+2\xi\omega_n)}}{1+\dfrac{\omega_n^2}{s(s+2\xi\omega_n)}}=\frac{\omega_n^2}{s(s+2\xi\omega_n)+\omega_n^2}=\frac{\omega_n^2}{s^2+2\xi\omega_n s+\omega_n^2}
+$$
+
+<KeyFormula title="Standard second-order closed-loop transfer function (p. 1)">
+
+$$
+T(s)=\frac{Y(s)}{R(s)}=\frac{\omega_n^2}{s^2+2\xi\omega_n s+\omega_n^2}
+$$
+
+</KeyFormula>
+
+<Src p="1" /> Two things to notice:
+
+- **DC gain is 1.** At $s=0$: $T(0)=\omega_n^2/\omega_n^2=1$. A constant input is eventually reproduced exactly at the output. (This comes from the integrator $1/s$ in the loop.)
+- The **pattern** to recognise in an exam: constant term $=\omega_n^2$, coefficient of $s$ $=2\xi\omega_n$, coefficient of $s^2$ $=1$. If a transfer function is not normalised (leading coefficient not 1), divide through first.
+
+### The differential equation behind T(s)
+
+Cross-multiplying $Y(s)(s^2+2\xi\omega_n s+\omega_n^2)=\omega_n^2R(s)$ and reading $s\leftrightarrow\frac{d}{dt}$ (zero initial conditions):
+
+$$
+\ddot y(t)+2\xi\omega_n\,\dot y(t)+\omega_n^2\,y(t)=\omega_n^2\,r(t)
+$$
+
+This is the equation every response in this module solves. (All responses below were also checked by solving this ODE numerically.)
+
+### Physical intuition: mass-spring-damper and RLC
+
+<Intuition>
+
+A mass $m$ on a spring $k$ with a damper $b$, whose spring end is moved by $r(t)$: $m\ddot y+b\dot y+ky=k\,r$. Divide by $m$:
+
+$$
+\ddot y+\frac{b}{m}\dot y+\frac{k}{m}y=\frac{k}{m}r\quad\Longrightarrow\quad \omega_n^2=\frac km,\qquad 2\xi\omega_n=\frac bm\ \Rightarrow\ \xi=\frac{b}{2\sqrt{km}}
+$$
+
+Stiffer spring or lighter mass → higher $\omega_n$ (faster). More friction → higher $\xi$ (less bounce). The car-suspension story from the introduction is exactly this.
+
+</Intuition>
+
+The same equation appears in electric circuits (the RLC circuits of [Module 05](#/m/05)):
+
+<SeriesRLC />
+
+KVL around the loop with $i=C\dot v_o$: $v_i=Ri+L\dot i+v_o=RC\dot v_o+LC\ddot v_o+v_o$, so
+
+$$
+\ddot v_o+\frac RL\dot v_o+\frac1{LC}v_o=\frac1{LC}v_i\quad\Longrightarrow\quad\omega_n=\frac{1}{\sqrt{LC}},\qquad \xi=\frac R2\sqrt{\frac CL}
+$$
+
+The resistor is the damper: $R=0$ gives an undamped LC oscillator, a large $R$ gives a sluggish, non-oscillating response.
+
+### Roots of the characteristic equation
+
+The behaviour is decided by the roots (poles) of the denominator $s^2+2\xi\omega_n s+\omega_n^2=0$ — the <Term en="roots of the system" tr="sistemin kökleri" />. Quadratic formula with $a=1$, $b=2\xi\omega_n$, $c=\omega_n^2$:
+
+$$
+s_{1,2}=\frac{-2\xi\omega_n\pm\sqrt{4\xi^2\omega_n^2-4\omega_n^2}}{2}=-\xi\omega_n\pm\omega_n\sqrt{\xi^2-1}
+$$
+
+<KeyFormula title="System roots (p. 1)">
+
+$$
+s_{1,2}=-\xi\omega_n\pm\omega_n\sqrt{\xi^2-1}
+$$
+
+</KeyFormula>
+
+<Src p="1" /> Everything hinges on the sign of $\xi^2-1$ under the square root.
+
+## Three damping cases
+
+The system is treated in three different ways depending on the damping factor <Src p="2" />:
+
+| Case | Turkish | Condition | Roots | Typical motion |
+|---|---|---|---|---|
+| Overdamped | aşırı sönümlü | $\xi>1$ | real and distinct (gerçek ve ayrık): $-p_1,\,-p_2$ | slow, no overshoot |
+| Critically damped | kritik sönümlü | $\xi=1$ | real and repeated (gerçek ve katlı): $-\omega_n,\,-\omega_n$ | fastest without overshoot |
+| Underdamped | düşük sönümlü | $\xi<1$ | complex conjugate (karmaşık ve eşlenik): $-\alpha\pm j\omega$ | decaying oscillation |
+
+### Overdamped case
+
+<Def term="Overdamped system" tr="aşırı sönümlü sistem">
+
+If $\xi>1$ then $\xi^2-1>0$, the square root is real, and the roots are **real and distinct**. <Src p="2" /> The professor names them $s_1=-p_1$, $s_2=-p_2$ with <Src p="4" />
+
+$$
+p_1=\xi\omega_n-\omega_n\sqrt{\xi^2-1},\qquad p_2=\xi\omega_n+\omega_n\sqrt{\xi^2-1}
+$$
+
+</Def>
+
+Both $p_1$ and $p_2$ are positive (because $\sqrt{\xi^2-1}<\xi$), so both roots lie on the negative real axis; $p_1$ is the smaller one — the **slow** root that dominates the response. Two handy facts (Vieta's formulas for the quadratic) used again and again below:
+
+$$
+p_1p_2=\omega_n^2,\qquad p_1+p_2=2\xi\omega_n,\qquad p_2-p_1=2\omega_n\sqrt{\xi^2-1}
+$$
+
+### Critically damped case
+
+<Def term="Critically damped system" tr="kritik sönümlü sistem">
+
+If $\xi=1$ the square root vanishes and the roots are **real and repeated**: $s_{1,2}=-\omega_n$. <Src p="2" /> The denominator is a perfect square: $s^2+2\omega_ns+\omega_n^2=(s+\omega_n)^2$.
+
+</Def>
+
+### Underdamped case
+
+<Def term="Underdamped system" tr="düşük sönümlü sistem">
+
+If $\xi<1$ then $\xi^2-1<0$; write $\sqrt{\xi^2-1}=j\sqrt{1-\xi^2}$. The roots are **complex conjugate** <Src p="2" />:
+
+$$
+s_{1,2}=-\alpha\pm j\omega=-\xi\omega_n\pm j\omega_n\sqrt{1-\xi^2},\qquad \alpha=\xi\omega_n,\quad \omega=\omega_n\sqrt{1-\xi^2}
+$$
+
+$\alpha$ is the decay rate (real part), $\omega$ the frequency at which the response actually oscillates (the damped frequency; the professor writes plain $\omega$, many books write $\omega_d$).
+
+</Def>
+
+<Note title="Strictly, 0 less than ξ less than 1">
+
+The notes say "$\xi<1$". The formulas really need $0<\xi<1$: at $\xi=0$ the roots sit on the imaginary axis (pure oscillation, covered as a limit in [Edge cases](#/m/07/undamped-limit)), and $\xi<0$ would put them in the right half-plane (unstable). In this course $\xi$ is a damping, so it is non-negative.
+
+</Note>
+
+### Geometry of the complex roots
+
+The underdamped root $-\alpha+j\omega$ has distance from the origin
+
+$$
+\sqrt{\alpha^2+\omega^2}=\sqrt{\xi^2\omega_n^2+\omega_n^2(1-\xi^2)}=\omega_n
+$$
+
+so the poles lie on a circle of radius $\omega_n$. The angle $\theta$ between the ray to the pole and the **negative** real axis satisfies
+
+$$
+\cos\theta=\frac{\alpha}{\omega_n}=\xi,\qquad \sin\theta=\frac{\omega}{\omega_n}=\sqrt{1-\xi^2},\qquad \theta=\tan^{-1}\frac{\sqrt{1-\xi^2}}{\xi}
+$$
+
+This is the same $\theta$ the professor introduces on p. 9 for the step response. In polar form the roots are $-\alpha\pm j\omega=-\omega_n e^{\mp j\theta}$, a fact we will use to see where the phase $2\theta$ in the ramp response comes from.
+
+<SPlane poles={[{ re: -2, im: 3.464, label: '-\\alpha+j\\omega' }, { re: -2, im: -3.464, label: '-\\alpha-j\\omega' }]} lines={[{ re: -2, im: 3.464, dash: true }, { re: -2, im: -3.464, dash: true }]} range={5} imRange={5} caption="ξ = 0.5, ω_n = 4: poles at −2 ± j3.464, distance ω_n = 4 from the origin, angle θ = 60° from the negative real axis (cos θ = ξ)." />
+
+<Intuition>
+
+Moving along the circle (fixed $\omega_n$) from the real axis towards the imaginary axis lowers $\xi=\cos\theta$: the poles move right (slower decay $\alpha$) and up (faster oscillation $\omega$). At $\theta=90^\circ$ ($\xi=0$) there is no decay at all. At $\theta=0$ ($\xi=1$) the two poles meet on the real axis — critical damping — and for $\xi>1$ they split along the real axis, one towards the origin ($-p_1$, slow) and one away ($-p_2$, fast).
+
+</Intuition>
+
+### Example 1: identifying the parameters
+
+<Example1BD />
+
+<Example title="Example 1: type and parameters of the system" src="2–3">
+
+**Given:** unity negative feedback around $G(s)=\dfrac{2}{s^2+2s+2}$. **Asked:** the type (damping case) and the parameters of the system (<Term en="type and parameters" tr="türü ve parametreleri" />).
+
+**Method:** the type is a property of the **closed loop**, so first find $T(s)$, then match its denominator with $s^2+2\xi\omega_ns+\omega_n^2$.
+
+<Step title="Closed-loop transfer function">
+
+$$
+T(s)=\frac{G}{1+G}=\frac{\dfrac{2}{s^2+2s+2}}{1+\dfrac{2}{s^2+2s+2}}=\frac{2}{s^2+2s+2+2}=\frac{2}{s^2+2s+4}
+$$
+
+(Multiply top and bottom by $s^2+2s+2$.)
+
+</Step>
+
+<Step title="Match the denominator">
+
+$$
+\omega_n^2=4\Rightarrow\omega_n=2\ \text{rad/s},\qquad 2\xi\omega_n=2\Rightarrow\xi=\frac{2}{2\cdot2}=0.5
+$$
+
+(The notes write 0,5 with a decimal comma.)
+
+</Step>
+
+<Step title="Root parameters">
+
+$$
+\alpha=\xi\omega_n=0.5\cdot2=1,\qquad \omega=\omega_n\sqrt{1-\xi^2}=2\sqrt{0.75}=\sqrt3=1.732
+$$
+
+$$
+s_{1,2}=-\alpha\pm j\omega=-1\pm j1.732
+$$
+
+</Step>
+
+<Step title="Type">
+
+$\xi=0.5<1$ → complex-conjugate roots → **underdamped** (düşük sönümlü). The notes leave this word implicit.
+
+</Step>
+
+<Answer>
+
+$T(s)=\dfrac{2}{s^2+2s+4}$, $\omega_n=2$ rad/s, $\xi=0.5$, $\alpha=1$, $\omega=1.732$ rad/s, $s_{1,2}=-1\pm j1.732$: an underdamped system. ($\theta=\tan^{-1}(\sqrt{0.75}/0.5)=60^\circ$.)
+
+</Answer>
+
+**Sanity check:** $(s+1)^2+3=s^2+2s+4$ ✓. Also $|s_1|=\sqrt{1+3}=2=\omega_n$ ✓.
+
+</Example>
+
+<Note title="The numerator is not ω_n² here">
+
+$T(s)=\dfrac{2}{s^2+2s+4}=0.5\cdot\dfrac{4}{s^2+2s+4}$. The numerator is 2, not $\omega_n^2=4$, so this closed loop has DC gain $T(0)=0.5$: it is the standard form **times 0.5**. The notes do not mention it, but it matters as soon as you compute responses: every response of this system is 0.5 times the standard one, and the step settles at 0.5, not 1. The reason is that $G(s)$ here has no integrator (no factor $1/s$). Example 2 handles exactly this situation.
+
+</Note>
+
+## Partial fraction toolkit
+
+Every response below is found the same way: $Y(s)=T(s)R(s)$, split into <Term en="partial fractions" tr="basit kesirler" />, and invert term by term with the <Term en="inverse Laplace transform" tr="ters Laplace dönüşümü" /> ([Module 03](#/m/03)). The professor uses three coefficient-finding rules (<Term en="coefficient-finding methods" tr="katsayı bulma yöntemleri" />):
+
+### Distinct real roots
+
+For a simple factor $(s+p)$ in the denominator:
+
+$$
+\frac{K}{s+p}\quad\text{with}\quad K=\lim_{s\to-p}\big[(s+p)Y(s)\big]\qquad\xrightarrow{\ \Li\ }\qquad Ke^{-pt}
+$$
+
+Multiply by the factor, cancel, then substitute the root ("cover-up" rule).
+
+### Repeated roots
+
+For a double factor $(s+p)^2$ there are two terms:
+
+$$
+\frac{K_a}{(s+p)^2}+\frac{K_b}{s+p},\qquad K_a=\lim_{s\to-p}\big[(s+p)^2Y(s)\big],\quad K_b=\lim_{s\to-p}\frac{d}{ds}\big[(s+p)^2Y(s)\big]
+$$
+
+and $\Li\left\{\dfrac{1}{(s+p)^2}\right\}=te^{-pt}$. The same rule applies to $s^2$ (a double root at $s=0$, $p=0$): $\dfrac{K_1}{s^2}+\dfrac{K_2}{s}$ with $K_1=\lim s^2Y$, $K_2=\lim \frac{d}{ds}[s^2Y]$, and $\Li\{1/s^2\}=t$.
+
+Why the derivative? If $(s+p)^2Y(s)=K_a+K_b(s+p)+(s+p)^2(\dots)$, then at $s=-p$ the value gives $K_a$ and the first derivative gives $K_b$.
+
+### Complex-conjugate roots (K and K star)
+
+The professor writes $p_1=\alpha+j\omega$, $p_2=\alpha-j\omega$, so $(s+p_1)(s+p_2)=(s+\alpha)^2+\omega^2$ and the roots are $-p_1=-\alpha-j\omega$, $-p_2=-\alpha+j\omega$. Because $Y(s)$ has real coefficients, the two coefficients are complex conjugates:
+
+$$
+\frac{K}{s+\alpha+j\omega}+\frac{K^*}{s+\alpha-j\omega},\qquad K=\lim_{s\to-\alpha-j\omega}\big[(s+\alpha+j\omega)Y(s)\big]
+$$
+
+Inverting gives $Ke^{-(\alpha+j\omega)t}+K^*e^{-(\alpha-j\omega)t}$. The two terms are conjugates, and $z+z^*=2\,\mathrm{Re}\,z$, so with $K=a+jb$:
+
+$$
+Ke^{-(\alpha+j\omega)t}+K^*e^{-(\alpha-j\omega)t}=2e^{-\alpha t}\,\mathrm{Re}\{(a+jb)(\cos\omega t-j\sin\omega t)\}=2e^{-\alpha t}\big(a\cos\omega t+b\sin\omega t\big)
+$$
+
+<KeyFormula title="Conjugate-pair rule">
+
+$$
+\frac{K}{s+\alpha+j\omega}+\frac{K^*}{s+\alpha-j\omega}\ \xrightarrow{\ \Li\ }\ 2e^{-\alpha t}\big(a\cos\omega t+b\sin\omega t\big),\qquad K=a+jb
+$$
+
+</KeyFormula>
+
+You only ever compute **one** complex coefficient; its conjugate partner comes for free. The professor does the same thing directly with Euler's formula $\sin x=\dfrac{e^{jx}-e^{-jx}}{2j}$ (p. 6) — both routes give the same result.
+
+## Unit impulse response
+
+<Term en="Unit impulse response" tr="birim impulse tepkesi" />: $r(t)=\delta(t)$, $R(s)=1$, so $Y(s)=T(s)$. That is why the professor writes the transfer function directly as $Y(s)$. <Src p="3" />
+
+### Impulse: overdamped
+
+With real distinct roots <Src p="3" />:
+
+$$
+Y(s)=\frac{\omega_n^2}{(s+p_1)(s+p_2)}=\frac{K_1}{s+p_1}+\frac{K_2}{s+p_2}
+$$
+
+The notes leave $K_1,K_2$ unevaluated; with the cover-up rule:
+
+$$
+K_1=\left.\frac{\omega_n^2}{s+p_2}\right|_{s=-p_1}=\frac{\omega_n^2}{p_2-p_1},\qquad K_2=\left.\frac{\omega_n^2}{s+p_1}\right|_{s=-p_2}=\frac{\omega_n^2}{p_1-p_2}=-\frac{\omega_n^2}{p_2-p_1}
+$$
+
+Inverse Laplace (<Src p="4" />, the notes write lower-case $k_1,k_2$ — same coefficients):
+
+$$
+y(t)=k_1e^{-p_1t}+k_2e^{-p_2t}=\frac{\omega_n^2}{p_2-p_1}\left(e^{-p_1t}-e^{-p_2t}\right)=\frac{\omega_n}{2\sqrt{\xi^2-1}}\left(e^{-p_1t}-e^{-p_2t}\right)
+$$
+
+(using $p_2-p_1=2\omega_n\sqrt{\xi^2-1}$). Since $p_1<p_2$, $e^{-p_1t}>e^{-p_2t}$ for $t>0$: the response is **positive**, starts at 0, rises to a single hump and decays — no oscillation, no zero crossing. The slow exponential $e^{-p_1t}$ governs the long tail.
+
+### Impulse: critically damped
+
+<Src p="5" /> With the repeated root $s_{1,2}=-\omega_n$:
+
+$$
+Y(s)=\frac{\omega_n^2}{(s+\omega_n)^2}\quad\xrightarrow{\ \Li\{1/(s+p)^2\}=te^{-pt}\ }\quad y(t)=\omega_n^2\,t\,e^{-\omega_nt}
+$$
+
+No partial fractions are even needed: it is already a single table entry. The hump peaks where $\frac{d}{dt}(te^{-\omega_nt})=e^{-\omega_nt}(1-\omega_nt)=0$, i.e. at $t=1/\omega_n$, with height $\omega_n/e$.
+
+<Note title="Correction to the notes (p. 5)">
+
+The notes write "$s_{1,2}=\omega_n$" for the repeated root. A minus sign is missing: the root is $s_{1,2}=-\omega_n$ (as correctly written on pp. 2, 8 and 12). The formula $Y(s)=\omega_n^2/(s+\omega_n)^2$ on the same page is right, and $s+\omega_n=0$ gives $s=-\omega_n$.
+
+</Note>
+
+### Impulse: underdamped
+
+<Src p="5" /> Complex roots $s_{1,2}=-\alpha\pm j\omega$; with $p_1=\alpha+j\omega$, $p_2=\alpha-j\omega$:
+
+$$
+Y(s)=\frac{\omega_n^2}{(s+p_1)(s+p_2)}=\frac{K}{s+p_1}+\frac{K^*}{s+p_2}
+$$
+
+Cover-up at $s=-p_1=-\alpha-j\omega$ (the other factor $s+p_2=s+\alpha-j\omega$ becomes $-2j\omega$ there):
+
+$$
+K=\lim_{s\to-\alpha-j\omega}\big[(s+\alpha+j\omega)Y(s)\big]=\frac{\omega_n^2}{-\alpha-j\omega+\alpha-j\omega}=\frac{-\omega_n^2}{2j\omega}
+$$
+
+$$
+K^*=\lim_{s\to-\alpha+j\omega}\big[(s+\alpha-j\omega)Y(s)\big]=\frac{\omega_n^2}{-\alpha+j\omega+\alpha+j\omega}=\frac{\omega_n^2}{2j\omega}
+$$
+
+Inverse Laplace, then factor out $e^{-\alpha t}$ and use Euler's identity $\sin x=\frac{e^{jx}-e^{-jx}}{2j}$ <Src p="6" />:
+
+$$
+y(t)=\frac{-\omega_n^2}{2j\omega}e^{-(\alpha+j\omega)t}+\frac{\omega_n^2}{2j\omega}e^{-(\alpha-j\omega)t}=\frac{\omega_n^2}{\omega}e^{-\alpha t}\underbrace{\left(\frac{e^{j\omega t}-e^{-j\omega t}}{2j}\right)}_{\sin\omega t}=\frac{\omega_n^2}{\omega}e^{-\alpha t}\sin\omega t
+$$
+
+Finally $\omega_n^2/\omega=\omega_n^2/(\omega_n\sqrt{1-\xi^2})=\omega_n/\sqrt{1-\xi^2}$:
+
+<KeyFormula title="Underdamped unit impulse response (p. 6)">
+
+$$
+y(t)=\frac{\omega_n}{\sqrt{1-\xi^2}}\,e^{-\alpha t}\sin\omega t
+$$
+
+</KeyFormula>
+
+Check with the conjugate-pair rule: $K=\frac{-\omega_n^2}{2j\omega}=j\frac{\omega_n^2}{2\omega}$, so $a=0$, $b=\frac{\omega_n^2}{2\omega}$ and $2e^{-\alpha t}(b\sin\omega t)=\frac{\omega_n^2}{\omega}e^{-\alpha t}\sin\omega t$ ✓.
+
+**Physical meaning:** a sine at the damped frequency $\omega$ inside an exponentially shrinking envelope $\pm\frac{\omega_n}{\sqrt{1-\xi^2}}e^{-\alpha t}$. The zero crossings are at $\omega t=k\pi$, i.e. every $\pi/\omega$ seconds.
+
+### Impulse response family
+
+<ImpulseFamily />
+
+<Src p="4" /> The notes show the impulse response for $\xi=0.25$, $1$ and $2$ (no $\omega_n$ given; here $\omega_n=1$, so the time axis is in units of $1/\omega_n$ and for another $\omega_n$ you rescale $t$ by $1/\omega_n$ and $y$ by $\omega_n$). Exact functions plotted:
+
+- $\xi=0.25$: $y=\frac{1}{\sqrt{0.9375}}e^{-0.25t}\sin(0.968t)$ — tall first peak, then a negative lobe, a smaller positive one…: a decaying oscillation about 0.
+- $\xi=1$: $y=te^{-t}$ — one hump, peak $1/e=0.368$ at $t=1$, no zero crossing.
+- $\xi=2$: $y=\frac{1}{2\sqrt3}\left(e^{-0.268t}-e^{-3.732t}\right)$ — the lowest, flattest hump and the slowest tail.
+
+"As seen, increasing the damping factor reduces the system oscillation" (<Term en="oscillation" tr="salınım" />). <Src p="4" />
+
+**How to sketch by hand:** every curve starts at $y(0)=0$ with initial slope $y'(0^+)=\omega_n^2$ (the same for all $\xi$ — the impulse "kicks" the velocity). Underdamped: draw the envelope $\pm\frac{\omega_n}{\sqrt{1-\xi^2}}e^{-\alpha t}$, cross zero every $\pi/\omega$. Critical: one hump at $t=1/\omega_n$, height $\omega_n/e$. Overdamped: lower, wider hump with a long tail. All tend to 0.
+
+### Steady-state error for the impulse
+
+The steady-state error is the final value of $e(t)=r(t)-y(t)$; by the final value theorem <Src p="6" />:
+
+$$
+e_{ss}=\lim_{s\to0}s\big[R(s)-Y(s)\big]=\lim_{s\to0}s\left(1-\frac{\omega_n^2}{s^2+2\xi\omega_n s+\omega_n^2}\right)=0\cdot(1-1)=0
+$$
+
+The impulse is over at $t=0^+$ and the output dies out, so the error is zero.
+
+<Note title="Correction to the notes (pp. 6, 7, 8, 10, 14)">
+
+In several $e_{ss}$ and $Y(s)$ expressions the notes write the denominator as $s^2+2\xi\omega_n+\omega_n^2$ — the $s$ in the middle term is missing. The correct denominator is always $s^2+2\xi\omega_n\,s+\omega_n^2$. The slip does not change any limit computed at $s=0$ (the middle term vanishes there anyway), so all of the professor's results stand. On p. 8 the formula for $K_1$ also still shows $\xi$ although $\xi=1$ in that section — again harmless at $s=0$.
+
+</Note>
+
+## Unit step response
+
+<Term en="Unit step response" tr="birim basamak tepkesi" />: $r(t)=1$ for $t\ge0$, $R(s)=\frac1s$ <Src p="7" />:
+
+$$
+Y(s)=\frac1s\cdot\frac{\omega_n^2}{s^2+2\xi\omega_n s+\omega_n^2}
+$$
+
+The extra $\frac1s$ adds one more partial fraction, $\frac{K_1}{s}$, which becomes the constant final value.
+
+### Step: overdamped
+
+<Src p="7" /> All roots real and distinct ($0,\,-p_1,\,-p_2$):
+
+$$
+Y(s)=\frac{\omega_n^2}{s(s+p_1)(s+p_2)}=\frac{K_1}{s}+\frac{K_2}{s+p_1}+\frac{K_3}{s+p_2}\quad\Longrightarrow\quad y(t)=K_1+K_2e^{-p_1t}+K_3e^{-p_2t}
+$$
+
+The notes stop here. The coefficients by the cover-up rule, simplified with $p_1p_2=\omega_n^2$:
+
+$$
+K_1=\left.\frac{\omega_n^2}{(s+p_1)(s+p_2)}\right|_{s=0}=\frac{\omega_n^2}{p_1p_2}=1
+$$
+
+$$
+K_2=\left.\frac{\omega_n^2}{s(s+p_2)}\right|_{s=-p_1}=\frac{\omega_n^2}{-p_1(p_2-p_1)}=-\frac{p_2}{p_2-p_1},\qquad K_3=\left.\frac{\omega_n^2}{s(s+p_1)}\right|_{s=-p_2}=\frac{\omega_n^2}{-p_2(p_1-p_2)}=\frac{p_1}{p_2-p_1}
+$$
+
+<KeyFormula title="Overdamped unit step response">
+
+$$
+y(t)=1-\frac{p_2\,e^{-p_1t}-p_1\,e^{-p_2t}}{p_2-p_1},\qquad p_2-p_1=2\omega_n\sqrt{\xi^2-1}
+$$
+
+</KeyFormula>
+
+**Checks.** $y(0)=1-\frac{p_2-p_1}{p_2-p_1}=0$ ✓. $y(\infty)=1$ ✓. Differentiate: $\dot y=\frac{p_1p_2}{p_2-p_1}(e^{-p_1t}-e^{-p_2t})=\frac{\omega_n^2}{p_2-p_1}(e^{-p_1t}-e^{-p_2t})$ — exactly the overdamped impulse response, as it must be (the step is the integral of the impulse). Since $\dot y>0$ for all $t>0$, the overdamped step rises **monotonically** and never overshoots.
+
+### Step: critically damped
+
+<Src p="8" /> Repeated root $s_{1,2}=-\omega_n$; the professor sets $p=\omega_n$:
+
+$$
+Y(s)=\frac{\omega_n^2}{s^2+2\omega_ns+\omega_n^2}\cdot\frac1s=\frac{\omega_n^2}{(s+\omega_n)^2}\cdot\frac1s=\frac{K_1}{s}+\frac{K_2}{s+p}+\frac{K_3}{(s+p)^2}
+$$
+
+Coefficients (the notes compute them in the order $K_1$, $K_3$, $K_2$ — the derivative coefficient needs the same bracket as $K_3$):
+
+$$
+K_1=\lim_{s\to0}\big[sY(s)\big]=\left.\frac{\omega_n^2}{s^2+2\omega_n s+\omega_n^2}\right|_{s=0}=1
+$$
+
+$$
+K_3=\lim_{s\to-p}\big[(s+\omega_n)^2Y(s)\big]=\left.\frac{\omega_n^2}{s}\right|_{s=-\omega_n}=-\omega_n
+$$
+
+$$
+K_2=\lim_{s\to-p}\frac{d}{ds}\big[(s+\omega_n)^2Y(s)\big]=\lim_{s\to-p}\frac{d}{ds}\left(\frac{\omega_n^2}{s}\right)=\left.\frac{-\omega_n^2}{s^2}\right|_{s=-\omega_n}=-1
+$$
+
+Inverse Laplace ($\frac1s\to1$, $\frac{1}{s+p}\to e^{-pt}$, $\frac{1}{(s+p)^2}\to te^{-pt}$):
+
+<KeyFormula title="Critically damped unit step response (p. 8)">
+
+$$
+y(t)=1-e^{-\omega_nt}-\omega_nt\,e^{-\omega_nt}
+$$
+
+</KeyFormula>
+
+**Checks.** $y(0)=1-1-0=0$ ✓, $y(\infty)=1$ ✓, $\dot y=\omega_ne^{-\omega_nt}-\omega_ne^{-\omega_nt}+\omega_n^2te^{-\omega_nt}=\omega_n^2te^{-\omega_nt}$ = the critical impulse response ✓. Recombining: $\frac1s-\frac{1}{s+\omega_n}-\frac{\omega_n}{(s+\omega_n)^2}=\frac{(s+\omega_n)^2-s(s+\omega_n)-\omega_ns}{s(s+\omega_n)^2}=\frac{\omega_n^2}{s(s+\omega_n)^2}$ ✓.
+
+### Step: underdamped
+
+<Src p="9" /> Complex roots $s_{1,2}=-\alpha\pm j\omega$, $p_1=\alpha+j\omega$, $p_2=\alpha-j\omega$:
+
+$$
+Y(s)=\frac{K_1}{s}+\frac{K_2}{s+p_1}+\frac{K_2^*}{s+p_2}
+$$
+
+The notes say "applying the coefficient-finding methods given earlier" and jump to the result. Here are the missing steps.
+
+**$K_1$:** $K_1=\left.\dfrac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}\right|_{s=0}=1$.
+
+**$K_2$:** cover up $(s+p_1)$ and substitute $s=-\alpha-j\omega$. The remaining factors are $s$ and $s+p_2=s+\alpha-j\omega$, which equals $-2j\omega$ at that point:
+
+$$
+K_2=\frac{\omega_n^2}{(-\alpha-j\omega)(-2j\omega)}=\frac{\omega_n^2}{2j\alpha\omega+2j^2\omega^2}=\frac{\omega_n^2}{-2\omega(\omega-j\alpha)}
+$$
+
+Multiply top and bottom by the conjugate $(\omega+j\alpha)$ and use $\omega^2+\alpha^2=\omega_n^2$:
+
+$$
+K_2=-\frac{\omega_n^2(\omega+j\alpha)}{2\omega(\omega^2+\alpha^2)}=-\frac{\omega+j\alpha}{2\omega}=-\frac12-j\frac{\alpha}{2\omega}
+$$
+
+**Invert** with the conjugate-pair rule ($a=-\frac12$, $b=-\frac{\alpha}{2\omega}$):
+
+$$
+y(t)=1+2e^{-\alpha t}\left(-\frac12\cos\omega t-\frac{\alpha}{2\omega}\sin\omega t\right)=1-e^{-\alpha t}\left(\cos\omega t+\frac{\alpha}{\omega}\sin\omega t\right)
+$$
+
+and $\dfrac{\alpha}{\omega}=\dfrac{\xi\omega_n}{\omega_n\sqrt{1-\xi^2}}=\dfrac{\xi}{\sqrt{1-\xi^2}}$:
+
+<KeyFormula title="Underdamped unit step response (p. 9)">
+
+$$
+y(t)=1-e^{-\alpha t}\left[\cos\omega t+\frac{\xi}{\sqrt{1-\xi^2}}\sin\omega t\right]
+$$
+
+</KeyFormula>
+
+**Checks.** $y(0)=1-[1+0]=0$ ✓; $y(\infty)=1$ ✓.
+
+### Amplitude-phase form of the step response
+
+The professor then "combines the sinusoidal terms" (<Term en="sinusoidal terms" tr="sinüzoidal terimler" />) <Src p="9" />. The identity behind it:
+
+$$
+A\cos x+B\sin x=R\sin(x+\varphi),\qquad R=\sqrt{A^2+B^2},\quad \sin\varphi=\frac AR,\quad\cos\varphi=\frac BR
+$$
+
+(Proof: expand $R\sin(x+\varphi)=R\sin\varphi\cos x+R\cos\varphi\sin x$ and compare coefficients.) Here $A=1$, $B=\frac{\xi}{\sqrt{1-\xi^2}}$:
+
+$$
+R=\sqrt{1+\frac{\xi^2}{1-\xi^2}}=\sqrt{\frac{1}{1-\xi^2}}=\frac{1}{\sqrt{1-\xi^2}},\qquad \sin\varphi=\frac{1}{R}=\sqrt{1-\xi^2},\qquad\cos\varphi=\frac BR=\xi
+$$
+
+So $\varphi$ is exactly the pole angle $\theta$ ($\cos\theta=\xi$) and $\tan\theta=\frac{\sqrt{1-\xi^2}}{\xi}$:
+
+<KeyFormula title="Step response, amplitude-phase form (p. 9)">
+
+$$
+y(t)=1-\frac{e^{-\alpha t}}{\sqrt{1-\xi^2}}\sin(\omega t+\theta),\qquad \theta=\tan^{-1}\frac{\sqrt{1-\xi^2}}{\xi}
+$$
+
+</KeyFormula>
+
+At $t=0$: $\frac{\sin\theta}{\sqrt{1-\xi^2}}=1$, so $y(0)=0$ ✓. For $0<\xi<1$, $\theta$ lies between $0^\circ$ and $90^\circ$, so the calculator's $\tan^{-1}$ gives the right angle directly.
+
+<Mistake title="Degrees vs radians">
+
+In $\sin(\omega t+\theta)$, $\omega t$ is in **radians**. Either use $\theta$ in radians ($\theta[\text{rad}]=\theta[^\circ]\cdot\pi/180$) or convert $\omega t$ to degrees. Mixing them (e.g. $\sin(4.58\cdot0.5+66.42)$ with the calculator in radian mode) gives garbage.
+
+</Mistake>
+
+**What the formula says physically:** the output oscillates around the final value 1 at the damped frequency $\omega$, inside the envelope $1\pm\frac{e^{-\alpha t}}{\sqrt{1-\xi^2}}$. A smaller $\xi$ gives a slower decay $\alpha=\xi\omega_n$ and a larger overshoot. Because $\dot y$ equals the impulse response $\frac{\omega_n}{\sqrt{1-\xi^2}}e^{-\alpha t}\sin\omega t$, the step's peaks and valleys are where $\sin\omega t=0$: $t=\pi/\omega,\ 2\pi/\omega,\dots$ At the first peak $t=\pi/\omega$, $\cos\omega t=-1$, $\sin\omega t=0$, so $y_{\max}=1+e^{-\alpha\pi/\omega}$.
+
+### Step response family
+
+<StepFamily />
+
+<Src p="10" /> The notes' figure: step responses for $\xi=2,\ 1,\ 0.25$ with the final value shown dashed. Exact functions ($\omega_n=1$):
+
+- $\xi=0.25$: $y=1-1.033\,e^{-0.25t}\sin(0.968t+75.5^\circ)$ — large overshoot (peak $1+e^{-0.25\pi/0.968}=1.44$ at $t=3.24$), then a decaying ripple around 1.
+- $\xi=1$: $y=1-e^{-t}-te^{-t}$ — monotonic, the fastest curve without overshoot.
+- $\xi=2$: $y=1-1.077e^{-0.268t}+0.077e^{-3.732t}$ — monotonic and slow; still clearly below 1 at $t=10$.
+
+"The figure shows the time-domain responses of three different types of system with damping factors $\xi=2,1,0.25$." <Src p="10" />
+
+**How to sketch by hand:** draw the dashed final value $1$. Start every curve at $(0,0)$ with a **horizontal tangent**. Underdamped: first peak at $t=\pi/\omega$ with height $1+e^{-\alpha\pi/\omega}$, then valleys/peaks every $\pi/\omega$ closing in on 1. Critical: S-shaped rise, about $0.59$ at $t=2/\omega_n$ and $0.96$ at $t=5/\omega_n$. Overdamped: lower S-curve dominated by the slow exponential $e^{-p_1t}$.
+
+### Why every step response starts flat
+
+<InitialSlopeZoom />
+
+<Note title="Correction to the notes' sketch (p. 10)">
+
+In the hand sketch the $\xi=1$ and $\xi=2$ curves leave the origin with a visible non-zero slope. The true step response of a second-order system has **zero initial slope for every $\xi$**. Two ways to see it:
+
+1. **Derivative = impulse response.** $\dot y_{\text{step}}(t)=y_{\text{impulse}}(t)$, and all three impulse responses start at $0$ ($\omega_n^2te^{-\omega_nt}$, $\sin\omega t$, $e^{-p_1t}-e^{-p_2t}$ all vanish at $t=0$). So $\dot y(0^+)=0$.
+2. **Initial value theorem** applied to $\dot y$: $\L\{\dot y\}=sY(s)-y(0)=sY(s)=T(s)$, hence
+
+$$
+\dot y(0^+)=\lim_{s\to\infty}s\cdot\big[sY(s)\big]=\lim_{s\to\infty}\frac{s\,\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}=0
+$$
+
+Applying the theorem once more gives $\ddot y(0^+)=\lim_{s\to\infty}s\big[s^2Y(s)\big]=\omega_n^2$, so near $t=0$ every step response looks like $\frac{\omega_n^2t^2}{2}$ (dashed curve above). Physically: a step force cannot instantly give a mass a velocity, only an acceleration. The professor's ordering of the curves (0.25 fastest, then 1, then 2) is correct; only the starting slope of the sketch is off.
+
+</Note>
+
+### Steady-state error for the step
+
+<Src p="10" />
+
+$$
+e_{ss}=\lim_{s\to0}s\big[R(s)-Y(s)\big]=\lim_{s\to0}s\left(\frac1s-\frac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}\cdot\frac1s\right)=\lim_{s\to0}\left(1-\frac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}\right)=1-1=0
+$$
+
+The standard second-order system follows a step with **zero** steady-state error in all three damping cases — because its DC gain is 1 (its loop contains an integrator). If the closed loop has DC gain $K\ne1$, then $e_{ss}=1-K$ (Example 2 gives 0.2).
+
+## Unit ramp response
+
+<Term en="Unit ramp response" tr="birim rampa tepkesi" />: $r(t)=t$, $R(s)=\frac{1}{s^2}$ <Src p="11" />:
+
+$$
+Y(s)=\frac{1}{s^2}\cdot\frac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}
+$$
+
+Now $s=0$ is a **double** root, so there are two terms $\frac{K_1}{s^2}+\frac{K_2}{s}$, and $K_2$ needs the derivative rule. These two terms are the same in all three cases:
+
+$$
+K_1=\lim_{s\to0}\big[s^2Y(s)\big]=\frac{\omega_n^2}{\omega_n^2}=1,\qquad K_2=\lim_{s\to0}\frac{d}{ds}\left[\frac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}\right]=\left.\frac{-\omega_n^2(2s+2\xi\omega_n)}{(s^2+2\xi\omega_ns+\omega_n^2)^2}\right|_{s=0}=\frac{-2\xi\omega_n^3}{\omega_n^4}=-\frac{2\xi}{\omega_n}
+$$
+
+So **every** ramp response contains $t-\dfrac{2\xi}{\omega_n}$: after the transient, the output is a line of slope 1 that lags the input by $\dfrac{2\xi}{\omega_n}$.
+
+### Ramp: overdamped
+
+<Src p="11" />
+
+$$
+Y(s)=\frac{K_1}{s^2}+\frac{K_2}{s}+\frac{K_3}{s+p_1}+\frac{K_4}{s+p_2}\quad\Longrightarrow\quad y(t)=K_1t+K_2+K_3e^{-p_1t}+K_4e^{-p_2t}
+$$
+
+The notes leave the coefficients unevaluated. $K_1=1$, $K_2=-\frac{2\xi}{\omega_n}$ (above), and by cover-up with $p_1p_2=\omega_n^2$:
+
+$$
+K_3=\left.\frac{\omega_n^2}{s^2(s+p_2)}\right|_{s=-p_1}=\frac{\omega_n^2}{p_1^2(p_2-p_1)}=\frac{p_2}{p_1(p_2-p_1)},\qquad K_4=\left.\frac{\omega_n^2}{s^2(s+p_1)}\right|_{s=-p_2}=\frac{\omega_n^2}{p_2^2(p_1-p_2)}=-\frac{p_1}{p_2(p_2-p_1)}
+$$
+
+<KeyFormula title="Overdamped unit ramp response">
+
+$$
+y(t)=t-\frac{2\xi}{\omega_n}+\frac{1}{p_2-p_1}\left(\frac{p_2}{p_1}e^{-p_1t}-\frac{p_1}{p_2}e^{-p_2t}\right)
+$$
+
+</KeyFormula>
+
+**Check** $y(0)=0$: $\frac{1}{p_2-p_1}\left(\frac{p_2}{p_1}-\frac{p_1}{p_2}\right)=\frac{p_2^2-p_1^2}{p_1p_2(p_2-p_1)}=\frac{p_1+p_2}{p_1p_2}=\frac{2\xi\omega_n}{\omega_n^2}=\frac{2\xi}{\omega_n}$, which cancels $-\frac{2\xi}{\omega_n}$ ✓.
+
+### Ramp: critically damped
+
+<Src p="12" /> With $p=\omega_n$, repeated roots $s_{1,2}=-\omega_n$:
+
+$$
+Y(s)=\frac{\omega_n^2}{(s+\omega_n)^2}\cdot\frac{1}{s^2}=\frac{K_1}{s^2}+\frac{K_2}{s}+\frac{K_3}{(s+p)^2}+\frac{K_4}{s+p}
+$$
+
+Two double roots, so two derivative coefficients:
+
+$$
+K_1=\lim_{s\to0}\big[s^2Y(s)\big]=\left.\frac{\omega_n^2}{s^2+2\omega_ns+\omega_n^2}\right|_{s=0}=1
+$$
+
+$$
+K_2=\lim_{s\to0}\frac{d}{ds}\left(\frac{\omega_n^2}{s^2+2\omega_ns+\omega_n^2}\right)=\left.\frac{-\omega_n^2(2s+2\omega_n)}{(s^2+2\omega_ns+\omega_n^2)^2}\right|_{s=0}=\frac{-2\omega_n^3}{\omega_n^4}=-\frac{2}{\omega_n}
+$$
+
+$$
+K_3=\lim_{s\to-\omega_n}\big[(s+\omega_n)^2Y(s)\big]=\left.\frac{\omega_n^2}{s^2}\right|_{s=-\omega_n}=1
+$$
+
+$$
+K_4=\lim_{s\to-\omega_n}\frac{d}{ds}\left(\frac{\omega_n^2}{s^2}\right)=\left.\frac{-2s\,\omega_n^2}{s^4}\right|_{s=-\omega_n}=\left.\frac{-2\omega_n^2}{s^3}\right|_{s=-\omega_n}=\frac{2}{\omega_n}
+$$
+
+<Src p="13" /> (The notes write the derivative in quotient-rule form $-2s\omega_n^2/s^4$; it simplifies to $-2\omega_n^2/s^3$.)
+
+<KeyFormula title="Critically damped unit ramp response (p. 13)">
+
+$$
+y(t)=t-\frac{2}{\omega_n}+t\,e^{-\omega_nt}+\frac{2}{\omega_n}e^{-\omega_nt}
+$$
+
+</KeyFormula>
+
+**Checks.** $y(0)=-\frac2{\omega_n}+\frac2{\omega_n}=0$ ✓. $\dot y=1-\omega_nte^{-\omega_nt}+e^{-\omega_nt}-2e^{-\omega_nt}=1-e^{-\omega_nt}-\omega_nte^{-\omega_nt}$ — the critical step response ✓ (the ramp is the integral of the step). With $\xi=1$, $\frac{2}{\omega_n}=\frac{2\xi}{\omega_n}$ ✓.
+
+<Note title="Correction to the notes (p. 12)">
+
+In $K_2$ the notes write the squared denominator as $(s^2+2\omega_ns+\omega_n)^2$; the last term must be $\omega_n^2$: $(s^2+2\omega_ns+\omega_n^2)^2$. With the correct denominator the value at $s=0$ is $\omega_n^4$ and $K_2=-2\omega_n^3/\omega_n^4=-2/\omega_n$, exactly the professor's result.
+
+</Note>
+
+### Ramp: underdamped
+
+<Src p="13" />
+
+$$
+Y(s)=\frac{K_1}{s^2}+\frac{K_2}{s}+\frac{K_3}{s+p_1}+\frac{K_3^*}{s+p_2},\qquad p_1=\alpha+j\omega,\ p_2=\alpha-j\omega
+$$
+
+$K_1=1$, $K_2=-\frac{2\xi}{\omega_n}$ as for every case. For $K_3$ the polar form of the root is the cleanest route. From the [geometry of the roots](#/m/07/geometry-of-the-complex-roots), $-\alpha-j\omega=-\omega_n(\cos\theta+j\sin\theta)=-\omega_ne^{j\theta}$, so $s^2=\omega_n^2e^{j2\theta}$ at that root, and $s+p_2=-2j\omega$ there:
+
+$$
+K_3=\left.\frac{\omega_n^2}{s^2(s+\alpha-j\omega)}\right|_{s=-\alpha-j\omega}=\frac{\omega_n^2}{\omega_n^2e^{j2\theta}\,(-2j\omega)}=\frac{e^{-j2\theta}}{-2j\omega}=\frac{j\,e^{-j2\theta}}{2\omega}=\frac{\sin2\theta+j\cos2\theta}{2\omega}
+$$
+
+(using $\frac{1}{-j}=j$ and $je^{-j2\theta}=j\cos2\theta+\sin2\theta$). Conjugate-pair rule with $a=\frac{\sin2\theta}{2\omega}$, $b=\frac{\cos2\theta}{2\omega}$:
+
+$$
+2e^{-\alpha t}\left(\frac{\sin2\theta}{2\omega}\cos\omega t+\frac{\cos2\theta}{2\omega}\sin\omega t\right)=\frac1\omega e^{-\alpha t}\sin(\omega t+2\theta)
+$$
+
+(sine addition formula $\sin(x+y)=\sin x\cos y+\cos x\sin y$).
+
+<KeyFormula title="Underdamped unit ramp response (corrected phase)">
+
+$$
+y(t)=t-\frac{2\xi}{\omega_n}+\frac{1}{\omega}e^{-\alpha t}\sin(\omega t+2\theta),\qquad \theta=\tan^{-1}\frac{\sqrt{1-\xi^2}}{\xi}
+$$
+
+</KeyFormula>
+
+<Src p="14" /> The notes define $\theta$ on p. 14 exactly as in the step response.
+
+<Note title="Correction to the notes (pp. 13 and 17): the phase is 2θ, not θ">
+
+The notes give $y(t)=t-\frac{2\xi}{\omega_n}+\frac1\omega e^{-\alpha t}\sin(\omega t+\theta)$. With $\theta=\tan^{-1}\frac{\sqrt{1-\xi^2}}{\xi}$ (as defined on p. 14) the phase must be $2\theta$. The quickest test is $y(0)=0$ (the output cannot jump):
+
+- with $2\theta$: $\sin2\theta=2\sin\theta\cos\theta=2\xi\sqrt{1-\xi^2}$, so $y(0)=-\frac{2\xi}{\omega_n}+\frac{2\xi\sqrt{1-\xi^2}}{\omega_n\sqrt{1-\xi^2}}=0$ ✓;
+- with $\theta$: $y(0)=-\frac{2\xi}{\omega_n}+\frac{\sqrt{1-\xi^2}}{\omega_n\sqrt{1-\xi^2}}=\frac{1-2\xi}{\omega_n}$, which is non-zero unless $\xi=0.5$ ✗.
+
+A numerical solution of the ODE confirms the $2\theta$ version (see [Example 2](#/m/07/ramp-response-of-example-2), where the phase becomes $132.84^\circ$ instead of $66.42^\circ$). The amplitude $\frac{1}{\omega}$ and the offset $-\frac{2\xi}{\omega_n}$ in the notes are correct.
+
+</Note>
+
+### Why the phase is 2 theta
+
+There is a pattern across the three inputs. Each extra $\frac1s$ in $R(s)$ multiplies the complex coefficient by $\frac1s$ evaluated at the pole, $\frac{1}{-\omega_ne^{j\theta}}$ — i.e. it **rotates the phase by $\theta$** (and divides the size by $\omega_n$):
+
+| Input | $R(s)$ | Oscillating part of $y(t)$ |
+|---|---|---|
+| impulse | $1$ | $\dfrac{\omega_n}{\sqrt{1-\xi^2}}e^{-\alpha t}\sin(\omega t)$ — phase $0$ |
+| step | $\dfrac1s$ | $-\dfrac{1}{\sqrt{1-\xi^2}}e^{-\alpha t}\sin(\omega t+\theta)$ — phase $\theta$ |
+| ramp | $\dfrac{1}{s^2}$ | $+\dfrac{1}{\omega}e^{-\alpha t}\sin(\omega t+2\theta)$ — phase $2\theta$ |
+
+The same thing seen in the time domain: the ramp response is the integral of the step response. Differentiating $e^{-\alpha t}\sin(\omega t+\varphi)$ gives $e^{-\alpha t}(\omega\cos(\cdot)-\alpha\sin(\cdot))=\omega_ne^{-\alpha t}\big(\sin\theta\cos(\cdot)-\cos\theta\sin(\cdot)\big)=-\omega_ne^{-\alpha t}\sin(\omega t+\varphi-\theta)$. So
+
+$$
+\frac{d}{dt}\left[-\frac{1}{\omega_n}e^{-\alpha t}\sin(\omega t+2\theta)\right]=e^{-\alpha t}\sin(\omega t+\theta)
+$$
+
+and integrating the step response from 0 to $t$:
+
+$$
+\int_0^t\left[1-\frac{e^{-\alpha\tau}\sin(\omega\tau+\theta)}{\sqrt{1-\xi^2}}\right]d\tau=t-\frac{\sin2\theta-e^{-\alpha t}\sin(\omega t+2\theta)}{\omega_n\sqrt{1-\xi^2}}=t-\frac{2\xi}{\omega_n}+\frac1\omega e^{-\alpha t}\sin(\omega t+2\theta)
+$$
+
+(using $\omega_n\sqrt{1-\xi^2}=\omega$ and $\frac{\sin2\theta}{\omega}=\frac{2\xi\sqrt{1-\xi^2}}{\omega_n\sqrt{1-\xi^2}}=\frac{2\xi}{\omega_n}$). Each integration adds $\theta$ to the phase: impulse $0$ → step $\theta$ → ramp $2\theta$.
+
+### Ramp response family
+
+<RampFamily />
+
+<Src p="14" /> The notes' figure: the dashed ramp $r(t)$ and the outputs for $\xi=2,1,0.25$, all starting at the origin with zero slope and ending as straight lines **parallel** to $r(t)$. Exact functions ($\omega_n=1$):
+
+- $\xi=0.25$: $y=t-0.5+1.033e^{-0.25t}\sin(0.968t+151.0^\circ)$ — closest to the ramp, with a visible wobble.
+- $\xi=1$: $y=t-2+te^{-t}+2e^{-t}$.
+- $\xi=2$: $y=t-4+0.289\,(13.93e^{-0.268t}-0.0718e^{-3.732t})$ — the largest lag.
+
+**How to sketch by hand:** draw $r(t)=t$ dashed and the asymptote $t-\frac{2\xi}{\omega_n}$ parallel to it. The output starts at the origin tangent to the $t$-axis ($y\approx\omega_n^2t^3/6$), bends up and joins the asymptote; for small $\xi$ it overshoots the asymptote slightly and wobbles around it with period $2\pi/\omega$.
+
+### Steady-state error for the ramp
+
+<Src p="14" />
+
+$$
+e_{ss}=\lim_{s\to0}s\left(\frac{1}{s^2}-\frac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}\cdot\frac{1}{s^2}\right)=\lim_{s\to0}\frac{s^2+2\xi\omega_ns}{s(s^2+2\xi\omega_ns+\omega_n^2)}=\lim_{s\to0}\frac{s+2\xi\omega_n}{s^2+2\xi\omega_ns+\omega_n^2}=\frac{2\xi}{\omega_n}
+$$
+
+<KeyFormula title="Ramp steady-state error (p. 14)">
+
+$$
+e_{ss,\text{ramp}}=\frac{2\xi}{\omega_n}
+$$
+
+</KeyFormula>
+
+This is the constant gap between $r(t)=t$ and the asymptote $t-\frac{2\xi}{\omega_n}$ — it agrees with the time-domain result. More damping → more lag; a faster system (larger $\omega_n$) → less lag. That is why the $\xi=2$ line in the figure lies furthest below $r(t)$.
+
+<Tip title="Summary of steady-state errors (standard form)">
+
+impulse $e_{ss}=0$ · step $e_{ss}=0$ · ramp $e_{ss}=2\xi/\omega_n$. These hold for $T(s)=\frac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}$, i.e. for the loop of p. 1 with its integrator. For any other loop, compute $\lim_{s\to0}s[R-Y]$ again (Example 2 gives 0, 0.2, ∞).
+
+</Tip>
+
+## Interactive explorer
+
+Slide $\xi$ and $\omega_n$. The s-plane, the case name, the formulas in use, the read-outs and all three responses update together. Things to try: (1) start at $\xi=0.4$ and raise it to 1 — the poles slide along the circle of radius $\omega_n$ onto the real axis and the overshoot disappears; (2) go above 1 — the poles split along the real axis, and the step becomes sluggish; (3) set $\xi=0$ — the poles sit on the $j\omega$ axis and the oscillation never dies; (4) double $\omega_n$ at fixed $\xi$ — the shapes stay the same, the time axis shrinks by 2 and the ramp lag halves.
+
+<SecondOrderExplorer />
+
+## Example 2: a complete problem
+
+<Example2BD />
+
+<Example title="Example 2: impulse, step and ramp responses" src="15–17">
+
+**Given:** unity negative feedback around $G(s)=\dfrac{20}{s^2+4s+5}$. **Asked:** the <Term en="unit impulse, unit step and unit ramp responses" tr="birim impulse, birim basamak ve birim rampa cevapları" /> (and, as the notes go on to do, the steady-state error for each).
+
+**Method:** closed loop → write $T(s)$ as (DC gain) × (standard form) → read $\omega_n,\xi$ → use the underdamped formulas multiplied by the DC gain → $e_{ss}$ from the final value theorem.
+
+<Step title="Closed loop in standard form">
+
+$$
+T(s)=\frac{Y(s)}{R(s)}=\frac{\dfrac{20}{s^2+4s+5}}{1+\dfrac{20}{s^2+4s+5}}=\frac{20}{s^2+4s+25}=\frac{0.8\cdot(5)^2}{s^2+2\cdot0.4\cdot5\,s+(5)^2}
+$$
+
+Matching: $\omega_n^2=25\Rightarrow\omega_n=5$; $2\xi\omega_n=4\Rightarrow\xi=0.4$; numerator $20=0.8\cdot25$, so the DC gain is $T(0)=20/25=0.8$. $\xi<1$: **underdamped** (düşük sönümlü). <Src p="15" />
+
+</Step>
+
+<Step title="Roots and parameters">
+
+$$
+s_{1,2}=\frac{-4\pm\sqrt{16-100}}{2}=-2\pm j\frac{\sqrt{84}}{2}=-2\pm j4.58
+$$
+
+so $\alpha=\xi\omega_n=2$, $\omega=\omega_n\sqrt{1-\xi^2}=5\sqrt{0.84}=4.583$ rad/s, $\theta=\tan^{-1}\frac{\sqrt{0.84}}{0.4}=66.42^\circ=1.159$ rad.
+
+</Step>
+
+<Step title="Unit impulse response">
+
+Every response is $0.8\times$ the standard one. <Src p="15" />
+
+$$
+y(t)=0.8\cdot\frac{\omega_n}{\sqrt{1-\xi^2}}e^{-\alpha t}\sin\omega t=0.8\cdot\frac{5}{\sqrt{0.84}}e^{-2t}\sin4.58t=4.364\,e^{-2t}\sin4.58t
+$$
+
+Direct check: $\frac{20}{(s+2)^2+21}\to\frac{20}{\sqrt{21}}e^{-2t}\sin\sqrt{21}t$ and $20/\sqrt{21}=4.364$ ✓.
+
+Steady-state error <Src p="16" />: $e_{ss}=\lim_{s\to0}s\left(1-\dfrac{20}{s^2+4s+25}\right)=0$.
+
+</Step>
+
+<Step title="Unit step response">
+
+$Y(s)=\dfrac{20}{s^2+4s+25}\cdot\dfrac1s$ <Src p="16" />:
+
+$$
+y(t)=0.8\left[1-e^{-2t}\left(\cos4.58t+\frac{0.4}{\sqrt{0.84}}\sin4.58t\right)\right]=0.8\left[1-e^{-2t}\left(\cos4.58t+0.436\sin4.58t\right)\right]
+$$
+
+Equivalent amplitude-phase form: $y(t)=0.8-0.873\,e^{-2t}\sin(4.58t+66.42^\circ)$ (since $0.8/\sqrt{0.84}=0.873$).
+
+Steady-state error (the $s$ factors cancel, as struck through in the notes):
+
+$$
+e_{ss}=\lim_{s\to0}s\left(\frac1s-\frac{20}{s^2+4s+25}\cdot\frac1s\right)=\left.\frac{s^2+4s+25-20}{s^2+4s+25}\right|_{s=0}=\frac{5}{25}=0.2
+$$
+
+</Step>
+
+<Step title="Unit ramp response">
+
+$Y(s)=\dfrac{20}{s^2+4s+25}\cdot\dfrac{1}{s^2}$ <Src p="16" />. With the corrected phase $2\theta=132.84^\circ$ <Src p="17" />:
+
+$$
+y(t)=0.8\left(t-\frac{2\cdot0.4}{5}+\frac{1}{4.58}e^{-2t}\sin(4.58t+2\theta)\right)=0.8t-0.128+0.1746\,e^{-2t}\sin(4.58t+132.84^\circ)
+$$
+
+($0.8\cdot0.16=0.128$, $0.8/4.583=0.1746$.) Check: $y(0)=-0.128+0.1746\sin132.84^\circ=-0.128+0.128=0$ ✓.
+
+Steady-state error:
+
+$$
+e_{ss}=\lim_{s\to0}s\left(\frac{1}{s^2}-\frac{20}{s^2+4s+25}\cdot\frac{1}{s^2}\right)=\left.\frac{s^2+4s+25-20}{s(s^2+4s+25)}\right|_{s\to0}=\frac{5}{0}=\infty
+$$
+
+</Step>
+
+<Answer>
+
+$\omega_n=5$, $\xi=0.4$, DC gain $0.8$, roots $-2\pm j4.58$ (underdamped).
+
+- Impulse: $y(t)=4.364\,e^{-2t}\sin4.58t$, $e_{ss}=0$.
+- Step: $y(t)=0.8\left[1-e^{-2t}(\cos4.58t+0.436\sin4.58t)\right]$, $e_{ss}=0.2$.
+- Ramp: $y(t)=0.8t-0.128+0.1746\,e^{-2t}\sin(4.58t+132.84^\circ)$, $e_{ss}=\infty$.
+
+</Answer>
+
+**Interpretation.** The impulse response is a damped sine dying out in about $4/\alpha=2$ s. The step response peaks at $t=\pi/\omega=0.686$ s with $y=0.8(1+e^{-2\pi/4.583})=0.8\cdot1.254=1.003$ — right at the level 1 the professor marks in his sketch — and settles at 0.8, leaving an error of 0.2. For the ramp the output grows with slope 0.8 while the input grows with slope 1, so the gap $t-y\approx0.2t+0.128$ grows forever.
+
+</Example>
+
+### Impulse response of Example 2
+
+<Ex2Impulse />
+
+The first peak is where $\frac{d}{dt}(e^{-2t}\sin\omega t)=0$, i.e. $\tan\omega t=\omega/\alpha=\tan\theta$, so $t=\theta/\omega=1.159/4.583=0.253$ s, $y=2.41$. Then a small negative lobe and a tiny ripple, as in the sketch <Src p="16" />.
+
+### Step response of Example 2
+
+<Ex2Step />
+
+As in the notes' sketch <Src p="16" />: dashed lines at 1 and 0.8, the curve peaks at about 1 and settles at 0.8.
+
+### Ramp response of Example 2
+
+<Ex2Ramp />
+
+The sketch on p. 17 shows exactly this: $y(t)$ wobbles briefly, then grows as a line of smaller slope (0.8) than $r(t)$, so the two lines diverge — $e_{ss}=\infty$. <Src p="17" />
+
+<RampPhaseCheck />
+
+<Note title="Correction to the notes (p. 17)">
+
+The notes write $y(t)=0.8t-0.128+0.174\,e^{-2t}\sin(4.58t+66.42^\circ)$, inheriting the phase slip of p. 13. Correct: $y(t)=0.8t-0.128+0.1746\,e^{-2t}\sin(4.58t+132.84^\circ)$. The plot above compares both with a numerical solution of $\ddot y+4\dot y+25y=20t$ (zero initial conditions): the ODE gives $y(0.1)=0.00299$, $y(0.5)=0.2081$, $y(1)=0.6857$; the $132.84^\circ$ form reproduces these exactly, while the $66.42^\circ$ form gives $0.0948$, $0.2525$, $0.6598$ and even $y(0)=0.032\ne0$. Also, $0.8/4.583=0.1746$ rounds to $0.175$ (the notes truncate it to 0,174). The values $0.128$ and $\theta=66.42^\circ$ themselves are computed correctly.
+
+</Note>
+
+<Intuition title="Why the general ramp error 2ξ/ω_n does not apply here">
+
+$e_{ss}=2\xi/\omega_n$ was derived for the loop of p. 1, whose forward path $\frac{\omega_n^2}{s(s+2\xi\omega_n)}$ contains an **integrator**. In Example 2 the forward path $\frac{20}{s^2+4s+5}$ has none (it is "type 0"), so the closed loop's DC gain is 0.8, not 1: it cannot even hold a constant (step error 0.2), let alone follow a ramp (error ∞). Always compute $e_{ss}$ from $\lim_{s\to0}s[R(s)-Y(s)]$ for the actual system instead of blindly reusing $2\xi/\omega_n$.
+
+</Intuition>
+
+## Additional worked examples
+
+<Example title="Overdamped system with xi = 1.25 and omega_n = 4">
+
+**Given:** $T(s)=\dfrac{16}{s^2+10s+16}$. **Asked:** case, roots, impulse/step/ramp responses, ramp $e_{ss}$.
+
+<Step title="Parameters">
+
+$\omega_n^2=16\Rightarrow\omega_n=4$; $2\xi\omega_n=10\Rightarrow\xi=1.25>1$: overdamped. $\sqrt{\xi^2-1}=\sqrt{0.5625}=0.75$, so $p_{1,2}=\xi\omega_n\mp\omega_n\cdot0.75=5\mp3$: $p_1=2$, $p_2=8$. Indeed $s^2+10s+16=(s+2)(s+8)$, $p_1p_2=16=\omega_n^2$ ✓.
+
+</Step>
+
+<Step title="Impulse">
+
+$K_1=\left.\frac{16}{s+8}\right|_{s=-2}=\frac{16}{6}=\frac83$, $K_2=\left.\frac{16}{s+2}\right|_{s=-8}=-\frac83$:
+
+$$
+y(t)=\frac83\left(e^{-2t}-e^{-8t}\right)
+$$
+
+</Step>
+
+<Step title="Step">
+
+$Y=\frac{16}{s(s+2)(s+8)}$: $K_1=\frac{16}{16}=1$, $K_2=\frac{16}{(-2)(6)}=-\frac43$, $K_3=\frac{16}{(-8)(-6)}=\frac13$:
+
+$$
+y(t)=1-\frac43e^{-2t}+\frac13e^{-8t}
+$$
+
+Formula check: $\frac{p_2}{p_2-p_1}=\frac86=\frac43$, $\frac{p_1}{p_2-p_1}=\frac26=\frac13$ ✓; $y(0)=1-\frac43+\frac13=0$ ✓.
+
+</Step>
+
+<Step title="Ramp">
+
+$Y=\frac{16}{s^2(s+2)(s+8)}$: $K_1=1$, $K_2=-\frac{2\xi}{\omega_n}=-\frac{2.5}{4}=-0.625$ (directly: $\frac{d}{ds}\frac{16}{s^2+10s+16}\big|_0=-\frac{16\cdot10}{256}=-0.625$ ✓), $K_3=\frac{16}{(-2)^2(6)}=\frac23$, $K_4=\frac{16}{(-8)^2(-6)}=-\frac1{24}$:
+
+$$
+y(t)=t-0.625+\frac23e^{-2t}-\frac1{24}e^{-8t}
+$$
+
+$y(0)=-0.625+0.6667-0.0417=0$ ✓.
+
+</Step>
+
+<Answer>
+
+Overdamped, roots $-2$, $-8$. Impulse $\frac83(e^{-2t}-e^{-8t})$; step $1-\frac43e^{-2t}+\frac13e^{-8t}$; ramp $t-0.625+\frac23e^{-2t}-\frac1{24}e^{-8t}$; $e_{ss,\text{ramp}}=0.625$.
+
+</Answer>
+
+<ResponseTrio xi={1.25} wn={4} tEnd={3} />
+
+The slow root $-2$ dominates: by $t=1$ s the $e^{-8t}$ term is already $0.0003$, while $e^{-2t}=0.135$.
+
+</Example>
+
+<Example title="Critically damped system with omega_n = 3">
+
+**Given:** $T(s)=\dfrac{9}{s^2+6s+9}$. **Asked:** all three responses.
+
+<Step title="Parameters">
+
+$\omega_n=3$, $2\xi\cdot3=6\Rightarrow\xi=1$: critically damped, $T=\frac{9}{(s+3)^2}$, double root $-3$.
+
+</Step>
+
+<Step title="Impulse">
+
+$y(t)=9te^{-3t}$, peak at $t=1/3$ s of height $3/e=1.10$.
+
+</Step>
+
+<Step title="Step">
+
+$Y=\frac{9}{s(s+3)^2}$: $K_1=1$; $K_3=\left.\frac9s\right|_{-3}=-3$; $K_2=\left.\frac{d}{ds}\frac9s\right|_{-3}=\left.-\frac{9}{s^2}\right|_{-3}=-1$:
+
+$$
+y(t)=1-e^{-3t}-3te^{-3t}
+$$
+
+</Step>
+
+<Step title="Ramp">
+
+$Y=\frac{9}{s^2(s+3)^2}$: $K_1=1$; $K_2=\left.\frac{d}{ds}\frac{9}{(s+3)^2}\right|_0=\left.\frac{-18}{(s+3)^3}\right|_0=-\frac23$; $K_3=\left.\frac{9}{s^2}\right|_{-3}=1$; $K_4=\left.\frac{-18}{s^3}\right|_{-3}=\frac{2}{3}$:
+
+$$
+y(t)=t-\frac23+te^{-3t}+\frac23e^{-3t}
+$$
+
+</Step>
+
+<Answer>
+
+Impulse $9te^{-3t}$; step $1-e^{-3t}-3te^{-3t}$; ramp $t-\frac23+te^{-3t}+\frac23e^{-3t}$; $e_{ss}$: 0, 0, $\frac23$ (= $2\xi/\omega_n$ with $\xi=1$).
+
+</Answer>
+
+<ResponseTrio xi={1} wn={3} tEnd={3} />
+
+</Example>
+
+<Example title="Underdamped system with xi = 0.6 and omega_n = 5">
+
+**Given:** $T(s)=\dfrac{25}{s^2+6s+25}$. **Asked:** all three responses, computing the complex coefficients explicitly (to see the $2\theta$ appear with numbers).
+
+<Step title="Parameters">
+
+$\omega_n=5$, $\xi=6/10=0.6$, $\alpha=3$, $\omega=5\sqrt{0.64}=4$, roots $-3\pm j4$. $\theta=\tan^{-1}\frac{0.8}{0.6}=53.13^\circ$.
+
+</Step>
+
+<Step title="Impulse">
+
+$y(t)=\frac{\omega_n}{\sqrt{1-\xi^2}}e^{-\alpha t}\sin\omega t=\frac{5}{0.8}e^{-3t}\sin4t=6.25\,e^{-3t}\sin4t$.
+
+</Step>
+
+<Step title="Step: K by numbers">
+
+$K_1=1$. At $s=-3-j4$: $s+3-j4=-8j$, and
+
+$$
+K_2=\frac{25}{(-3-j4)(-8j)}=\frac{25}{24j+32j^2}=\frac{25}{-32+24j}=\frac{25(-32-24j)}{32^2+24^2}=\frac{-32-24j}{64}=-0.5-0.375j
+$$
+
+Conjugate-pair rule: $2e^{-3t}(-0.5\cos4t-0.375\sin4t)$, so
+
+$$
+y(t)=1-e^{-3t}(\cos4t+0.75\sin4t)=1-1.25\,e^{-3t}\sin(4t+53.13^\circ)
+$$
+
+($\frac{\xi}{\sqrt{1-\xi^2}}=0.75$, $\frac{1}{\sqrt{1-\xi^2}}=1.25$ ✓.)
+
+</Step>
+
+<Step title="Ramp: K by numbers">
+
+$K_1=1$, $K_2=-\frac{2\xi}{\omega_n}=-0.24$. At $s=-3-j4$: $s^2=9+24j-16=-7+24j$, so
+
+$$
+K_3=\frac{25}{(-7+24j)(-8j)}=\frac{25}{192+56j}=\frac{25(192-56j)}{192^2+56^2}=\frac{192-56j}{1600}=0.12-0.035j
+$$
+
+The pair gives $2e^{-3t}(0.12\cos4t-0.035\sin4t)=e^{-3t}(0.24\cos4t-0.07\sin4t)$. Amplitude $\sqrt{0.24^2+0.07^2}=0.25=\frac1\omega$ ✓. Phase: $\sin\varphi=\frac{0.24}{0.25}=0.96$, $\cos\varphi=\frac{-0.07}{0.25}=-0.28$ — a second-quadrant angle, $\varphi=106.26^\circ=2\cdot53.13^\circ=2\theta$ ✓.
+
+$$
+y(t)=t-0.24+0.25\,e^{-3t}\sin(4t+106.26^\circ)
+$$
+
+</Step>
+
+<Answer>
+
+Impulse $6.25e^{-3t}\sin4t$; step $1-1.25e^{-3t}\sin(4t+53.13^\circ)$; ramp $t-0.24+0.25e^{-3t}\sin(4t+106.26^\circ)$; $e_{ss}$: 0, 0, 0.24.
+
+</Answer>
+
+The phase came out as $106.26^\circ$, not $53.13^\circ$, straight from the arithmetic: the numbers themselves confirm the $2\theta$ correction. Note also that $\cos\varphi<0$: a plain $\tan^{-1}(0.96/-0.28)$ on a calculator would give $-73.74^\circ$ — always check the quadrant from the signs of sine and cosine.
+
+<ResponseTrio xi={0.6} wn={5} tEnd={2.5} />
+
+</Example>
+
+<Example title="Reading parameters when the DC gain is not 1">
+
+**Given:** $T(s)=\dfrac{18}{s^2+3s+9}$. **Asked:** $\omega_n$, $\xi$, DC gain, step response and its steady-state error.
+
+<Step title="Split off the DC gain">
+
+The denominator fixes $\omega_n^2=9$, $\omega_n=3$, $2\xi\omega_n=3\Rightarrow\xi=0.5$. Write the numerator as gain × $\omega_n^2$: $18=2\cdot9$, so $T=2\cdot\frac{9}{s^2+3s+9}$, DC gain $K=T(0)=2$. **Do not** use the numerator to find $\omega_n$ — $\omega_n$ always comes from the constant term of the denominator.
+
+</Step>
+
+<Step title="Step response">
+
+$\alpha=1.5$, $\omega=3\sqrt{0.75}=2.598$, $\theta=60^\circ$, $\frac{\xi}{\sqrt{1-\xi^2}}=0.577$, $\frac{1}{\sqrt{1-\xi^2}}=1.155$:
+
+$$
+y(t)=2\left[1-e^{-1.5t}(\cos2.598t+0.577\sin2.598t)\right]=2-2.309\,e^{-1.5t}\sin(2.598t+60^\circ)
+$$
+
+</Step>
+
+<Step title="Steady-state error">
+
+$e_{ss}=\lim_{s\to0}s\left(\frac1s-\frac{18}{s(s^2+3s+9)}\right)=1-\frac{18}{9}=-1$. The output settles at 2 while the reference is 1: the error is negative (output above reference).
+
+</Step>
+
+<Answer>
+
+$\omega_n=3$, $\xi=0.5$, $K=2$; $y(t)=2-2.309e^{-1.5t}\sin(2.598t+60^\circ)$; $e_{ss}=-1$.
+
+</Answer>
+
+Sanity check: $y(0)=2-2.309\sin60^\circ=2-2.000=0$ ✓.
+
+</Example>
+
+<Example title="From the open-loop G(s) to T(s) and the ramp error">
+
+**Given:** unity negative feedback around $G(s)=\dfrac{16}{s(s+4)}$. **Asked:** $T(s)$, $\omega_n$, $\xi$, the ramp response and its steady-state error.
+
+<Step title="Closed loop">
+
+$T=\dfrac{G}{1+G}=\dfrac{16}{s(s+4)+16}=\dfrac{16}{s^2+4s+16}$. This is exactly the standard form (numerator $=\omega_n^2$): $\omega_n=4$, $2\xi\cdot4=4\Rightarrow\xi=0.5$. Compare with the p. 1 loop: $\frac{\omega_n^2}{s(s+2\xi\omega_n)}=\frac{16}{s(s+4)}$ ✓. In general $G=\frac{K}{s(s+a)}$ gives $\omega_n=\sqrt K$, $\xi=\frac{a}{2\sqrt K}$.
+
+</Step>
+
+<Step title="Ramp response">
+
+$\alpha=2$, $\omega=4\sqrt{0.75}=3.464$, $\theta=60^\circ$, $2\theta=120^\circ$, $\frac1\omega=0.2887$, $\frac{2\xi}{\omega_n}=0.25$:
+
+$$
+y(t)=t-0.25+0.2887\,e^{-2t}\sin(3.464t+120^\circ)
+$$
+
+$y(0)=-0.25+0.2887\cdot0.866=0$ ✓.
+
+</Step>
+
+<Answer>
+
+$T(s)=\frac{16}{s^2+4s+16}$, $\omega_n=4$, $\xi=0.5$; $y(t)=t-0.25+0.2887e^{-2t}\sin(3.464t+120^\circ)$; $e_{ss,\text{ramp}}=0.25$.
+
+</Answer>
+
+Because this loop contains the integrator, the step error is 0 and the ramp error is finite — unlike Example 2.
+
+</Example>
+
+<Example title="Common mistakes on Example 2">
+
+Using the system $G(s)=\frac{20}{s^2+4s+5}$ with unity feedback, here is what four typical slips produce, evaluated at $t=0.5$ s for the ramp (true value from the ODE: $y(0.5)=0.2081$).
+
+<Step title="Mistake 1: using the open-loop poles">
+
+The roots of $s^2+4s+5$ are $-2\pm j1$, which would suggest $\omega_n=\sqrt5=2.236$ and $\xi=\frac{4}{2\sqrt5}=0.894$. Wrong system! The response is governed by the **closed-loop** denominator $s^2+4s+25$: $\omega_n=5$, $\xi=0.4$. The feedback changed the poles.
+
+</Step>
+
+<Step title="Mistake 2: forgetting the DC gain">
+
+Writing $y(t)=1-e^{-2t}(\cos4.58t+0.436\sin4.58t)$ (standard form) predicts a final value 1 and $e_{ss}=0$. The true final value is 0.8 and $e_{ss}=0.2$. Always factor the numerator as $K\omega_n^2$.
+
+</Step>
+
+<Step title="Mistake 3: θ instead of 2θ in the ramp">
+
+$0.8\cdot0.5-0.128+0.1746e^{-1}\sin(2.291\,\text{rad}+66.42^\circ)$: with $66.42^\circ=1.159$ rad, $\sin(3.450)=-0.304$, giving $y(0.5)=0.272-0.0195=0.2525$ instead of $0.2081$. Quick detector: $y(0)=0.032\ne0$.
+
+</Step>
+
+<Step title="Mistake 4: degrees mixed with radians">
+
+Correct: $4.583\cdot0.5=2.291$ rad, $2\theta=132.84^\circ=2.318$ rad, $\sin(4.610)=-0.9949$, so $y(0.5)=0.272+0.1746\cdot0.3679\cdot(-0.9949)=0.272-0.0639=0.2081$ ✓. If instead you type $\sin(2.291+132.84)$ in radian mode you get $\sin(135.13\,\text{rad})=-0.043$ and $y(0.5)=0.269$ — wrong.
+
+</Step>
+
+<Answer>
+
+Only closed-loop poles + DC gain 0.8 + phase $2\theta$ + consistent units give $y(0.5)=0.2081$, matching the ODE.
+
+</Answer>
+
+</Example>
+
+## Edge cases and limits
+
+### Undamped limit
+
+With $\xi=0$: $\alpha=0$, $\omega=\omega_n$, $\theta=\tan^{-1}\frac{1}{0}=90^\circ$, roots $\pm j\omega_n$ on the imaginary axis. The underdamped formulas (valid as a limit) give
+
+$$
+\text{impulse: }y=\omega_n\sin\omega_nt,\qquad\text{step: }y=1-\sin(\omega_nt+90^\circ)=1-\cos\omega_nt,\qquad\text{ramp: }y=t-0+\frac{1}{\omega_n}\sin(\omega_nt+180^\circ)=t-\frac{\sin\omega_nt}{\omega_n}
+$$
+
+The oscillation never decays (an ideal LC circuit, a frictionless spring): the step response swings between 0 and 2 forever, and "steady state" does not exist — the final value theorem does not apply because $Y(s)$ has poles on the imaginary axis. Here $e_{ss}=2\xi/\omega_n=0$ would be wrong to quote: the ramp error $\frac{\sin\omega_nt}{\omega_n}$ oscillates forever.
+
+### Approaching critical damping
+
+As $\xi\to1^-$: $\omega\to0$, $\alpha\to\omega_n$. Since $\frac{\sin\omega t}{\omega}\to t$ for $\omega\to0$,
+
+$$
+\frac{\omega_n^2}{\omega}e^{-\alpha t}\sin\omega t\ \longrightarrow\ \omega_n^2te^{-\omega_nt}
+$$
+
+— the underdamped impulse response turns smoothly into the critical one. Likewise $\cos\omega t\to1$ and $\frac{\xi}{\sqrt{1-\xi^2}}\sin\omega t=\xi\omega_n\frac{\sin\omega t}{\omega}\to\omega_nt$, so the step tends to $1-e^{-\omega_nt}(1+\omega_nt)$ ✓. From above ($\xi\to1^+$), $p_1,p_2\to\omega_n$ and $\frac{e^{-p_1t}-e^{-p_2t}}{p_2-p_1}\to te^{-\omega_nt}$ (a derivative quotient). The formulas change shape at $\xi=1$ only because the partial-fraction structure changes (two different roots → one repeated root); the physical response itself changes continuously. That is why the critical case needs the derivative formula.
+
+<LimitPlots />
+
+### Non-unity DC gain and non-standard loops
+
+If $T(s)=\dfrac{b}{s^2+2\xi\omega_ns+\omega_n^2}$ with $b\ne\omega_n^2$, write $T=K\cdot\dfrac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}$ with $K=b/\omega_n^2$ and multiply **every** response by $K$ (Examples 1 and 2). The steady-state errors change: step $e_{ss}=1-K$, ramp $e_{ss}=\infty$ unless $K=1$.
+
+## Summary of results
+
+Standard form $T(s)=\frac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}$; $p_{1,2}=\xi\omega_n\mp\omega_n\sqrt{\xi^2-1}$; $\alpha=\xi\omega_n$; $\omega=\omega_n\sqrt{1-\xi^2}$; $\theta=\tan^{-1}\frac{\sqrt{1-\xi^2}}{\xi}$.
+
+| | Overdamped $\xi>1$ | Critical $\xi=1$ | Underdamped $0<\xi<1$ | $e_{ss}$ |
+|---|---|---|---|---|
+| Impulse | $\frac{\omega_n^2}{p_2-p_1}(e^{-p_1t}-e^{-p_2t})$ | $\omega_n^2te^{-\omega_nt}$ | $\frac{\omega_n}{\sqrt{1-\xi^2}}e^{-\alpha t}\sin\omega t$ | $0$ |
+| Step | $1-\frac{p_2e^{-p_1t}-p_1e^{-p_2t}}{p_2-p_1}$ | $1-e^{-\omega_nt}-\omega_nte^{-\omega_nt}$ | $1-\frac{e^{-\alpha t}}{\sqrt{1-\xi^2}}\sin(\omega t+\theta)$ | $0$ |
+| Ramp | $t-\frac{2\xi}{\omega_n}+\frac{1}{p_2-p_1}\left(\frac{p_2}{p_1}e^{-p_1t}-\frac{p_1}{p_2}e^{-p_2t}\right)$ | $t-\frac2{\omega_n}+te^{-\omega_nt}+\frac2{\omega_n}e^{-\omega_nt}$ | $t-\frac{2\xi}{\omega_n}+\frac1\omega e^{-\alpha t}\sin(\omega t+2\theta)$ | $\frac{2\xi}{\omega_n}$ |
+
+## How to solve exam problems
+
+<Procedure title="Second-order time response">
+
+1. **Get the closed loop.** If a loop is drawn, $T=\frac{G}{1+GH}$ (unity: $\frac{G}{1+G}$). Clear fractions so the denominator is $s^2+as+b$ (divide by the leading coefficient if needed).
+2. **Read the parameters.** $\omega_n=\sqrt b$, $\xi=\frac{a}{2\omega_n}$, DC gain $K=\frac{\text{numerator}}{\omega_n^2}$.
+3. **Classify.** $\xi>1$ aşırı sönümlü, $\xi=1$ kritik sönümlü, $\xi<1$ düşük sönümlü. Compute the roots ($p_1,p_2$ or $\alpha,\omega,\theta$).
+4. **Form $Y(s)=T(s)R(s)$** with $R=1$, $\frac1s$ or $\frac1{s^2}$.
+5. **Partial fractions:** cover-up for simple roots, derivative rule for repeated roots (and for $\frac1{s^2}$), one complex coefficient $K$ for the conjugate pair.
+6. **Invert** and simplify; for complex roots use the conjugate-pair rule, then (if asked) the amplitude-phase form — step phase $\theta$, ramp phase $2\theta$.
+7. **Multiply by $K$** if the DC gain is not 1.
+8. **Verify:** $y(0)=0$ for step and ramp; $\dot y(0)=0$ for the step; $y(\infty)$ from the final value theorem; derivative of step = impulse.
+9. **Steady-state error:** $e_{ss}=\lim_{s\to0}s[R(s)-Y(s)]$ for the actual system.
+
+</Procedure>
+
+<Mistake title="Typical exam slips">
+
+- Taking $\omega_n$, $\xi$ from the **open-loop** $G(s)$ instead of the closed-loop $T(s)$.
+- Forgetting the DC gain factor (Example 2's 0.8).
+- Writing $\theta$ instead of $2\theta$ in the underdamped ramp response (the notes do this too).
+- Mixing degrees and radians inside $\sin(\omega t+\theta)$.
+- Writing the critical root as $+\omega_n$ (sign slip, as on p. 5) — poles of a stable system have negative real parts.
+- Forgetting the derivative term for a repeated root or for the double pole at $s=0$ of a ramp input.
+- Quoting $e_{ss}=2\xi/\omega_n$ for a loop without an integrator.
+- Sketching a step response that leaves the origin with a slope.
+
+</Mistake>
+
+<Tip title="Recognise the problem type quickly">
+
+"Türünü ve parametrelerini bulunuz" → steps 1–3 only. "Birim impulse / basamak / rampa cevaplarını bulunuz" → steps 1–8 for each input. "Kalıcı durum hatası" → step 9. If the numbers are "nice" (e.g. roots $-3\pm j4$), computing $K$ numerically, as in the $\xi=0.6$ example, is often faster and less error-prone than plugging into the general formulas.
+
+</Tip>
+
+## Practice exercises
+
+<Exercise title="Name the three damping cases" kind="concept" level={1}>
+
+For $T(s)=\frac{\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}$, give the Turkish and English names of the three cases, the condition on $\xi$, the type of roots, and what the step response looks like in each.
+
+<Solution>
+
+From $s_{1,2}=-\xi\omega_n\pm\omega_n\sqrt{\xi^2-1}$:
+
+- $\xi>1$: aşırı sönümlü (overdamped): real, distinct roots $-p_1,-p_2$; slow monotonic rise, no overshoot.
+- $\xi=1$: kritik sönümlü (critically damped): real repeated root $-\omega_n$; fastest rise without overshoot.
+- $0<\xi<1$: düşük sönümlü (underdamped): complex-conjugate roots $-\alpha\pm j\omega$; overshoot and decaying oscillation around 1.
+
+Check: the sign of $\xi^2-1$ decides whether the square root is real, zero or imaginary.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Closed loop of 36 over s(s+6)" kind="formula" level={1}>
+
+A unity negative feedback loop has $G(s)=\dfrac{36}{s(s+6)}$. Find $T(s)$, $\omega_n$, $\xi$, the roots and the type.
+
+<Solution>
+
+$T=\frac{36}{s(s+6)+36}=\frac{36}{s^2+6s+36}$. $\omega_n=6$, $2\xi\cdot6=6\Rightarrow\xi=0.5$: underdamped. $\alpha=3$, $\omega=6\sqrt{0.75}=5.196$, roots $-3\pm j5.196$.
+
+Check: $(s+3)^2+27=s^2+6s+36$ ✓; $|s_1|=\sqrt{9+27}=6=\omega_n$ ✓. Since it matches $\frac{\omega_n^2}{s(s+2\xi\omega_n)}$, the step error is 0 and the ramp error $2\xi/\omega_n=1/6$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Overdamped step response of 9 over s squared plus 10s plus 9" kind="calc" level={2}>
+
+Find the unit step response of $T(s)=\dfrac{9}{s^2+10s+9}$.
+
+<Hint>Factor the denominator; check $\xi>1$ first.</Hint>
+
+<Solution>
+
+$\omega_n=3$, $\xi=\frac{10}{6}=1.667>1$: overdamped. $s^2+10s+9=(s+1)(s+9)$, so $p_1=1$, $p_2=9$ (check: $\xi\omega_n\mp\omega_n\sqrt{\xi^2-1}=5\mp3\cdot\frac43=5\mp4$ ✓).
+
+$Y=\frac{9}{s(s+1)(s+9)}$: $K_1=\frac99=1$, $K_2=\frac{9}{(-1)(8)}=-\frac98$, $K_3=\frac{9}{(-9)(-8)}=\frac18$.
+
+$$
+y(t)=1-\frac98e^{-t}+\frac18e^{-9t}
+$$
+
+Verification: $y(0)=1-1.125+0.125=0$ ✓; $\dot y(0)=\frac98-\frac98=0$ ✓; $y(\infty)=1$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Overdamped impulse response of the same system" kind="calc" level={1}>
+
+For the same $T(s)=\dfrac{9}{s^2+10s+9}$, find the unit impulse response and the time of its peak.
+
+<Solution>
+
+$K_1=\frac{9}{-1+9}=\frac98$, $K_2=-\frac98$: $y(t)=\frac98(e^{-t}-e^{-9t})$ (this is the derivative of the previous step response ✓).
+
+Peak: $\dot y=\frac98(-e^{-t}+9e^{-9t})=0\Rightarrow e^{8t}=9\Rightarrow t=\frac{\ln9}{8}=0.275$ s, $y=\frac98(0.760-0.084)=0.760$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Critically damped step and ramp" kind="calc" level={2}>
+
+For $T(s)=\dfrac{16}{(s+4)^2}$ find the unit step and unit ramp responses and the ramp steady-state error.
+
+<Solution>
+
+$\omega_n=4$, $\xi=1$. Using the critical formulas (derived with $K_1=1$, $K_3=-\omega_n$, $K_2=-1$ for the step and $K_1=1$, $K_2=-2/\omega_n$, $K_3=1$, $K_4=2/\omega_n$ for the ramp):
+
+$$
+y_{\text{step}}=1-e^{-4t}-4te^{-4t},\qquad y_{\text{ramp}}=t-0.5+te^{-4t}+0.5e^{-4t}
+$$
+
+$e_{ss,\text{ramp}}=\frac{2}{\omega_n}=0.5$. Verification: $y_{\text{ramp}}(0)=-0.5+0.5=0$ ✓, $\frac{d}{dt}y_{\text{ramp}}=1+e^{-4t}-4te^{-4t}-2e^{-4t}=y_{\text{step}}$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Underdamped step with xi 0.6 and omega_n 10" kind="calc" level={2}>
+
+$\xi=0.6$, $\omega_n=10$ rad/s. Write $T(s)$, the unit impulse response, and the unit step response in both forms.
+
+<Solution>
+
+$T=\frac{100}{s^2+12s+100}$. $\alpha=6$, $\omega=10\cdot0.8=8$, $\theta=\tan^{-1}\frac{0.8}{0.6}=53.13^\circ$.
+
+Impulse: $\frac{10}{0.8}e^{-6t}\sin8t=12.5e^{-6t}\sin8t$.
+
+Step: $y=1-e^{-6t}(\cos8t+0.75\sin8t)=1-1.25e^{-6t}\sin(8t+53.13^\circ)$.
+
+Check $y(0)$: $1-1.25\cdot0.8=0$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Example 1 step response" kind="prof" level={2}>
+
+For Example 1 ($T=\frac{2}{s^2+2s+4}$, p. 3), find the unit impulse and unit step responses and the step steady-state error.
+
+<Hint>The DC gain is $2/4=0.5$.</Hint>
+
+<Solution>
+
+$T=0.5\cdot\frac{4}{s^2+2s+4}$, $\omega_n=2$, $\xi=0.5$, $\alpha=1$, $\omega=\sqrt3$, $\theta=60^\circ$.
+
+Impulse: $0.5\cdot\frac{2}{\sqrt{0.75}}e^{-t}\sin\sqrt3t=1.155e^{-t}\sin1.732t$ (direct: $\frac{2}{(s+1)^2+3}\to\frac{2}{\sqrt3}e^{-t}\sin\sqrt3t$ ✓).
+
+Step: $y=0.5\left[1-e^{-t}\left(\cos\sqrt3t+\frac{1}{\sqrt3}\sin\sqrt3t\right)\right]=0.5-0.577e^{-t}\sin(1.732t+60^\circ)$.
+
+$e_{ss}=\lim_{s\to0}\left(1-\frac{2}{s^2+2s+4}\right)=1-0.5=0.5$. Check $y(0)=0.5-0.577\cdot0.866=0$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Peak of the impulse response in Example 2" kind="prof" level={3}>
+
+For Example 2, $y(t)=4.364e^{-2t}\sin4.58t$. Find when the impulse response reaches its first maximum and its value. Show that in general this happens at $t=\theta/\omega$.
+
+<Solution>
+
+$\frac{d}{dt}\left(e^{-\alpha t}\sin\omega t\right)=e^{-\alpha t}(\omega\cos\omega t-\alpha\sin\omega t)=0\Rightarrow\tan\omega t=\frac\omega\alpha=\frac{\sqrt{1-\xi^2}}{\xi}=\tan\theta$, so the first maximum is at $\omega t=\theta$, $t=\theta/\omega$.
+
+Example 2: $\theta=1.159$ rad, $t=1.159/4.583=0.253$ s, $y=4.364\,e^{-0.506}\sin(1.159)=4.364\cdot0.603\cdot0.917=2.41$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Match the curves to the damping factors" kind="graph" level={1}>
+
+Three unit step responses with the same $\omega_n$ are shown: curve A overshoots to about 1.44, curve B rises monotonically and reaches 0.96 at $\omega_nt=5$, curve C rises monotonically but is still at about 0.7 at $\omega_nt=5$. Assign $\xi=0.25,\ 1,\ 2$ and explain.
+
+<Solution>
+
+A: $\xi=0.25$ (only underdamped systems overshoot; $1+e^{-\pi\cdot0.25/0.968}=1.44$). B: $\xi=1$ ($1-6e^{-5}=0.96$). C: $\xi=2$ ($1-1.077e^{-0.268\cdot5}+0.077e^{-18.7}=0.72$). More damping → slower, no overshoot — compare the figure on p. 10.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Undamped responses" kind="edge" level={2}>
+
+Let $\xi=0$, $\omega_n=2$. Using the underdamped formulas as a limit, find the impulse, step and ramp responses. Does the system have a steady-state error for the step?
+
+<Solution>
+
+$\alpha=0$, $\omega=2$, $\theta=90^\circ$. Impulse: $\frac{2}{1}\sin2t=2\sin2t$. Step: $1-\sin(2t+90^\circ)=1-\cos2t$. Ramp: $t-0+\frac12\sin(2t+180^\circ)=t-\frac12\sin2t$.
+
+Check by Laplace: $\frac{4}{s(s^2+4)}=\frac1s-\frac{s}{s^2+4}\to1-\cos2t$ ✓. The step response oscillates between 0 and 2 forever: no steady state exists; the final value theorem cannot be used because the poles $\pm j2$ are on the imaginary axis.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Why the step response starts flat" kind="concept" level={2}>
+
+Explain, in two different ways, why every unit step response of the standard second-order system has $\dot y(0^+)=0$, and why the sketch on p. 10 needs correcting.
+
+<Solution>
+
+(1) $\dot y_{\text{step}}=y_{\text{impulse}}$, and all impulse responses start at 0 ($\omega_n^2te^{-\omega_nt}$, $e^{-\alpha t}\sin\omega t$, $e^{-p_1t}-e^{-p_2t}$ vanish at $t=0$). (2) IVT: $\dot y(0^+)=\lim_{s\to\infty}s\cdot sY(s)=\lim_{s\to\infty}\frac{s\omega_n^2}{s^2+2\xi\omega_ns+\omega_n^2}=0$. Physically a force step changes acceleration, not velocity, instantly. The sketch draws the $\xi=1$ and $\xi=2$ curves leaving the origin with a slope; they should start tangent to the $t$-axis.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Ramp error of 25 over s(s+5)" kind="calc" level={1}>
+
+Unity feedback around $G(s)=\dfrac{25}{s(s+5)}$. Find the steady-state error to a unit ramp.
+
+<Solution>
+
+$T=\frac{25}{s^2+5s+25}$: $\omega_n=5$, $\xi=0.5$. $e_{ss}=\frac{2\xi}{\omega_n}=\frac{1}{5}=0.2$.
+
+Check from the definition: $e_{ss}=\lim_{s\to0}\frac{1-T}{s}=\lim_{s\to0}\frac{s+5}{s^2+5s+25}=\frac{5}{25}=0.2$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Choose xi for a required ramp error" kind="problem" level={2}>
+
+A system of the standard form must have $\omega_n=10$ rad/s and a ramp steady-state error of 0.1. Find $\xi$, the case, and the open-loop $G(s)$ of the p. 1 loop.
+
+<Solution>
+
+$\frac{2\xi}{10}=0.1\Rightarrow\xi=0.5$: underdamped. $G=\frac{\omega_n^2}{s(s+2\xi\omega_n)}=\frac{100}{s(s+10)}$, $T=\frac{100}{s^2+10s+100}$. Check: $e_{ss}=\lim\frac{s+10}{s^2+10s+100}=0.1$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Underdamped ramp with xi 0.5 and omega_n 2" kind="calc" level={2}>
+
+Write the unit ramp response for $\xi=0.5$, $\omega_n=2$ and verify $y(0)=0$.
+
+<Solution>
+
+$\alpha=1$, $\omega=\sqrt3=1.732$, $\theta=60^\circ$, $2\theta=120^\circ$, $\frac{2\xi}{\omega_n}=0.5$:
+
+$$
+y(t)=t-0.5+\frac{1}{\sqrt3}e^{-t}\sin(\sqrt3t+120^\circ)
+$$
+
+$y(0)=-0.5+0.5774\cdot0.866=-0.5+0.5=0$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Detect the wrong phase" kind="edge" level={2}>
+
+A student writes the ramp response for $\xi=0.6$, $\omega_n=5$ as $y=t-0.24+0.25e^{-3t}\sin(4t+53.13^\circ)$. Show that it is wrong without solving anything, and correct it. For which single value of $\xi$ would the student's version accidentally satisfy $y(0)=0$?
+
+<Solution>
+
+$y(0)=-0.24+0.25\cdot\sin53.13^\circ=-0.24+0.2=-0.04\ne0$ — impossible, the output must start at 0. Correct: $\sin(4t+106.26^\circ)$, giving $-0.24+0.25\cdot0.96=0$ ✓. In general the $\theta$ version gives $y(0)=\frac{1-2\xi}{\omega_n}$, which is 0 only for $\xi=0.5$ — the one case where the slip goes unnoticed.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Parameters from the pole positions" kind="formula" level={1}>
+
+The closed-loop poles of a standard second-order system are $-3\pm j4$. Find $\omega_n$, $\xi$, $\theta$ and $T(s)$.
+
+<Solution>
+
+$\omega_n=|{-3+j4}|=5$, $\xi=\cos\theta=\frac{\alpha}{\omega_n}=\frac35=0.6$, $\theta=53.13^\circ$. $T=\frac{25}{(s+3)^2+16}=\frac{25}{s^2+6s+25}$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Repeated-root partial fractions" kind="calc" level={2}>
+
+Find $y(t)$ for $Y(s)=\dfrac{4}{s(s+2)^2}$ using the professor's coefficient formulas.
+
+<Solution>
+
+$Y=\frac{K_1}{s}+\frac{K_2}{s+2}+\frac{K_3}{(s+2)^2}$. $K_1=\frac{4}{4}=1$; $K_3=\left.\frac4s\right|_{-2}=-2$; $K_2=\left.\frac{d}{ds}\frac4s\right|_{-2}=\left.-\frac4{s^2}\right|_{-2}=-1$.
+
+$y(t)=1-e^{-2t}-2te^{-2t}$ — the critical step response with $\omega_n=2$. Recombine: $\frac{(s+2)^2-s(s+2)-2s}{s(s+2)^2}=\frac{4}{s(s+2)^2}$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="A loop without an integrator" kind="problem" level={3}>
+
+Unity feedback around $G(s)=\dfrac{10}{s^2+6s+6}$. Find $T(s)$, $\omega_n$, $\xi$, DC gain, the unit step response, and the steady-state errors for step and ramp inputs.
+
+<Solution>
+
+$T=\frac{10}{s^2+6s+16}$: $\omega_n=4$, $\xi=\frac{6}{8}=0.75$ (underdamped), $K=\frac{10}{16}=0.625$. $\alpha=3$, $\omega=4\sqrt{1-0.5625}=2.646=\sqrt7$, $\frac{\xi}{\sqrt{1-\xi^2}}=1.134$.
+
+$$
+y(t)=0.625\left[1-e^{-3t}(\cos2.646t+1.134\sin2.646t)\right]
+$$
+
+$e_{ss,\text{step}}=1-0.625=0.375$. Ramp: $\lim_{s\to0}\frac{1-T(s)}{s}=\frac{0.375}{0}=\infty$. (No integrator in $G$, as in Example 2.)
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Ramp response of the overdamped system" kind="calc" level={3}>
+
+Find the unit ramp response of $T(s)=\dfrac{9}{s^2+10s+9}$ and check it against $e_{ss}=2\xi/\omega_n$.
+
+<Solution>
+
+$p_1=1$, $p_2=9$, $\xi=5/3$, $\omega_n=3$. $Y=\frac{9}{s^2(s+1)(s+9)}$: $K_1=1$; $K_2=\left.\frac{d}{ds}\frac{9}{s^2+10s+9}\right|_0=-\frac{90}{81}=-\frac{10}{9}$; $K_3=\frac{9}{(1)(8)}=\frac98$; $K_4=\frac{9}{(81)(-8)}=-\frac1{72}$.
+
+$$
+y(t)=t-\frac{10}{9}+\frac98e^{-t}-\frac1{72}e^{-9t}
+$$
+
+$y(0)=-1.1111+1.125-0.0139=0$ ✓. $\frac{2\xi}{\omega_n}=\frac{10/3}{3}=\frac{10}{9}$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="How the ramp lag depends on the parameters" kind="concept" level={1}>
+
+For the standard system, what happens to the ramp steady-state error if (a) $\xi$ is doubled, (b) $\omega_n$ is doubled? Relate this to the p. 14 figure.
+
+<Solution>
+
+$e_{ss}=2\xi/\omega_n$: (a) doubles, (b) halves. In the p. 14 figure ($\omega_n$ fixed) the $\xi=2$ line lies furthest below $r(t)$ and $\xi=0.25$ closest. Trade-off: low $\xi$ gives small ramp lag but large oscillation.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Identify T from a step response" kind="problem" level={2}>
+
+A unit step applied to a standard second-order system gives $y(t)=1-e^{-2t}-2te^{-2t}$. Find $\xi$, $\omega_n$, $T(s)$ and the impulse response.
+
+<Solution>
+
+The form $1-e^{-\omega_nt}-\omega_nte^{-\omega_nt}$ is the critically damped step: $\xi=1$, $\omega_n=2$, $T=\frac{4}{(s+2)^2}$. Impulse = derivative: $\dot y=2e^{-2t}-2e^{-2t}+4te^{-2t}=4te^{-2t}=\omega_n^2te^{-\omega_nt}$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Identify T from an impulse response" kind="problem" level={3}>
+
+A system's unit impulse response is $y(t)=10e^{-3t}\sin4t$. Find $\omega_n$, $\xi$, its DC gain and $T(s)$.
+
+<Solution>
+
+$\alpha=3$, $\omega=4\Rightarrow\omega_n=\sqrt{9+16}=5$, $\xi=3/5=0.6$. The standard impulse amplitude is $\frac{\omega_n^2}{\omega}=\frac{25}{4}=6.25$, so the DC gain is $K=\frac{10}{6.25}=1.6$ and $T=1.6\cdot\frac{25}{s^2+6s+25}=\frac{40}{s^2+6s+25}$.
+
+Check: $\L\{10e^{-3t}\sin4t\}=\frac{10\cdot4}{(s+3)^2+16}=\frac{40}{s^2+6s+25}$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Peak of the step response in Example 2" kind="prof" level={3}>
+
+Using the fact that the derivative of the step response is the impulse response, find the time and the value of the first peak of the step response of Example 2, and compare with the professor's sketch.
+
+<Solution>
+
+$\dot y=4.364e^{-2t}\sin4.583t=0$ first at $4.583t=\pi$, $t=0.686$ s. There $\cos=-1$, $\sin=0$: $y=0.8[1-e^{-2\cdot0.686}(-1)]=0.8(1+e^{-1.371})=0.8(1+0.254)=1.003$. The sketch on p. 16 shows the peak touching the dashed line at 1 — consistent.
+
+</Solution>
+
+</Exercise>

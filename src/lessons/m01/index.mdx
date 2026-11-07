@@ -1,0 +1,1229 @@
+import { SimpleSystemBD, OpenLoopBD, ClosedLoopBD, FeedbackLoopBD, OpenLoopNoiseBD, ClosedLoopNoiseBD, ControllerCharacteristic, FeedbackSensitivityExplorer, DisturbanceExplorer } from './widgets'
+
+## What is this about?
+
+Think about the heater in your room. You turn a knob to say what you want ("I want it warm"), something happens inside the heater, and the room temperature changes. Three things are involved: what you **ask for**, the **device** that acts, and what you **get**. Control engineering is the study of how to make what you get match what you asked for, reliably, even when the world interferes (somebody opens a window, the heater ages, the outside temperature drops).
+
+This first lecture sets up the vocabulary and the single most important idea of the whole course: **feedback**. You will see that:
+
+- every control system can be drawn as blocks connected by signals (input → system → output);
+- systems are classified by their signals (continuous or discrete), by how many inputs and outputs they have (SISO or MIMO), and by whether they use feedback (open loop or closed loop);
+- a closed-loop system measures its own output, compares it with the desired value, and acts on the **difference** (the error);
+- for the standard negative-feedback loop, a few lines of algebra give the key result $T=\dfrac{C}{R}=\dfrac{G}{1+GH}$;
+- the same algebra shows why feedback makes a system accurate and why it reduces the effect of disturbances (noise) by the factor $1+G_aG_bH$.
+
+Before any terminology, keep this picture in mind: a closed-loop system is like driving a car while **looking at the road**. An open-loop system is like driving with your eyes closed after having planned the steering in advance. If nothing unexpected happens, both might work; as soon as something changes, only the first one corrects itself.
+
+**After this module you can:**
+
+- explain what a control system does and give physical examples from the notes;
+- classify a system as continuous/discrete, SISO/MIMO, open/closed loop;
+- draw and label the open-loop and closed-loop block diagrams with the Turkish names used in the notes;
+- compare open-loop and closed-loop systems (the table on p. 6);
+- derive $C/R=G/(1+GH)$ step by step and use it with numbers;
+- derive the disturbance transfer functions $C/N=G_b$ (open loop) and $C/N=G_b/(1+G_aG_bH)$ (closed loop) and explain physically why feedback suppresses disturbances;
+- combine reference and disturbance effects by superposition.
+
+<Note title="Scope">
+
+In this module the blocks $G$, $H$, $G_a$, $G_b$ can be treated as **constant gains** (plain numbers). The algebra is exactly the same when they are transfer functions $G(s)$, $H(s)$ — that is what the $(s)$ on pages 8–9 hints at. Transfer functions are introduced in [Module 02](#/m/02), the Laplace transform in [Module 03](#/m/03), and the reduction of bigger block diagrams in [Module 04](#/m/04).
+
+</Note>
+
+## What is a control system?
+
+The notes start with the simplest possible picture: <Src p="1" />
+
+<SimpleSystemBD />
+
+<Def term="Control system" tr="Kontrol sistemi">
+
+A system whose job is to **produce the desired output function in response to the applied input function**. The input (and output) can be of any physical nature: an electrical voltage (*elektriksel gerilim*), a mechanical force (*mekanik kuvvet*), an optical light source (*optik ışık kaynağı*)… <Src p="1" />
+
+</Def>
+
+The words <Term en="Input" tr="Giriş" /> and <Term en="Output" tr="Çıkış" /> will appear on every page of the course. (Note that "Giriş" is also the title of this lecture — "Introduction". Same word, two meanings: *entrance / input*.)
+
+Some concrete readings of the block:
+
+| Input (giriş) | Control system | Output (çıkış) |
+|---|---|---|
+| Voltage applied to a motor | Motor + drive electronics | Shaft speed |
+| Force on the brake pedal | Braking system | Deceleration of the car |
+| Brightness setting (light) | Lamp + dimmer | Light intensity in the room |
+| Thermostat setting | Heater / cooler | Room temperature |
+
+<Intuition>
+
+A block is a **cause → effect** machine. The arrow into it is the cause (what we apply), the arrow out of it is the effect (what we observe). Everything later in the course — transfer functions, stability, responses — is about describing precisely *how* a block turns its input into its output.
+
+</Intuition>
+
+The notes then say that control systems can be classified according to different parameters (*Kontrol sistemlerini farklı parametrelere göre sınıflandırabiliriz*). <Src p="1" />
+
+## Classifying control systems
+
+The notes give three classifications. <Src p="2" />
+
+### Continuous-time vs discrete-time
+
+<Def term="Continuous-time / discrete-time control systems" tr="Sürekli zamanlı / Ayrık zamanlı kontrol sistemleri">
+
+This distinction is made according to the **type of signal** being considered (*ele alınan sinyalin türüne göre*). <Src p="2" />
+
+</Def>
+
+- **Continuous-time**: signals have a value at every instant $t$ — e.g. the voltage across a capacitor, the temperature of a room, the speed of a car. Mathematically $x(t)$ with $t$ real.
+- **Discrete-time**: signals exist only at separate instants, usually every $T_s$ seconds — e.g. a temperature that a microcontroller reads 10 times per second. Mathematically $x[k]=x(kT_s)$.
+
+The course title, *Sayısal Denetim* (digital control), tells you discrete time will matter later; but the notes are explicit about where we start (see below).
+
+### SISO vs MIMO
+
+<Def term="SISO / MIMO control systems" tr="Tek girişli tek çıkışlı / Çok girişli çok çıkışlı">
+
+A classification according to the **number of input–output ports** of the system (*giriş-çıkış port sayısına göre*). SISO = Single Input Single Output; MIMO = Multi Input Multi Output. <Src p="2" />
+
+</Def>
+
+- SISO example: a room heater with one setting (input) and one temperature (output).
+- MIMO example: a climate-control unit that controls temperature **and** humidity using a heater **and** a humidifier — two inputs, two outputs, and each input affects both outputs.
+
+### Open-loop vs closed-loop
+
+<Def term="Open-loop / closed-loop control systems" tr="Açık çevrim / Kapalı çevrim kontrol sistemleri">
+
+A classification according to **whether feedback is used** in the system or not (*geri-besleme kullanılıp kullanılmaması durumuna göre*). <Src p="2" />
+
+</Def>
+
+This is the classification the rest of the lecture is about.
+
+<Note title="Scope of the course (p. 2)">
+
+"*Öncelikli olarak sürekli zamanlı, tek giriş tek çıkışlı sistemler ele alınacaktır.*" — First, **continuous-time, single-input single-output** systems will be studied. So unless told otherwise, assume continuous time and SISO. <Src p="2" />
+
+</Note>
+
+## Open-loop systems
+
+<Def term="Open-loop system" tr="Açık çevrim sistem">
+
+A control system **in which feedback is not used** (*geri-besleme kullanılmayan kontrol sistemi*). <Src p="3" />
+
+</Def>
+
+Its general structure (*genel yapısı*): <Src p="3" />
+
+<OpenLoopBD />
+
+- <Term en="Controller" tr="Kontrolcü" />: takes the input (the command) and produces the signal that drives the plant.
+- <Term en="Actuating signal" tr="Uygulama sinyali" />: the signal the controller *applies* to the system — e.g. the voltage sent to a motor, the valve opening, the heater power.
+- <Term en="System (plant)" tr="Sistem" />: the physical thing being controlled.
+
+What happens: the input is applied, and the system output forms. **It is not possible to make any change at the output, such as improvement or measurement** — nothing looks at the output. Adjustment can only be made by **human control** (*insan kontrolü ile düzenleme yapılabilir*). <Src p="3" />
+
+**Examples from the notes** <Src p="3" />: washing machine (*çamaşır makinesi*), fan cooler (*fan soğutucu*), the automobile power-transmission/drivetrain system (*otomobil hareket aktarma sistemi*), electric cutter (*elektrikli kesici*).
+
+<Intuition>
+
+A washing machine runs its programme for a fixed time — it does **not** measure how clean the clothes are. If the clothes are still dirty, *you* notice and run it again: that is the "human control" the notes mention. The human closes the loop; the machine does not. Similarly a simple fan blows at the chosen speed no matter what the room temperature is; you change the speed by hand if you feel hot.
+
+</Intuition>
+
+As the notes say, the open-loop scheme is widely used in systems operated under human supervision. <Src p="3" />
+
+## Closed-loop systems
+
+### Why autonomous systems need feedback
+
+In an **autonomous** system (*otonom sistem*) — one without a human or other external supervisor — the system itself must **measure the output signal and interpret it** to obtain the desired output. <Src p="3–4" />
+
+<Example title="Cooling system with temperature feedback" src="4">
+
+<Step title="The situation in the notes">
+
+In a cooling system (*soğutucu sistem*), the ambient temperature (*ortam sıcaklığı*) is **measured continuously** and reported to the system input. <Src p="4" />
+
+</Step>
+
+<Step title="What feedback makes possible">
+
+Because the controller now knows both the desired output (the set temperature) and the current state (the measured temperature), it can form a **control actuating signal proportional to the difference** between them (*fark ile orantılı bir kontrol uygulama işareti*). <Src p="4" />
+
+</Step>
+
+<Step title="Numbers to make it concrete (illustration)">
+
+Desired temperature $22^{\circ}\text{C}$, measured $26^{\circ}\text{C}$ → difference $4^{\circ}\text{C}$ → strong cooling. Measured $23^{\circ}\text{C}$ → difference $1^{\circ}\text{C}$ → gentle cooling. Measured $22^{\circ}\text{C}$ → difference 0 → no extra cooling needed.
+
+</Step>
+
+<Answer>
+
+Measuring the output and feeding it back lets the system act on the **error** (desired − actual) by itself, without a human.
+
+</Answer>
+
+</Example>
+
+### The closed-loop block diagram
+
+The general structure of a closed-loop system (*kapalı çevrim bir sistemin genel yapısı*): <Src p="4" />
+
+<ClosedLoopBD />
+
+Every label, as in the notes:
+
+| Turkish label | English | Role |
+|---|---|---|
+| Giriş | Input (reference) | Represents the **desired output level** (*istenilen çıkış düzeyi*) |
+| Hata kontrolü (Σ) | Error detector / comparator | Subtracts the fed-back signal from the input ($+$ input, $-$ feedback) |
+| Hata sinyali | Error signal | Desired − measured |
+| Kontrolcü | Controller | Turns the error into a drive signal |
+| Uygulama sinyali | Actuating signal | The signal that drives the system |
+| Sistem | System (plant) | The physical process |
+| Çıkış | Output | What we control |
+| Geri-besleme elemanları | Feedback elements | Sensor + instrumentation circuit |
+
+<Def term="Feedback elements" tr="Geri-besleme elemanları">
+
+The **sensor–instrumentation circuit** that converts the value formed at the output into the **type of the input signal** and **scales** it (*çıkışta oluşan değeri, giriş sinyali türüne çevirip ölçekleyen sensör-enstrümentasyon devresi*). <Src p="4" />
+
+</Def>
+
+<Intuition>
+
+Why must the feedback elements *convert and scale*? Because you can only subtract like from like. If the input is a voltage that represents "22 °C", the output (a real temperature) must be turned into a voltage on the **same scale** before the comparator can subtract them. A temperature sensor giving 10 mV per °C plus an amplifier is exactly such a "feedback element". In the algebra later this block becomes $H$.
+
+</Intuition>
+
+### When the error becomes zero
+
+The notes describe the loop's behaviour in words: <Src p="4–5" />
+
+1. When the output reaches the same level as the input — the desired value is reached — **the error signal becomes zero**, and the input of the system becomes zero too: the system goes quiet (it is idle).
+2. If a **deviation** (*sapma*) occurs at the output, the error signal appears again; as a result the actuating signal driving the system also takes a value again and **sets the system in motion**.
+
+So the loop is a self-correcting cycle: measure → compare → act → measure…
+
+<Uncertain title="Handwriting on p. 5">
+
+The notes write "*sistem susturdur*". This is most likely a slip for "susturulur / susar" — "the system is silenced / goes quiet". The meaning is clear: nothing is being driven when the error is zero.
+
+</Uncertain>
+
+<Note title="A simplification in the notes">
+
+"Error zero ⇒ system input zero" is exactly true for a controller whose output depends only on the present error (on/off or pure gain). A controller with an **integral** part (mentioned on p. 5) can keep a non-zero actuating signal even when the error is zero, because it remembers past error. And with a pure gain controller the error actually settles at a small non-zero value rather than exactly zero — we will see this with the formula $E/R=1/(1+GH)$ in the section *The error signal in the loop* below. The notes' sentence describes the **idea** (the loop acts on error and calms down as the error vanishes), not an exact law.
+
+</Note>
+
+### On/off and linear controllers
+
+The notes distinguish two families of controllers: <Src p="5" />
+
+<Def term="On/off controller" tr="Aç/kapa modunda kontrolcü">
+
+The controller driving the system works in **on/off mode** — as in a **refrigerator** or an **air-conditioning** system (*buzdolabı, klima*). <Src p="5" />
+
+</Def>
+
+<Def term="Linear controllers: gain, derivative, integral" tr="Kazanç, türev ve integral işlemleri">
+
+Controllers that handle the error signal **more linearly** (*daha doğrusal*) and generate the control signal by carrying out **gain, derivative and integral** operations on it. <Src p="5" />
+
+</Def>
+
+<ControllerCharacteristic />
+
+How to read this plot: the horizontal axis is the error $e$ (desired − actual), the vertical axis is the actuating signal $u$ the controller produces.
+
+- **On/off**: the compressor is either fully ON or OFF. A small error and a big error give the same full action. The fridge temperature therefore swings slightly around the set value as the compressor clicks on and off.
+- **Gain** (*kazanç*): $u=K\,e$ — the action is **proportional** to the error. Small error → gentle action, large error → strong action. This is the "signal proportional to the difference" of the cooling example on p. 4.
+- **Derivative** (*türev*): reacts to how **fast** the error is changing, $\dfrac{de}{dt}$ — it acts early when the error grows quickly.
+- **Integral** (*integral*): reacts to the **accumulated** error, $\int e\,dt$ — a small error that persists keeps building up action.
+
+(These three are often combined and called a PID controller; the notes do not use that name, and they do not go further into these controllers in this lecture.)
+
+## Open-loop vs closed-loop comparison
+
+The notes summarise the basic differences in a two-column table: <Src p="5–6" />
+
+| Açık çevrim sistem (open loop) | Kapalı çevrim sistem (closed loop) |
+|---|---|
+| Control **independent** of the desired output (*istenen çıkıştan bağımsız kontrol*) | Control **dependent** on the desired output (*istenen çıkışa bağımlı kontrol*) |
+| No feedback loop → called **non-feedback** control systems (*geribeslemesiz*) | Has a feedback loop → called **feedback** control systems (*geribeslemeli*) |
+| Design is **easy** (*tasarımı kolaydır*) | Design is **difficult** (*tasarımı zordur*) |
+| **Economical** (*ekonomiktir*) | **Expensive** (*pahalıdır*) |
+| **Low accuracy** (*düşük hassasiyetlidir*) | **High accuracy** (*yüksek hassasiyetlidir*) |
+
+Why each row is true:
+
+- **Independent / dependent**: in open loop the controller never sees the output, so it cannot know whether the desired output was achieved. In closed loop the action is computed *from* the difference between desired and actual.
+- **Easy / difficult design**: closing a loop creates a cycle of cause and effect (the output influences its own cause). A badly designed loop can over-react and oscillate or even run away (instability — the topic of [Module 02](#/m/02)). Open loop has no such risk from the loop itself.
+- **Cheap / expensive**: feedback needs sensors, instrumentation, a comparator and a more elaborate controller.
+- **Low / high accuracy** (*hassasiyet*): open loop relies on every block having exactly the expected value; any change (ageing, load, temperature, a disturbance) appears directly at the output. Closed loop corrects such changes. We prove this quantitatively in the sections *Why feedback makes T insensitive to G* and *Why feedback suppresses disturbances* below.
+
+<Tip>
+
+A classic short-answer question: "Compare open-loop and closed-loop control systems." Reproduce the five rows (preferably with the Turkish words), add one example of each (washing machine / cooling system with temperature sensor), and draw both block diagrams.
+
+</Tip>
+
+## Negative feedback
+
+The notes now replace the descriptive blocks with symbols: <Src p="7" />
+
+<FeedbackLoopBD />
+
+- $R$ — <Term en="reference input" tr="Referans giriş" />
+- $E$ — the error signal (output of the comparator)
+- $G$ — the forward block (controller and system together)
+- $H$ — the feedback block (the feedback elements)
+- $C$ — the output
+
+The minus sign at the comparator is what makes this **negative feedback** (*negatif geribesleme*): the measured output is **subtracted** from the reference.
+
+### Deriving the closed-loop transfer function
+
+This is the central derivation of the lecture. We want the ratio output/input, $C/R$, for the whole loop.
+
+<Example title="Deriving the closed-loop transfer function" src="7">
+
+<Step title="Write what each block does">
+
+A block multiplies its input by its gain. The input of $G$ is $E$, its output is $C$:
+
+$$
+C=E\cdot G
+$$
+
+</Step>
+
+<Step title="Write what the comparator does">
+
+The comparator gets $R$ with $+$ and the output of $H$ with $-$. The input of $H$ is $C$, so its output is $CH$:
+
+$$
+E=R-CH
+$$
+
+</Step>
+
+<Step title="Eliminate the error E">
+
+Substitute the second equation into the first and expand:
+
+$$
+C=(R-CH)\,G=RG-CHG
+$$
+
+</Step>
+
+<Step title="Collect every C on one side">
+
+Add $CHG$ to both sides:
+
+$$
+C+CHG=RG
+$$
+
+</Step>
+
+<Step title="Factor out C">
+
+$$
+C\,(1+HG)=RG
+$$
+
+</Step>
+
+<Step title="Divide to get output/input">
+
+Divide both sides by $R(1+HG)$; since $HG=GH$ for scalar gains (and for transfer functions of a SISO loop):
+
+$$
+\frac{C}{R}=\frac{G}{1+GH}
+$$
+
+</Step>
+
+<Answer>
+
+$$
+\boxed{\;\frac{C}{R}=T=\frac{G}{1+GH}\;}
+$$
+
+Output/input (*Çıkış/Giriş*) is the **system transfer function** (*sistem transfer fonksiyonu*), $T$.
+
+</Answer>
+
+**Sanity checks.** (i) If $H=0$ (no feedback), $T=G$: we get the open-loop chain back. (ii) $1+GH\ge 1$ for positive gains, so negative feedback always **reduces** the gain from $G$ to $T$. (iii) Units: $GH$ is dimensionless (it goes around the loop and is compared with $R$), so $T$ has the units of $G$.
+
+</Example>
+
+<KeyFormula title="Negative feedback — closed-loop (overall) transfer function">
+
+$$
+T=\frac{C}{R}=\frac{G}{1+GH}
+$$
+
+</KeyFormula>
+
+<Src p="7" />
+
+How to remember it: **"forward over one plus loop"** — numerator is the path from $R$ to $C$, denominator is $1+$ the product of all gains around the loop.
+
+### The names in the notes
+
+The notes define the symbols as follows: <Src p="7" />
+
+| Symbol | Turkish (notes) | English |
+|---|---|---|
+| $R$ | Referans giriş | Reference input |
+| $T$ | Genel transfer fonksiyonu | Overall (closed-loop) transfer function |
+| $G$ | Açık çevrim kazancı | "Open-loop gain" |
+| $H$ | Geri-besleme kazancı | Feedback gain |
+
+<Note title="Terminology: what “açık çevrim kazancı” means here">
+
+The notes call $G$ the **open-loop gain**. The reasoning: if you remove the feedback ($H=0$), the system becomes open loop and its gain from $R$ to $C$ is exactly $G$. Many textbooks instead call $G$ the **forward-path gain** and use "open-loop (loop) gain / open-loop transfer function" for the product $GH$ (the gain met when going once around the loop). Both are fine as long as you know which one is meant. **In this course's exams, "açık çevrim kazancı" = $G$**, as the professor defines it. On this site we write "forward gain $G$" and "loop gain $GH$" when the distinction matters.
+
+</Note>
+
+The notes also write $C(1+HG)$ in one line and $1+GH$ in the box: for scalar gains (and SISO transfer functions) $HG=GH$, so these are the same.
+
+### The error signal in the loop
+
+The same two equations also tell us how big the error is. From $E=R-CH$ and $C=EG$:
+
+$$
+E=R-(EG)H \;\Rightarrow\; E+EGH=R \;\Rightarrow\; E(1+GH)=R
+$$
+
+$$
+\frac{E}{R}=\frac{1}{1+GH}
+$$
+
+So the error is the reference **divided by** $1+GH$. With a large loop gain $GH$ the error is small — this is the quantitative meaning of "the error goes to (nearly) zero when the output reaches the desired value" on p. 5. With constant gains it never becomes *exactly* zero; it becomes small.
+
+### Why feedback makes T insensitive to G
+
+Divide numerator and denominator of $T$ by $GH$:
+
+$$
+T=\frac{G}{1+GH}=\frac{1}{H}\cdot\frac{GH}{1+GH}=\frac{1}{H}\cdot\frac{1}{1+\dfrac{1}{GH}}
+$$
+
+When $GH\gg 1$, the fraction $\dfrac{1}{GH}$ is tiny, so
+
+$$
+T\approx\frac{1}{H}\qquad(GH\gg1)
+$$
+
+**Physical meaning.** The output becomes (almost) independent of $G$ — the controller and the plant — and depends only on $H$, the sensor. If the sensor is accurate, the output is accurate, even if the motor, heater or amplifier is imprecise, ages or changes with temperature. That is the "high accuracy" (*yüksek hassasiyet*) of the comparison table, now as a formula. A sensor is usually much easier to make precise and stable than a powerful actuator.
+
+How far are we from the ideal $1/H$? Relative gap:
+
+$$
+\frac{\tfrac1H-T}{\tfrac1H}=1-\frac{GH}{1+GH}=\frac{1}{1+GH}
+$$
+
+**How a change of G affects T.** Suppose $G$ changes to $G'$ (ageing, load…). The ratio of new to old output is
+
+$$
+\frac{T'}{T}=\frac{G'/(1+G'H)}{G/(1+GH)}=\frac{G'}{G}\cdot\frac{1+GH}{1+G'H}
+$$
+
+For a **small** change, the relative change of $T$ is approximately the relative change of $G$ divided by $1+GH$:
+
+$$
+\frac{\Delta T}{T}\approx\frac{1}{1+GH}\cdot\frac{\Delta G}{G}
+$$
+
+(Where this comes from: by the quotient rule $\dfrac{d}{dG}\dfrac{G}{1+GH}=\dfrac{(1+GH)\cdot1-G\cdot H}{(1+GH)^2}=\dfrac{1}{(1+GH)^2}$; multiplying by $\dfrac{G}{T}=1+GH$ gives $\dfrac{dT/T}{dG/G}=\dfrac{1}{1+GH}$.)
+
+In open loop, $C=GR$, so a 10 % change in $G$ is a 10 % change in the output. In closed loop with $GH=99$ it becomes only about $0.1\,\%$.
+
+<FeedbackSensitivityExplorer />
+
+Things to try in the explorer:
+
+- Put $H=1$, $G=1$: $GH=1$, $T=0.5$ — far from $1/H$, and a $-20\,\%$ change of $G$ gives a $-11.1\,\%$ change of $T$. Feedback helps only a little.
+- Raise $G$ to 100: $T=0.990$, and the same $-20\,\%$ change of $G$ changes $T$ by only $-0.25\,\%$. The closed-loop curve in the second plot becomes almost flat.
+- Lower $H$: the ceiling $1/H$ rises — the sensor sets the closed-loop gain.
+
+<Mistake title="“Feedback increases the gain”">
+
+Negative feedback **decreases** the overall gain ($T\le G$ for positive gains). What it buys is accuracy and insensitivity, not amplification. To get a large $T$ you choose a small $H$ (since $T\approx1/H$).
+
+</Mistake>
+
+### Positive feedback for comparison
+
+If the feedback entered the comparator with a $+$ sign (positive feedback), the same steps give a different denominator. This case is not in the notes; it is shown so you see exactly which step the sign comes from.
+
+<FeedbackLoopBD sign="+" annotate caption="Positive feedback (for comparison only): the fed-back signal CH is added instead of subtracted." />
+
+<Example title="Positive feedback: where the sign changes">
+
+<Step title="Equations">
+
+$C=EG$ and now $E=R+CH$.
+
+</Step>
+
+<Step title="Eliminate E and collect C">
+
+$$
+C=(R+CH)G=RG+CHG\;\Rightarrow\;C-CHG=RG\;\Rightarrow\;C(1-GH)=RG
+$$
+
+</Step>
+
+<Step title="Result">
+
+$$
+\frac{C}{R}=\frac{G}{1-GH}
+$$
+
+</Step>
+
+<Step title="Numbers">
+
+$G=2$, $H=0.25$: $GH=0.5$, $T=\dfrac{2}{1-0.5}=4$ — larger than $G$. If $GH=1$ the denominator is 0: the output would grow without bound for any input. This is why control loops use **negative** feedback.
+
+</Step>
+
+<Answer>
+
+Positive feedback: $T=\dfrac{G}{1-GH}$. The only change in the derivation is the sign in $E=R\pm CH$, which carries through to $1\mp GH$.
+
+</Answer>
+
+</Example>
+
+### Worked examples: negative feedback
+
+<Example title="Closed-loop gain with G = 10 and H = 1">
+
+**Given:** $G=10$, $H=1$. **Asked:** $T$, and $C$ for $R=2$.
+
+<Step title="Loop gain">
+
+$GH=10\cdot1=10$, so $1+GH=11$.
+
+</Step>
+
+<Step title="Closed-loop gain">
+
+$$
+T=\frac{G}{1+GH}=\frac{10}{11}=0.9091
+$$
+
+</Step>
+
+<Step title="Output">
+
+$C=TR=0.9091\cdot2=1.818$.
+
+</Step>
+
+<Answer>
+
+$T=10/11\approx0.909$, $C\approx1.818$ for $R=2$.
+
+</Answer>
+
+**Interpretation:** the ideal output would be $R/H=2$; we are $1/(1+GH)=1/11\approx9.1\,\%$ below it. **Check:** $E=R-CH=2-1.818=0.182$ and $EG=1.82\approx C$ ✓.
+
+</Example>
+
+<Example title="Large loop gain: G = 100, H = 0.1">
+
+<Step title="Loop gain">
+
+$GH=100\cdot0.1=10$.
+
+</Step>
+
+<Step title="Closed-loop gain and the approximation">
+
+$$
+T=\frac{100}{1+10}=\frac{100}{11}=9.091,\qquad \frac1H=10
+$$
+
+</Step>
+
+<Answer>
+
+$T\approx9.09$, close to $1/H=10$ (gap $1/11\approx9.1\,\%$).
+
+</Answer>
+
+**Interpretation:** the forward gain is 100, yet the closed loop amplifies only about 9 — set essentially by $H$. To get closer to 10 we would need a bigger $GH$.
+
+</Example>
+
+<Example title="Feedback against a 50 percent drop of G">
+
+**Given:** $H=1$. The forward gain drops from $G=100$ to $G'=50$ (for example an amplifier loses half its gain). **Asked:** output change in open loop and in closed loop for $R=1$.
+
+<Step title="Open loop">
+
+$C=GR$: from $100$ to $50$ — a $-50\,\%$ change.
+
+</Step>
+
+<Step title="Closed loop before">
+
+$$
+T=\frac{100}{1+100}=\frac{100}{101}=0.99010
+$$
+
+</Step>
+
+<Step title="Closed loop after">
+
+$$
+T'=\frac{50}{1+50}=\frac{50}{51}=0.98039
+$$
+
+</Step>
+
+<Step title="Relative change">
+
+$$
+\frac{T'}{T}-1=\frac{0.98039}{0.99010}-1=-0.0098=-0.98\,\%
+$$
+
+</Step>
+
+<Answer>
+
+Open loop: $-50\,\%$. Closed loop: $-0.98\,\%$ — about 50 times less.
+
+</Answer>
+
+**Check with the formula:** $\dfrac{T'}{T}=\dfrac{G'}{G}\cdot\dfrac{1+GH}{1+G'H}=0.5\cdot\dfrac{101}{51}=0.9902$ ✓. (The small-change rule $-50\,\%/101\approx-0.5\,\%$ underestimates here because a 50 % change is not small; use the exact ratio for big changes.)
+
+</Example>
+
+<Example title="Common mistake: forgetting H in the comparator">
+
+**Given:** $G=5$, $H=2$, $R=3$. **Asked:** $C$ and $E$.
+
+<Step title="Correct">
+
+$1+GH=1+10=11$, $T=\dfrac{5}{11}=0.4545$, $C=3\cdot0.4545=1.364$.
+
+</Step>
+
+<Step title="Error signal">
+
+$E=R-CH=3-1.364\cdot2=3-2.727=0.273$. Equivalently $E=\dfrac{R}{1+GH}=\dfrac{3}{11}=0.273$ ✓.
+
+</Step>
+
+<Step title="The wrong version">
+
+Writing $E=R-C$ (as if $H=1$) gives $T=\dfrac{5}{1+5}=0.833$ and $C=2.5$ — wrong. The comparator subtracts the **output of H**, i.e. $CH$, not $C$.
+
+</Step>
+
+<Answer>
+
+$C=15/11\approx1.364$, $E=3/11\approx0.273$.
+
+</Answer>
+
+**Check:** $C=EG=0.273\cdot5=1.364$ ✓.
+
+</Example>
+
+<Example title="Design: choose H for a required closed-loop gain">
+
+**Given:** $G=100$. **Asked:** $H$ so that $T=4$; then $T$ if $G$ falls to 80.
+
+<Step title="Solve T = G/(1+GH) for H">
+
+$$
+4=\frac{100}{1+100H}\;\Rightarrow\;1+100H=\frac{100}{4}=25\;\Rightarrow\;H=\frac{24}{100}=0.24
+$$
+
+</Step>
+
+<Step title="Check the loop gain">
+
+$GH=24$, so we expect insensitivity of about $1/25$.
+
+</Step>
+
+<Step title="After the drop">
+
+$$
+T'=\frac{80}{1+80\cdot0.24}=\frac{80}{20.2}=3.960
+$$
+
+</Step>
+
+<Answer>
+
+$H=0.24$. A $-20\,\%$ change in $G$ changes $T$ from 4 to 3.960, i.e. $-0.99\,\%$.
+
+</Answer>
+
+**Check:** $\dfrac{1}{1+GH}\cdot(-20\,\%)=-0.8\,\%$ (small-change estimate) — the same order as the exact $-0.99\,\%$ ✓. Also $1/H=4.17$, slightly above $T=4$, as it must be.
+
+</Example>
+
+## Disturbance input (noise)
+
+<Def term="Disturbance input (noise)" tr="Bozucu giriş (Gürültü)">
+
+Environmental signal sources, **other than the input signal and the output**, that affect the system performance positively or negatively (*olumlu/olumsuz*) are defined as noise. <Src p="8" />
+
+</Def>
+
+**Example from the notes:** in a heating/cooling system, **open doors or windows** affect the output of the heater/cooler — the ambient temperature. <Src p="8" />
+
+Depending on the **form and magnitude** of the disturbance, the system can sometimes go completely out of control (**become unstable**, *kararsızlaşır*), or it keeps working with a **limited deviation** (*sınırlı bir sapma*). <Src p="8" />
+
+<Intuition>
+
+The disturbance is an input we did not choose and usually cannot measure directly. In the room-heating case the heater pushes heat in ($G_a$ = what the controller/heater produces from the command), and the open window pulls heat out ($N$). Both act on the same physical quantity — the heat entering the room — which then determines the temperature ($G_b$ = how the room converts net heat flow into temperature). That is exactly why $N$ enters at a summing point **between** $G_a$ and $G_b$ in the diagrams.
+
+</Intuition>
+
+### Disturbance in an open-loop system
+
+<OpenLoopNoiseBD />
+
+<Example title="Noise transfer function of the open-loop system" src="8">
+
+<Step title="Signals">
+
+The summing junction adds the output of $G_a$ and the noise: its output is $G_aR+N$. Then $G_b$ multiplies it:
+
+$$
+C=G_b\,(G_aR+N)=G_aG_bR+G_bN
+$$
+
+</Step>
+
+<Step title="Noise only">
+
+"Transfer function valid for the noise signal only" (*sadece gürültü sinyali için geçerli*): set $R=0$:
+
+$$
+C=G_bN
+$$
+
+</Step>
+
+<Answer>
+
+$$
+\frac{C(s)}{N(s)}=G_b
+$$
+
+</Answer>
+
+**Meaning:** in open loop the disturbance reaches the output **in full**, multiplied by whatever lies after it. Nobody notices the open window, so nothing compensates.
+
+</Example>
+
+<Src p="8" />
+
+### Disturbance in a closed-loop system
+
+<ClosedLoopNoiseBD />
+
+<Example title="Noise transfer function of the closed-loop system" src="9">
+
+<Step title="Set R = 0 (noise only)">
+
+With $R=0$ the first comparator outputs $0-HC=-HC$.
+
+</Step>
+
+<Step title="Follow the signal around the loop">
+
+After $G_a$: $-G_aHC$. The second summing junction adds $N$: $N-G_aHC$. After $G_b$:
+
+$$
+C=G_b\,(N-G_aHC)=G_bN-G_aG_bHC
+$$
+
+</Step>
+
+<Step title="Collect C">
+
+$$
+C+G_aG_bHC=G_bN\;\Rightarrow\;C\,(1+G_aG_bH)=G_bN
+$$
+
+</Step>
+
+<Answer>
+
+$$
+\frac{C(s)}{N(s)}=\frac{G_b}{1+G_aG_bH}
+$$
+
+</Answer>
+
+**Check with the memory rule:** forward path from $N$ to $C$ is $G_b$; the loop is $G_aG_bH$; "forward over one plus loop" gives the same result ✓. With $H=0$ we recover the open-loop $C/N=G_b$ ✓.
+
+</Example>
+
+<Src p="9" />
+
+<Note title="Signs on the second summing junction">
+
+On p. 9 the professor writes no signs at the second Σ. As on p. 8, both inputs are taken as $+$ (the disturbance adds to the signal). If a disturbance were drawn with a $-$ sign, only the sign of $C_N$ would flip; the factor $1+G_aG_bH$ stays the same.
+
+</Note>
+
+### Why feedback suppresses disturbances
+
+Compare the two results:
+
+$$
+\underbrace{\frac{C}{N}=G_b}_{\text{open loop}}\qquad\text{vs}\qquad\underbrace{\frac{C}{N}=\frac{G_b}{1+G_aG_bH}}_{\text{closed loop}}
+$$
+
+The closed loop divides the effect of the disturbance by $1+G_aG_bH$. With a loop gain of 99, the open window changes the room temperature 100 times less.
+
+**Physically:** the window lets heat out → the temperature starts to fall → the sensor ($H$) sees it → the error grows → the controller ($G_a$) increases the heating → most of the lost heat is replaced. The loop does not need to know **why** the temperature fell; it only reacts to the deviation. That is the great strength of feedback: it corrects disturbances it was never told about. In open loop the heater keeps producing the same heat, so the full effect of the window remains.
+
+<Note title="The notes' warning about instability">
+
+The notes also say a disturbance can drive the system "completely out of control (unstable)". Feedback reduces the size of the deviation, but a closed loop must itself be **stable** for this to work — stability is the subject of [Module 02](#/m/02).
+
+</Note>
+
+<DisturbanceExplorer />
+
+In the explorer, the dashed line is what the open window does to an open-loop system ($G_bN$), the solid line what it does to the closed loop. Increase $G_a$ (the controller gain): the closed-loop deviation shrinks, while the open-loop deviation does not change at all — it does not even depend on $G_a$.
+
+### Reference and disturbance together
+
+With constant gains (and later with transfer functions) the systems are **linear**, so the output for $R$ and $N$ acting together is the **sum** of the outputs for each acting alone (**superposition**). The reference-only part of the closed loop on p. 9 is the p. 7 result with $G=G_aG_b$ (set $N=0$: the two blocks are in series):
+
+$$
+\frac{C}{R}\bigg|_{N=0}=\frac{G_aG_b}{1+G_aG_bH}
+$$
+
+Adding the two contributions:
+
+$$
+C=\frac{G_aG_b}{1+G_aG_bH}\,R+\frac{G_b}{1+G_aG_bH}\,N
+$$
+
+Check by direct algebra (both inputs on): $C=G_b\,[N+G_a(R-HC)]=G_aG_bR+G_bN-G_aG_bHC$, so $C(1+G_aG_bH)=G_aG_bR+G_bN$ — the same ✓.
+
+<KeyFormula title="Closed loop with disturbance — total output">
+
+$$
+C=\frac{G_aG_b\,R+G_b\,N}{1+G_aG_bH}
+$$
+
+</KeyFormula>
+
+For the open loop of p. 8: $C=G_aG_bR+G_bN$.
+
+### Worked examples: disturbances
+
+<Example title="Disturbance attenuation with numbers">
+
+**Given:** $G_a=10$, $G_b=2$, $H=1$, a disturbance $N=1$. **Asked:** output deviation caused by $N$ in open and closed loop.
+
+<Step title="Open loop">
+
+$C_N=G_bN=2\cdot1=2$.
+
+</Step>
+
+<Step title="Loop gain">
+
+$G_aG_bH=10\cdot2\cdot1=20$, so $1+G_aG_bH=21$.
+
+</Step>
+
+<Step title="Closed loop">
+
+$$
+C_N=\frac{G_b}{1+G_aG_bH}N=\frac{2}{21}=0.0952
+$$
+
+</Step>
+
+<Answer>
+
+Open loop: $2$. Closed loop: $0.0952$ — 21 times smaller.
+
+</Answer>
+
+**Check:** ratio $2/0.0952=21=1+G_aG_bH$ ✓.
+
+</Example>
+
+<Example title="Superposition: a fair open-loop vs closed-loop comparison">
+
+**Situation:** we want output $C=5$. A disturbance $N=1$ appears.
+
+- Open-loop design: $G_b=2$, and $G_a=0.5$ chosen so that $G_aG_b=1$ (then $C=R$ when there is no disturbance); command $R=5$.
+- Closed-loop design: $G_a=10$, $G_b=2$, $H=1$, command $R=5$ (desired output $R/H=5$).
+
+<Step title="Open loop with the disturbance">
+
+$$
+C=G_aG_bR+G_bN=1\cdot5+2\cdot1=7
+$$
+
+Error relative to the desired 5: $(7-5)/5=40\,\%$.
+
+</Step>
+
+<Step title="Closed loop — reference part">
+
+$$
+C_R=\frac{20}{21}\cdot5=\frac{100}{21}=4.762
+$$
+
+</Step>
+
+<Step title="Closed loop — disturbance part">
+
+$$
+C_N=\frac{2}{21}\cdot1=0.0952
+$$
+
+</Step>
+
+<Step title="Superpose">
+
+$$
+C=C_R+C_N=\frac{100+2}{21}=\frac{102}{21}=4.857
+$$
+
+Error relative to 5: $(5-4.857)/5=2.86\,\%$.
+
+</Step>
+
+<Answer>
+
+Open loop: $C=7$ (40 % off). Closed loop: $C\approx4.857$ (2.9 % off).
+
+</Answer>
+
+**Interpretation:** the closed loop is not perfect (the $1/(1+G_aG_bH)$ gap and the attenuated disturbance remain) but it is an order of magnitude more accurate — the "high accuracy" row of the table, in numbers. **Check:** formula $C=(G_aG_bR+G_bN)/(1+G_aG_bH)=(100+2)/21$ ✓.
+
+</Example>
+
+## How to solve exam problems
+
+<Procedure title="Single loop: find C/R (or C/N, E/R)">
+
+1. Name every signal: the comparator output ($E$), each block's output (block gain × block input), and the output $C$.
+2. Write one equation per block and per summing junction, **with the signs from the drawing**.
+3. Set to zero every input you are not asking about (for $C/N$ put $R=0$; for $C/R$ put $N=0$).
+4. Eliminate the intermediate signals so that only $C$ and the input remain.
+5. Put all $C$ terms on one side, factor $C$, divide.
+6. Check with the rule "forward path over $1+$ loop gain" (negative feedback) and with the limit $H=0$ (must give the open-loop result).
+
+</Procedure>
+
+<Procedure title="Numerical questions with constant gains">
+
+1. Compute the loop gain first ($GH$ or $G_aG_bH$).
+2. $T=G/(1+GH)$, $C=TR$, $E=R/(1+GH)$.
+3. For a change of $G$: compute $T$ before and after, then the ratio; compare with open loop (where output changes as much as $G$).
+4. For disturbances: open loop $C_N=G_bN$; closed loop divides by $1+G_aG_bH$; total output by superposition.
+5. Sanity: $T$ must be below $G$ and below $1/H$ (positive gains, negative feedback); attenuation ratio must equal $1+G_aG_bH$.
+
+</Procedure>
+
+<Mistake title="Typical errors">
+
+- Writing $E=R-C$ when $H\neq1$ — the comparator subtracts $CH$.
+- Sign slip: $1-GH$ belongs to **positive** feedback; the notes' loop is negative, $1+GH$.
+- For $C/N$ in closed loop, putting $G_a$ in the numerator — the forward path from $N$ to $C$ passes only through $G_b$. $G_a$ appears only in the loop.
+- Forgetting to set $R=0$ when asked for the noise-only transfer function.
+- Mixing up the names: in this course "açık çevrim kazancı" is $G$ (p. 7).
+
+</Mistake>
+
+<Tip title="Typical question types">
+
+Definitions (control system, open/closed loop, feedback elements, noise) · classify given examples · draw the open/closed-loop block diagrams with labels · the comparison table · derive $C/R=G/(1+GH)$ · derive $C/N$ for p. 8 and p. 9 · explain why feedback reduces disturbances · short numerical evaluation with given gains.
+
+</Tip>
+
+## Turkish terminology
+
+| Turkish | English |
+|---|---|
+| Giriş / Çıkış | Input / Output |
+| Kontrol sistemi | Control system |
+| Sürekli zamanlı / Ayrık zamanlı | Continuous-time / Discrete-time |
+| Tek girişli tek çıkışlı / Çok girişli çok çıkışlı | SISO / MIMO |
+| Açık çevrim / Kapalı çevrim | Open loop / Closed loop |
+| Geri-besleme (geribesleme), geribeslemeli / geribeslemesiz | Feedback, with / without feedback |
+| Kontrolcü | Controller |
+| Uygulama sinyali (uygulama işareti) | Actuating signal |
+| Hata kontrolü | Error detector (comparator) |
+| Hata sinyali | Error signal |
+| Geri-besleme elemanları | Feedback elements |
+| Sensör-enstrümentasyon devresi | Sensor-instrumentation circuit |
+| Aç/kapa modu | On/off mode |
+| Kazanç, türev, integral | Gain, derivative, integral |
+| Hassasiyet | Accuracy (precision) |
+| Negatif geribesleme | Negative feedback |
+| Referans giriş | Reference input |
+| Genel transfer fonksiyonu | Overall transfer function |
+| Açık çevrim kazancı | Open-loop gain (here: $G$) |
+| Geri-besleme kazancı | Feedback gain ($H$) |
+| Bozucu giriş, gürültü | Disturbance input, noise |
+| Sapma | Deviation |
+| Kararsızlaşmak | To become unstable |
+| Ortam sıcaklığı | Ambient temperature |
+
+## Practice exercises
+
+<Exercise title="Classify a room thermostat" kind="concept" level={1}>
+
+A room heater has a thermostat: a sensor measures the room temperature, and the heater is switched on whenever the temperature is below the set value. Classify it with all three classifications of p. 2, and say what type of controller it has (p. 5).
+
+<Solution>
+
+- **Continuous-time**: the temperature and the sensor signal exist at every instant.
+- **SISO**: one input (set temperature), one output (room temperature).
+- **Closed loop**: the output is measured and compared with the desired value (feedback is used).
+- Controller: **on/off** (*aç/kapa*), like the refrigerator and air conditioner in the notes.
+
+Verification: the deciding question for open/closed loop is "is the output measured and fed back?" — yes.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Open or closed loop" kind="concept" level={1}>
+
+For each, say open loop or closed loop and why: (a) washing machine with a fixed programme; (b) fan cooler at a chosen speed; (c) cooling system that continuously measures ambient temperature; (d) electric cutter.
+
+<Solution>
+
+(a) Open — runs its programme without measuring cleanliness. (b) Open — the speed does not depend on the room temperature. (c) Closed — the measured temperature is fed back and the action depends on the difference (p. 4). (d) Open — nothing measures the output. Examples (a), (b), (d) are the notes' own open-loop examples (p. 3).
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Label the closed-loop diagram" kind="concept" level={1}>
+
+Draw the closed-loop block diagram of p. 4 and name every block and signal in Turkish and English. Which block converts the output into the form of the input signal?
+
+<Solution>
+
+Giriş (input) → Σ "Hata kontrolü" (comparator, $+$ input, $-$ feedback) → Hata sinyali (error signal) → Kontrolcü (controller) → Uygulama sinyali (actuating signal) → Sistem (plant) → Çıkış (output); from the output a branch goes through **Geri-besleme elemanları** (feedback elements) back to the $-$ input of Σ. The **feedback elements** (sensor–instrumentation circuit) convert the output into the input-signal type and scale it.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Reasons behind the comparison table" kind="concept" level={2}>
+
+Give the physical reason for each of these rows of the p. 6 table: (a) closed loop is more expensive; (b) closed loop is harder to design; (c) closed loop has higher accuracy.
+
+<Solution>
+
+(a) It needs sensors, instrumentation, a comparator and a more complex controller. (b) The output influences its own cause through the loop; a bad design can over-react, oscillate or become unstable, so the loop must be designed carefully. (c) It measures the actual output and corrects deviations caused by parameter changes and disturbances; mathematically $T\approx1/H$ for $GH\gg1$ (insensitive to $G$) and disturbances are divided by $1+G_aG_bH$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Closed-loop gain for G = 20 and H = 0.5" kind="formula" level={1}>
+
+Compute $T=C/R$ for $G=20$, $H=0.5$, and the ideal value $1/H$.
+
+<Solution>
+
+$GH=10$, $1+GH=11$, $T=\dfrac{20}{11}=1.818$. Ideal $1/H=2$. Gap: $1/11=9.1\,\%$, and indeed $2\cdot(1-1/11)=1.818$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Output and error for G = 4 and H = 1" kind="calc" level={1}>
+
+For $G=4$, $H=1$, $R=2$, find $C$ and $E$, and verify $C=EG$.
+
+<Solution>
+
+$T=\dfrac{4}{1+4}=0.8$, $C=0.8\cdot2=1.6$. $E=R-CH=2-1.6=0.4$ (also $E=R/(1+GH)=2/5=0.4$). Check: $EG=0.4\cdot4=1.6=C$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="How close to 1/H" kind="calc" level={2}>
+
+$G=1000$, $H=0.01$. Find $T$, $1/H$ and the relative gap. What would you change to reduce the gap?
+
+<Solution>
+
+$GH=10$; $T=\dfrac{1000}{11}=90.91$; $1/H=100$; gap $=\dfrac{1}{1+GH}=\dfrac{1}{11}=9.09\,\%$ (check: $100\cdot(1-0.0909)=90.91$ ✓). To reduce the gap increase the loop gain $GH$; keeping the desired $1/H=100$, that means increasing $G$ (e.g. $G=10^4$ gives $GH=100$, gap $\approx1\,\%$).
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Sensitivity to a 30 percent drop of G" kind="calc" level={2}>
+
+$G=50$, $H=0.2$. The forward gain drops by $30\,\%$. Find the exact relative change of $T$ and compare with open loop.
+
+<Hint>Compute $T$ with $G=50$ and with $G'=35$.</Hint>
+
+<Solution>
+
+$GH=10$: $T=\dfrac{50}{11}=4.5455$. $G'=35$: $G'H=7$, $T'=\dfrac{35}{8}=4.375$. Ratio $\dfrac{4.375}{4.5455}=0.9625$, i.e. $-3.75\,\%$. Open loop: $-30\,\%$. Check with the exact formula: $\dfrac{G'}{G}\cdot\dfrac{1+GH}{1+G'H}=0.7\cdot\dfrac{11}{8}=0.9625$ ✓. (Small-change estimate $-30\,\%/11=-2.7\,\%$ — same order; the exact value is larger because the change is not small.)
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Choose H for T = 10" kind="problem" level={2}>
+
+The forward gain is $G=500$. Find $H$ so that the closed-loop gain is $T=10$. What is the loop gain?
+
+<Solution>
+
+$10=\dfrac{500}{1+500H}\Rightarrow1+500H=50\Rightarrow H=\dfrac{49}{500}=0.098$. Loop gain $GH=49$. Check: $\dfrac{500}{1+49}=10$ ✓. Note $1/H=10.2$, slightly above $T$, as expected.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Find G for a required accuracy" kind="problem" level={2}>
+
+With $H=0.5$ the ideal output gain is $1/H=2$. How large must $G$ be so that $T=1.9$ (5 % below ideal)?
+
+<Solution>
+
+From $T=\dfrac{G}{1+GH}$: $T+TGH=G\Rightarrow T=G(1-TH)\Rightarrow G=\dfrac{T}{1-TH}=\dfrac{1.9}{1-0.95}=38$. Check: $GH=19$, $T=38/20=1.9$ ✓, gap $1/20=5\,\%$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Derive the error transfer function" kind="prof" level={2}>
+
+For the p. 7 loop, derive $E/R$ using only $C=EG$ and $E=R-CH$.
+
+<Solution>
+
+Substitute $C=EG$ into $E=R-CH$: $E=R-EGH$. Collect: $E+EGH=R\Rightarrow E(1+GH)=R\Rightarrow\dfrac{E}{R}=\dfrac{1}{1+GH}$. Check: $C=EG=\dfrac{G}{1+GH}R$, which is the boxed p. 7 result ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Reference transfer function of the p. 9 system" kind="prof" level={2}>
+
+For the closed-loop system of p. 9, derive $C/R$ with $N=0$.
+
+<Solution>
+
+With $N=0$ the second Σ just passes the signal, so $G_a$ and $G_b$ are in series: $C=G_aG_b(R-HC)$. Then $C+G_aG_bHC=G_aG_bR$, $C(1+G_aG_bH)=G_aG_bR$, $\dfrac{C}{R}=\dfrac{G_aG_b}{1+G_aG_bH}$. This is the p. 7 formula with $G=G_aG_b$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Disturbance in open and closed loop" kind="calc" level={2}>
+
+$G_a=5$, $G_b=4$, $H=0.5$, disturbance $N=0.2$. Find the output deviation caused by $N$ in open loop (p. 8) and closed loop (p. 9).
+
+<Solution>
+
+Open: $C_N=G_bN=4\cdot0.2=0.8$. Closed: $G_aG_bH=10$, $C_N=\dfrac{4}{11}\cdot0.2=0.0727$. Ratio $0.8/0.0727=11=1+G_aG_bH$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Total output with reference and disturbance" kind="problem" level={3}>
+
+Closed loop of p. 9 with $G_a=20$, $G_b=1$, $H=1$, $R=2$, $N=0.5$. Find $C$ by superposition and check by direct algebra. How far is it from the desired $R/H$?
+
+<Solution>
+
+$1+G_aG_bH=21$. Reference part: $\dfrac{20}{21}\cdot2=\dfrac{40}{21}=1.9048$. Disturbance part: $\dfrac{1}{21}\cdot0.5=0.0238$. Total $C=\dfrac{40.5}{21}=1.9286$. Direct: $C(1+G_aG_bH)=G_aG_bR+G_bN=40+0.5=40.5$ ⇒ $C=40.5/21$ ✓. Desired $R/H=2$: deviation $-0.071$, i.e. $-3.6\,\%$. (In open loop with the same $G_aG_b=20$ the disturbance alone would add $G_bN=0.5$.)
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Limits of the feedback formula" kind="edge" level={2}>
+
+Using $T=G/(1+GH)$: (a) what is $T$ when $H=0$, and what does it mean? (b) what does $T$ approach when $G$ becomes very large? (c) what happens to $C/N$ of p. 9 when $H=0$?
+
+<Solution>
+
+(a) $T=G/(1+0)=G$: no feedback — the open-loop chain. (b) $T=\dfrac{1/H}{1+1/(GH)}\to\dfrac1H$: determined by the feedback element only. (c) $C/N=G_b/(1+0)=G_b$: the open-loop result of p. 8 — without feedback the disturbance is not attenuated.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Positive feedback edge case" kind="edge" level={2}>
+
+Suppose the feedback in the p. 7 loop is added instead of subtracted. With $G=4$: compute $T$ for $H=0.2$ and say what happens at $H=0.25$.
+
+<Solution>
+
+Positive feedback: $E=R+CH\Rightarrow C(1-GH)=RG\Rightarrow T=\dfrac{G}{1-GH}$. $H=0.2$: $GH=0.8$, $T=\dfrac{4}{0.2}=20$. $H=0.25$: $GH=1$, the denominator is $0$ — the formula gives no finite gain; the output would grow without bound. This is why the notes' control loop uses negative feedback.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Disturbance at the output" kind="problem" level={3}>
+
+Modify the p. 9 diagram: the disturbance $N$ is added **after** $G_b$ (directly to the output), i.e. $C=G_b\cdot(\text{output of }G_a)+N$. Derive $C/N$ and evaluate it for $G_a=10$, $G_b=2$, $H=1$.
+
+<Solution>
+
+Set $R=0$: the first comparator gives $-HC$, after $G_a$: $-G_aHC$, after $G_b$: $-G_aG_bHC$, then $+N$: $C=N-G_aG_bHC$. So $C(1+G_aG_bH)=N$ and $\dfrac{C}{N}=\dfrac{1}{1+G_aG_bH}$. Numbers: $\dfrac{1}{21}=0.0476$. Check with "forward over one plus loop": forward path from $N$ to $C$ is 1, loop $G_aG_bH$ ✓. Open loop would pass it fully ($C/N=1$).
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Explain disturbance rejection in words" kind="concept" level={2}>
+
+Using the heating example of p. 8 (open window), explain step by step why the closed-loop system's temperature changes much less than the open-loop system's, and identify which factor in the formula expresses this.
+
+<Solution>
+
+Window opens → heat leaves → temperature starts to drop. Open loop: the heater gets the same command, produces the same heat; the full loss shows up ($C/N=G_b$). Closed loop: the sensor measures the drop → error appears → controller increases the actuating signal → heater produces more heat → most of the loss is compensated. The remaining effect is divided by $1+G_aG_bH$; the larger the loop gain, the smaller the deviation.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Turkish terms" kind="concept" level={1}>
+
+Give the English meaning: (a) Uygulama sinyali (b) Hata sinyali (c) Geri-besleme elemanları (d) Bozucu giriş (e) Genel transfer fonksiyonu (f) Açık çevrim kazancı (in the notes).
+
+<Solution>
+
+(a) actuating signal; (b) error signal; (c) feedback elements (sensor–instrumentation circuit); (d) disturbance input (noise); (e) overall transfer function $T$; (f) the forward gain $G$ (the notes call $G$ the open-loop gain).
+
+</Solution>
+
+</Exercise>

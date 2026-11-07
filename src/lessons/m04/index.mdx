@@ -1,0 +1,1171 @@
+import {
+  OperationBlockFig, SumFig, PickFig, SeriesFig, ParallelFig, Loop, OneBlock,
+  TwoLoopFig, TwoLoopMovedFig, Rule1Fig, Rule2Fig, Rule3Fig,
+  ThreeLoopFig, ThreeLoopMovedFig, ThreeLoopStepAFig, ThreeLoopStepBFig, ThreeLoopStepCFig, ThreeLoopFinalFig,
+  ParallelLoopFig, FeedforwardFig, FeedforwardMovedFig, ThreeLoopStepper, TwoLoopStepper
+} from './widgets'
+
+## What is this about?
+
+A real control system is never a single box. Think of a room heater with a thermostat: there is a controller (the thermostat's electronics), an actuator (the heating element), the room itself (which warms up slowly), and a sensor (the thermometer) that sends the measured temperature back so it can be compared with the temperature you asked for. Each of these parts has its own transfer function. To predict how the **whole** system behaves — how fast the room warms up, whether it overshoots, what temperature it settles at — we need **one** transfer function from the set-point to the room temperature.
+
+A <Term en="block diagram" tr="blok şema" /> is the picture that shows how the parts are connected, and <Term en="block diagram reduction" tr="blok sadeleştirme" /> is the set of techniques that collapses that picture, step by step, into a single block
+
+$$
+T(s)=\frac{Y(s)}{R(s)}
+$$
+
+which the professor calls the <Term en="overall transfer function" tr="genel transfer fonksiyonu" />. Once you have $T(s)$, everything you learned about transfer functions (poles, step responses, final values…) applies to the whole system.
+
+There are two ways to get $T(s)$ from a diagram, and the notes show both:
+
+1. **Algebra** — write one equation per summing junction / block, then eliminate the internal signals (p. 1–2).
+2. **Graphical reduction** — replace pieces of the diagram with equivalent, simpler pieces until one block is left (p. 3–4).
+
+They always give the same answer; using one to check the other is a powerful exam habit.
+
+<Note title="About the title “… ve Akış Şemaları”">
+
+The PDF of this lecture is called “Blok Şemalar ve Akış Şemaları” (block diagrams **and flow diagrams**), but the four pages of notes contain only block diagrams and block reduction. There is no signal-flow-graph material in them, so this module covers block diagrams only.
+
+</Note>
+
+**After this module you can:**
+
+- read a block diagram: blocks, summing junctions (with their signs) and take-off points;
+- write the signal equations of any diagram and solve them for $T(s)=Y(s)/R(s)$;
+- use the three equivalences of p. 3 (moving a summing point, moving a take-off point, collapsing a feedback loop) plus series/parallel combination;
+- untangle interlocking loops, as in the professor's three-loop example, and finish such a reduction;
+- check any reduction independently by algebra or with numbers.
+
+## Operation blocks and block diagrams
+
+### Operation block
+
+<Def term="Operation block" tr="işlem bloğu">
+
+In any system, each independent unit that represents the operation between its input and its output, and which is usually written as a Laplace function, is an **operation block**. When operation blocks are connected to each other with lines showing the direction of the signal flow (*işlem akış yönü*), a **block diagram** is obtained. <Src p="1" />
+
+</Def>
+
+A block is drawn as a rectangle containing its transfer function. The arrow entering it is its input, the arrow leaving it is its output, and the rule is simply
+
+$$
+Y(s)=G(s)\,R(s).
+$$
+
+<OperationBlockFig />
+
+Why multiplication? Because $G(s)$ was **defined** as $Y(s)/R(s)$ for that unit (with zero initial conditions). In the time domain the unit is a differential equation; in the Laplace domain it becomes a plain multiplication. That is the whole reason block diagrams are drawn in $s$: connecting blocks then needs only addition and multiplication — no convolution, no differential equations.
+
+### Signals are Laplace functions
+
+Every line in a block diagram carries a **signal**, and in this course that signal is a Laplace transform: $R(s)$, $Y(s)$, $E(s)$, $X(s)$… The professor usually drops the “$(s)$” and writes just $R$, $Y$, $X$ — that is only shorthand; they are still functions of $s$.
+
+<Intuition>
+
+A line is a wire carrying information, not power. Drawing a line from one place to two places (a take-off point) copies the information; it does not halve it. A block never “loads” the block before it — the diagram assumes each block's output is exactly $G$ times its input, whatever is connected after it.
+
+</Intuition>
+
+### Summing junctions
+
+<Def term="Summing junction" tr="toplama noktası (drawn as Σ in the notes)">
+
+A circle with $\Sigma$ (or a cross) inside. Its output is the sum of its inputs, each taken with the sign written beside its arrow. <Src p="1" />
+
+</Def>
+
+<SumFig />
+
+The signs are part of the diagram. A **−** at the input that comes back from the output is what makes a loop **negative feedback** (geri besleme): the measured output is subtracted from the reference, so the block after the junction sees the **error** $E=R-(\text{fed-back signal})$.
+
+<Tip title="Read signs carefully">
+
+If a sign is missing on a drawing, the usual convention is “+”. But in feedback diagrams the professor always writes the “−”; when one looks missing (as at the $H_1$ input of p. 4's top diagram), compare with the other drawings of the same system before deciding.
+
+</Tip>
+
+### Take-off points
+
+<Def term="Take-off (pick-off) point" tr="ayrılma noktası (drawn as a dot in the notes)">
+
+A dot on a line from which a branch leaves. Every branch leaving it carries the **same** signal as the line itself. <Src p="1" />
+
+</Def>
+
+<PickFig />
+
+### Series and parallel blocks
+
+The notes use these two facts silently whenever blocks are drawn next to each other (e.g. $G_3$ followed by $G_4$ becoming $1/(G_3G_4)$ on p. 4). They follow directly from $Y=GR$:
+
+**Series (cascade).** If $U=G_1R$ and $Y=G_2U$, then $Y=G_2G_1R$, so
+
+$$
+G_{\text{series}}=G_1G_2 .
+$$
+
+<SeriesFig />
+
+**Parallel.** If the same $R$ feeds $G_1$ and $G_2$ and their outputs are added, $Y=G_1R+G_2R=(G_1+G_2)R$, so
+
+$$
+G_{\text{parallel}}=G_1+G_2
+$$
+
+(with a “−” sign at the junction, it becomes $G_1-G_2$).
+
+<ParallelFig />
+
+## The professor's two-loop example
+
+<Src p="1" /> To make a holistic analysis (*bütünsel analiz*) of a system, its blocks must be combined. The professor's first example is this system:
+
+<TwoLoopFig />
+
+### Reading the diagram
+
+Follow the signal from left to right:
+
+- $R$ enters the first summing junction with **+**; the signal $H_1X$ enters it from below with **−**. Its output is $E_1=R-H_1X$.
+- $E_1$ goes through $G_1$, giving $G_1E_1$.
+- The second summing junction adds $G_1E_1$ (**+**) and subtracts $H_2Y$ (**−**, from above): $E_2=G_1E_1-H_2Y$.
+- $E_2$ goes through $G_2$; the result is called $X$. A take-off point at $X$ sends $X$ both forward to $G_3$ and backward to $H_1$.
+- $Y=G_3X$; a take-off point at $Y$ sends $Y$ back through $H_2$.
+
+So there are two feedback loops: an **$H_1$ loop** through $G_1$ and $G_2$, and an **$H_2$ loop** through $G_2$ and $G_3$. They **share** $G_2$ and the second junction, yet neither contains the other. Such loops are called **interlocking**, and this is exactly why Rule 3 below cannot be used directly — which is why the professor solves this one with algebra.
+
+<TwoLoopFig annotate caption="The same diagram with every internal signal named: E₁ and E₂ are the junction outputs." />
+
+### Writing the equations
+
+<Example title="Two-loop system: overall transfer function" src="1–2">
+
+**Given:** the diagram above. **Asked:** $T(s)=Y(s)/R(s)$.
+
+**Method and why:** the loops interlock, so we write the signal equations and eliminate the internal signal $X$. Only two unknowns survive ($X$, $Y$), so two equations are enough.
+
+<Step title="Equation for X">
+
+Start from $X$ and walk backwards: $X$ is the output of $G_2$, whose input is $E_2=G_1E_1-H_2Y$, and $E_1=R-H_1X$. Substituting:
+
+$$
+X=\big\{(R-H_1X)\,G_1-H_2Y\big\}\,G_2
+$$
+
+This is the professor's first equation. <Src p="1" />
+
+</Step>
+
+<Step title="Equation for Y">
+
+$$
+Y=G_3X
+$$
+
+</Step>
+
+<Step title="Solve the first equation for X (İlk eşitlikten X'i çekersek)">
+
+Expand the braces:
+
+$$
+X=G_1G_2R-G_1G_2H_1X-G_2H_2Y
+$$
+
+$X$ appears on both sides. Bring all $X$ terms to the left:
+
+$$
+X+G_1G_2H_1X=G_1G_2R-G_2H_2Y
+$$
+
+$$
+X\,(1+G_1G_2H_1)=G_1G_2R-G_2H_2Y
+$$
+
+$$
+X=\frac{G_1G_2R-G_2H_2Y}{1+G_1G_2H_1}
+$$
+
+<Src p="2" />
+
+</Step>
+
+<Step title="Substitute into Y = G₃X">
+
+$$
+Y=G_3\,\frac{G_1G_2R-G_2H_2Y}{1+G_1G_2H_1}
+$$
+
+Multiply both sides by $(1+G_1G_2H_1)$:
+
+$$
+Y\,(1+G_1G_2H_1)=G_1G_2G_3R-G_2G_3H_2Y
+$$
+
+</Step>
+
+<Step title="Collect Y and divide by R">
+
+Move the $Y$ term from the right to the left:
+
+$$
+Y\,(1+G_1G_2H_1+G_2G_3H_2)=G_1G_2G_3R
+$$
+
+$$
+T(s)=\frac{Y(s)}{R(s)}=\frac{G_1G_2G_3}{1+G_1G_2H_1+G_2G_3H_2}
+$$
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{Y(s)}{R(s)}=\frac{G_1G_2G_3}{1+G_1G_2H_1+G_2G_3H_2}
+$$
+
+</Answer>
+
+**Interpretation.** The numerator $G_1G_2G_3$ is the product of the blocks along the straight path from $R$ to $Y$ (the **forward path**). Each term added in the denominator is the product of the blocks around one loop: $G_1G_2H_1$ around the $H_1$ loop, $G_2G_3H_2$ around the $H_2$ loop. Each “+” comes from a “−” at the junction (negative feedback).
+
+**Sanity checks.** Remove the $H_2$ loop ($H_2=0$): $T=\dfrac{G_1G_2G_3}{1+G_1G_2H_1}$ — the $H_1$ loop alone, followed by $G_3$, exactly as Rule 3 below predicts. Remove both loops: $T=G_1G_2G_3$, three blocks in series. ✓
+
+</Example>
+
+<Uncertain title="Correction to the notes (p. 1 and p. 2)">
+
+- On p. 1 the first equation is written as $X=\{(R-X,X)G_1-H_2Y\}G_2$. The term “$X,X$” is a slip of the pen: the signal subtracted at the first junction is $H_1X$ (the output of the $H_1$ block), so the correct term is $(R-H_1X)$. The next line on p. 2 confirms it, because $1+G_1G_2H_1$ only appears if the term is $H_1X$.
+- On p. 2, the second line is written with denominator $1+G_1G_2H$; the subscript is missing — it is $1+G_1G_2H_1$, the same denominator as the line above.
+- The final $T(s)$ in the notes is correct.
+
+</Uncertain>
+
+### Eliminating X
+
+Why eliminate $X$ rather than, say, solve for $E_1$? Any internal signal can be eliminated; the trick is to choose a signal that lets you write **every** loop with as few unknowns as possible. $X$ is a good choice because both feedback paths start at or after $X$: $H_1$ takes $X$ directly and $H_2$ takes $Y=G_3X$. With $X$ and $Y$ as unknowns, all loops are captured by two short equations.
+
+<Procedure title="Algebraic method (works on every diagram)">
+
+1. Name the output of every summing junction and every take-off point that is not already named.
+2. Write one equation for each named signal: (sum of signed inputs) or (block × input).
+3. Substitute until only the output $Y$, the input $R$ and one or two internal signals remain.
+4. Solve for the internal signal, substitute, collect all $Y$ terms on the left, and divide by $R$.
+
+</Procedure>
+
+The algebra always works, but with many loops it becomes long and error-prone. The professor continues: *every problem may present a different structure; there are some techniques for complex structures, and using them when needed makes block reduction easier.* <Src p="2" />
+
+## Reduction techniques
+
+The three equivalences on p. 3 are drawn as before/after pairs joined by ⟺. “Equivalent” means: **for the same inputs, both diagrams give the same output**. So each rule is proven by writing the output equation of both diagrams and showing they are identical. That is also the way to rebuild a rule in the exam if you forget it.
+
+### Rule 1: moving a summing point before a block
+
+<Src p="3" />
+
+<Rule1Fig />
+
+**Before.** $R$ goes through $G_1$, then $X$ is added, then everything goes through $G_2$:
+
+$$
+Y=G_2\,(G_1R+X)
+$$
+
+**After.** $X$ first goes through $1/G_1$, is added to $R$, and the sum goes through $G_1$ and $G_2$:
+
+$$
+Y=G_2G_1\Big(R+\frac{X}{G_1}\Big)=G_2\,(G_1R+X)
+$$
+
+Both are the same, so the diagrams are equivalent. ✓
+
+**Why $1/G_1$?** After the move, $X$ has to pass through $G_1$, which it did not do before. Pre-multiplying it by $1/G_1$ undoes that: $G_1\cdot\frac{1}{G_1}X=X$. Every moving rule is built on this idea: **each branch must carry the same signal after the move as it did before.**
+
+<Uncertain title="Correction to the notes (p. 3, first pair)">
+
+In the left-hand diagram of the first pair the second block is labelled “$R_2$”. It must be $G_2$: the right-hand diagram has $G_2$, and the equivalence $Y=G_2(G_1R+X)$ only holds if the same block follows the summing point in both diagrams. ($R$ is reserved for the input signal.)
+
+</Uncertain>
+
+The reverse move works the same way: if a summing point sits **before** a block $G$ and you move it to **after** $G$, the side input must pass through $G$ (it used to be multiplied by $G$, and must still be).
+
+### Rule 2: moving a take-off point before a block
+
+<Src p="3" />
+
+<Rule2Fig />
+
+**Before.** The take-off point is at $Y$ (after $G_2$), unity feedback. With $E=R-Y$:
+
+$$
+Y=G_1G_2(R-Y)\;\Rightarrow\;Y(1+G_1G_2)=G_1G_2R\;\Rightarrow\;\frac{Y}{R}=\frac{G_1G_2}{1+G_1G_2}
+$$
+
+**After.** The take-off point is between $G_1$ and $G_2$; call that signal $Z$, so $Y=G_2Z$. The feedback branch takes $Z$ and passes it through $G_2$, so the junction subtracts $G_2Z$:
+
+$$
+Z=G_1(R-G_2Z)\;\Rightarrow\;Z(1+G_1G_2)=G_1R\;\Rightarrow\;Z=\frac{G_1R}{1+G_1G_2}
+$$
+
+$$
+Y=G_2Z=\frac{G_1G_2R}{1+G_1G_2}\;\Rightarrow\;\frac{Y}{R}=\frac{G_1G_2}{1+G_1G_2}
+$$
+
+Same transfer function. ✓ The quicker, local argument: before the move the branch carried $Y=G_2Z$; after the move it carries $G_2\cdot Z$ — the same signal, so nothing in the rest of the diagram can notice the difference.
+
+**The opposite direction** (used on p. 4): moving a take-off point **forward** past a block $G$ means the new point carries $G$ times the old signal, so the branch must contain $1/G$ to deliver the old signal:
+
+$$
+\text{old branch signal}=Z,\qquad \text{new point}=GZ,\qquad \frac{1}{G}\cdot GZ=Z\;✓
+$$
+
+### Rule 3: the feedback loop
+
+This is the most important rule of the module; every reduction ends with it.
+
+<Rule3Fig />
+
+<Src p="3" /> **Proof.** The junction output is $E=R-HY$, and $Y=GE$:
+
+$$
+Y=G\,(R-HY)=GR-GHY
+$$
+
+$$
+Y+GHY=GR\;\Rightarrow\;Y(1+GH)=GR
+$$
+
+<KeyFormula title="Closed-loop (negative feedback) transfer function">
+
+$$
+\frac{Y}{R}=\frac{G}{1+GH}
+$$
+
+</KeyFormula>
+
+Symbols: $G$ — the product of all blocks in the forward path from the junction to the take-off point; $H$ — the product of all blocks in the feedback path; $GH$ — the **loop product** (open-loop transfer function), the gain experienced by a signal going once around the loop.
+
+**When it applies.** The loop must be **self-contained**: nothing else leaves from or enters into the path between the summing junction and the take-off point. Extra inputs added at the junction itself are fine (a junction with three inputs can be split into two junctions in a row); a take-off point or another junction **inside** the loop is not. If that happens, first use Rule 1 or Rule 2 to move it out — that is exactly what the p. 4 example does.
+
+**Physical meaning.** Without feedback, the output would be $GR$. Feedback divides it by $1+GH$. If the loop product is large ($GH\gg1$), $T\approx\frac{G}{GH}=\frac{1}{H}$: the output is set by the feedback (sensor) path, almost independently of $G$. This is why feedback makes systems insensitive to changes in the plant.
+
+### Positive feedback
+
+If the fed-back signal is **added** (sign “+” at the junction), $E=R+HY$ and
+
+$$
+Y=G(R+HY)\;\Rightarrow\;Y(1-GH)=GR\;\Rightarrow\;\frac{Y}{R}=\frac{G}{1-GH}.
+$$
+
+<Rule3Fig sign="+" />
+
+The rule to remember: **the sign in the denominator is the opposite of the sign at the junction**: “−” at the junction gives $1+GH$, “+” gives $1-GH$.
+
+### Summary of the moves
+
+| Move | Compensating block | Why |
+|---|---|---|
+| Summing point from after $G$ to before $G$ (Rule 1, p. 3) | $\frac{1}{G}$ in the side input | the side input now passes through $G$ |
+| Summing point from before $G$ to after $G$ | $G$ in the side input | the side input no longer passes through $G$ |
+| Take-off point from after $G$ to before $G$ (Rule 2, p. 3) | $G$ in the branch | the branch used to carry $G\times$(new point) |
+| Take-off point from before $G$ to after $G$ (used on p. 4) | $\frac{1}{G}$ in the branch | the new point carries $G\times$(old signal) |
+| Self-contained loop (Rule 3, p. 3) | $\frac{G}{1\pm GH}$ | “−” at junction → $+$; “+” at junction → $-$ |
+| Blocks in series / parallel | $G_1G_2$ / $G_1\pm G_2$ | $Y=GR$ applied twice |
+
+<Tip title="A check that catches almost every error">
+
+Moving a summing or take-off point never changes the **loop product** of any loop. After each move, multiply the blocks around every loop and compare with the original diagram. On p. 4, for example, the $H_1$ loop product is $G_1G_2H_1$ before the move and $G_1G_2G_3G_4\cdot\frac{1}{G_3G_4}H_1=G_1G_2H_1$ after it. ✓
+
+</Tip>
+
+## The three-loop example
+
+<Src p="4" /> The professor's *Örnek* (example) has four forward blocks and three feedback loops.
+
+### The original diagram
+
+<ThreeLoopFig />
+
+The three loops (with A the point after $G_2$ and B the point after $G_3$):
+
+- **$H_1$ loop:** $\Sigma_1\to G_1\to\Sigma_2\to G_2\to A\to H_1\to\Sigma_1$; loop product $G_1G_2H_1$.
+- **$H_2$ loop:** $\Sigma_2\to G_2\to G_3\to B\to H_2\to\Sigma_2$; loop product $G_2G_3H_2$.
+- **$H_3$ loop:** $\Sigma_2\to G_2\to G_3\to G_4\to Y\to H_3\to\Sigma_2$; loop product $G_2G_3G_4H_3$.
+
+Can we collapse the $H_2$ loop with Rule 3? No: the take-off point A of the $H_1$ branch sits **inside** it (between $G_2$ and $G_3$). Can we collapse the $H_1$ loop? Also no: its path goes through $\Sigma_2$, which receives the $H_2$ and $H_3$ signals from outside. The loops interlock, so a point has to be moved first.
+
+<Uncertain title="Missing sign in the top diagram of p. 4">
+
+In the top diagram the sign at the $H_1$ input of the first summing junction is not written. The redrawn (lower) diagram on the same page shows “−”, so the $H_1$ loop is negative feedback, and it is drawn with “−” here. (The lower diagram also leaves the input arrow unlabelled; it is $R$.)
+
+</Uncertain>
+
+### Moving the H1 take-off point
+
+The professor moves the take-off point of the $H_1$ branch from A **forward past $G_3$ and $G_4$** to the output $Y$:
+
+<ThreeLoopMovedFig />
+
+Since $Y=G_3G_4\,A$, the moved branch picks up $Y$, and to keep feeding the old signal $A$ into $H_1$ it must contain the compensating block
+
+$$
+\frac{1}{G_3G_4}:\qquad \frac{1}{G_3G_4}\cdot Y=\frac{1}{G_3G_4}\cdot G_3G_4A=A\;✓
+$$
+
+(The series rule turns “past $G_3$, then past $G_4$” into one move past $G_3G_4$.) Now the $G_2$–$G_3$–$H_2$ loop has nothing entering or leaving inside it: it is self-contained.
+
+Why move it all the way to $Y$ and not just past $G_3$ to B? At B the branch would sit inside the $H_3$ loop ($\Sigma_2\to\dots\to G_4\to Y$), blocking the next reduction. At $Y$ it is outside every inner loop.
+
+### The inner loop
+
+“Let the equivalent of the $G_2$–$G_3$–$H_2$ loop be $G_A$” (*$G_2-G_3-H_2$ çevriminin eşdeğeri $G_A$ olsun*). With Rule 3, forward path $G_2G_3$ (series), feedback $H_2$:
+
+<KeyFormula title="Inner loop of the p. 4 example">
+
+$$
+G_A=\frac{G_2G_3}{1+G_2G_3H_2}
+$$
+
+</KeyFormula>
+
+<Src p="4" /> The notes stop here.
+
+### Completing the reduction
+
+<Example title="Three-loop system: complete reduction" src="4">
+
+**Given:** the p. 4 diagram. **Asked:** $T(s)=Y/R$. The first two steps are the professor's; **steps 3–6 complete the example**, which the notes leave unfinished.
+
+<Step title="Move the H₁ take-off point to the output (professor)">
+
+Branch block $\frac{1}{G_3G_4}$, as shown above.
+
+</Step>
+
+<Step title="Reduce the inner loop (professor)">
+
+$$
+G_A=\frac{G_2G_3}{1+G_2G_3H_2}
+$$
+
+<ThreeLoopStepAFig />
+
+</Step>
+
+<Step title="Completion: reduce the H₃ loop">
+
+Now $\Sigma_2\to G_A\to G_4\to Y$ with $H_3$ fed back is self-contained (the $H_1$ branch leaves at $Y$, outside it). Forward path $G_AG_4$, feedback $H_3$:
+
+$$
+G_B=\frac{G_AG_4}{1+G_AG_4H_3}
+$$
+
+Insert $G_A$: $G_AG_4=\dfrac{G_2G_3G_4}{1+G_2G_3H_2}$. Multiply numerator and denominator of $G_B$ by $(1+G_2G_3H_2)$:
+
+$$
+G_B=\frac{G_2G_3G_4}{(1+G_2G_3H_2)+G_2G_3G_4H_3}=\frac{G_2G_3G_4}{1+G_2G_3H_2+G_2G_3G_4H_3}
+$$
+
+<ThreeLoopStepBFig />
+
+</Step>
+
+<Step title="Completion: combine series blocks">
+
+Forward path: $G_1$ and $G_B$ in series, $G_1G_B$. Feedback path: $\frac{1}{G_3G_4}$ and $H_1$ in series, $\frac{H_1}{G_3G_4}$.
+
+<ThreeLoopStepCFig />
+
+</Step>
+
+<Step title="Completion: reduce the last loop">
+
+Rule 3:
+
+$$
+T=\frac{G_1G_B}{1+G_1G_B\,\dfrac{H_1}{G_3G_4}}
+$$
+
+Compute the pieces. Let $D=1+G_2G_3H_2+G_2G_3G_4H_3$, so $G_B=\dfrac{G_2G_3G_4}{D}$:
+
+$$
+G_1G_B=\frac{G_1G_2G_3G_4}{D},\qquad G_1G_B\,\frac{H_1}{G_3G_4}=\frac{G_1G_2G_3G_4H_1}{D\,G_3G_4}=\frac{G_1G_2H_1}{D}
+$$
+
+($G_3G_4$ cancels — the compensating block exactly undoes the move.) Then
+
+$$
+T=\frac{\dfrac{G_1G_2G_3G_4}{D}}{1+\dfrac{G_1G_2H_1}{D}}=\frac{G_1G_2G_3G_4}{D+G_1G_2H_1}
+$$
+
+</Step>
+
+<Step title="Completion: final result">
+
+$$
+T(s)=\frac{G_1G_2G_3G_4}{1+G_2G_3H_2+G_2G_3G_4H_3+G_1G_2H_1}
+$$
+
+<ThreeLoopFinalFig />
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{Y(s)}{R(s)}=\frac{G_1G_2G_3G_4}{1+G_1G_2H_1+G_2G_3H_2+G_2G_3G_4H_3}
+$$
+
+</Answer>
+
+**Interpretation and check.** The numerator is the forward path $G_1G_2G_3G_4$; the denominator is $1$ plus the three loop products listed in “The original diagram” — the same pattern as the two-loop example. Setting $H_1=H_3=0$ leaves $\frac{G_1G_2G_3G_4}{1+G_2G_3H_2}=G_1\,G_A\,G_4$ ✓.
+
+</Example>
+
+### Checking by algebra
+
+The reduction can be verified independently by writing the signal equations of the **original** diagram, exactly like the professor did on p. 1. Call A the output of $G_2$ and B the output of $G_3$:
+
+$$
+E_1=R-H_1A,\qquad E_2=G_1E_1-H_2B-H_3Y,\qquad A=G_2E_2,\qquad B=G_3A,\qquad Y=G_4B
+$$
+
+So $B=G_3A$ and $Y=G_3G_4A$ — everything is expressed through $A$. Substitute into $A=G_2E_2$:
+
+$$
+A=G_2\big[G_1(R-H_1A)-H_2G_3A-H_3G_3G_4A\big]
+$$
+
+$$
+A=G_1G_2R-G_1G_2H_1A-G_2G_3H_2A-G_2G_3G_4H_3A
+$$
+
+$$
+A\,(1+G_1G_2H_1+G_2G_3H_2+G_2G_3G_4H_3)=G_1G_2R
+$$
+
+$$
+Y=G_3G_4A=\frac{G_1G_2G_3G_4}{1+G_1G_2H_1+G_2G_3H_2+G_2G_3G_4H_3}\,R
+$$
+
+Identical to the reduction result. ✓
+
+### Step-by-step replay
+
+<ThreeLoopStepper />
+
+## Additional worked examples
+
+<Example title="Single loop with numbers: negative and positive feedback">
+
+**Given:** $G(s)=\dfrac{10}{s+1}$, $H=0.5$. **Asked:** $T(s)$ for negative feedback and for positive feedback, and the steady-state output for a unit step in the first case.
+
+<Step title="Negative feedback">
+
+$$
+T=\frac{G}{1+GH}=\frac{\dfrac{10}{s+1}}{1+\dfrac{5}{s+1}}
+$$
+
+Multiply numerator and denominator by $(s+1)$:
+
+$$
+T=\frac{10}{s+1+5}=\frac{10}{s+6}
+$$
+
+</Step>
+
+<Step title="Steady state for a unit step">
+
+By the final value theorem with $R=1/s$: $y_{ss}=\lim_{s\to0}s\cdot\frac{10}{s+6}\cdot\frac1s=T(0)=\frac{10}{6}\approx1.667$. Note $1/H=2$: the loop product at $s=0$ is $GH=5$, not huge, so $T(0)$ is only near $1/H$.
+
+</Step>
+
+<Step title="Positive feedback">
+
+$$
+T=\frac{G}{1-GH}=\frac{\dfrac{10}{s+1}}{1-\dfrac{5}{s+1}}=\frac{10}{s+1-5}=\frac{10}{s-4}
+$$
+
+</Step>
+
+<Answer>
+
+Negative: $T=\dfrac{10}{s+6}$. Positive: $T=\dfrac{10}{s-4}$.
+
+</Answer>
+
+**Interpretation.** Negative feedback moved the pole from $s=-1$ to $s=-6$ (faster response). Positive feedback moved it to $s=+4$: the response contains $e^{4t}$ and grows without bound. **Sanity check:** with $H=0$ both reduce to $G=\frac{10}{s+1}$. ✓
+
+</Example>
+
+<Example title="Two-loop system with numeric gains">
+
+**Given:** the p. 1 structure with $G_1=2$, $G_2=\dfrac{1}{s+1}$, $G_3=\dfrac{1}{s}$, $H_1=1$, $H_2=2$. **Asked:** $T(s)$ and $T(0)$.
+
+<Step title="Use the professor's result">
+
+$$
+T=\frac{G_1G_2G_3}{1+G_1G_2H_1+G_2G_3H_2}
+$$
+
+</Step>
+
+<Step title="Substitute">
+
+$$
+G_1G_2G_3=\frac{2}{s(s+1)},\quad G_1G_2H_1=\frac{2}{s+1},\quad G_2G_3H_2=\frac{2}{s(s+1)}
+$$
+
+</Step>
+
+<Step title="Clear fractions: multiply top and bottom by s(s+1)">
+
+$$
+T=\frac{2}{s(s+1)+2s+2}=\frac{2}{s^2+3s+2}=\frac{2}{(s+1)(s+2)}
+$$
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{2}{s^2+3s+2},\qquad T(0)=1
+$$
+
+</Answer>
+
+**Sanity check at a test point**, $s=1$: $G_1=2$, $G_2=0.5$, $G_3=1$, so $T=\dfrac{1}{1+1+1}=\dfrac13$; the polynomial form gives $\dfrac{2}{1+3+2}=\dfrac13$. ✓ The DC gain $T(0)=2/2=1$: as $s\to0$ the integrator $G_3=1/s$ makes both $G_1G_2G_3$ and $G_2G_3H_2$ grow like $1/s$, so $T(0)=\lim\frac{G_1G_2G_3}{G_2G_3H_2}=\frac{G_1}{H_2}=\frac22=1$.
+
+</Example>
+
+<Example title="Two-loop system by block reduction">
+
+**Given:** the p. 1 diagram. **Asked:** $T(s)$ by graphical reduction, to check the professor's algebra.
+
+<Step title="Untangle the loops">
+
+The take-off point $X$ lies inside the $H_2$ loop. Move it forward past $G_3$ to $Y$. Because $Y=G_3X$, the branch needs $\frac{1}{G_3}$.
+
+<TwoLoopMovedFig ring caption="X take-off point moved past G₃; the H₂ loop (ringed) is now self-contained." />
+
+Loop-product check: $H_1$ loop was $G_1G_2H_1$; now $G_1G_2G_3\cdot\frac{1}{G_3}\cdot H_1=G_1G_2H_1$. ✓
+
+</Step>
+
+<Step title="Reduce the inner loop">
+
+$$
+\frac{G_2G_3}{1+G_2G_3H_2}
+$$
+
+<Loop fwd={[{ t: 'G_1' }, { t: '\\frac{G_2G_3}{1+G_2G_3H_2}', w: 140 }]} fb={[{ t: '\\frac{H_1}{G_3}', w: 80 }]} caption="Inner loop replaced; feedback blocks 1/G₃ and H₁ combined." />
+
+</Step>
+
+<Step title="Reduce the outer loop">
+
+Forward: $F=\dfrac{G_1G_2G_3}{1+G_2G_3H_2}$. Loop product: $F\cdot\dfrac{H_1}{G_3}=\dfrac{G_1G_2H_1}{1+G_2G_3H_2}$.
+
+$$
+T=\frac{F}{1+F\dfrac{H_1}{G_3}}=\frac{\dfrac{G_1G_2G_3}{1+G_2G_3H_2}}{\dfrac{1+G_2G_3H_2+G_1G_2H_1}{1+G_2G_3H_2}}=\frac{G_1G_2G_3}{1+G_1G_2H_1+G_2G_3H_2}
+$$
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{G_1G_2G_3}{1+G_1G_2H_1+G_2G_3H_2}
+$$
+
+the same as the professor's algebraic result on p. 2. ✓
+
+</Answer>
+
+</Example>
+
+<TwoLoopStepper />
+
+<Example title="Common mistake: forgetting the compensating block">
+
+**Situation:** a student moves the $X$ take-off point of the p. 1 system to $Y$ but keeps only $H_1$ in the branch:
+
+<TwoLoopMovedFig wrong caption="WRONG: the take-off point was moved past G₃ but the 1/G₃ block was forgotten." />
+
+<Step title="What the student gets">
+
+Inner loop as before, then the outer loop with feedback $H_1$ instead of $H_1/G_3$. Loop product $=\dfrac{G_1G_2G_3H_1}{1+G_2G_3H_2}$, so
+
+$$
+T_{\text{wrong}}=\frac{G_1G_2G_3}{1+G_2G_3H_2+G_1G_2G_3H_1}
+$$
+
+</Step>
+
+<Step title="Spot it with the loop-product check">
+
+The $H_1$ loop product has become $G_1G_2G_3H_1$ instead of $G_1G_2H_1$ — an extra $G_3$. The branch now carries $Y=G_3X$ to $H_1$ instead of $X$.
+
+</Step>
+
+<Step title="Spot it with numbers">
+
+With the gains of the previous numeric example ($G_1=2$, $G_2=\frac{1}{s+1}$, $G_3=\frac1s$, $H_1=1$, $H_2=2$), multiply by $s(s+1)$:
+
+$$
+T_{\text{wrong}}=\frac{2}{s(s+1)+2+2}=\frac{2}{s^2+s+4},\qquad T_{\text{correct}}=\frac{2}{s^2+3s+2}
+$$
+
+At $s=0$: $T_{\text{wrong}}(0)=0.5$ but $T_{\text{correct}}(0)=1$.
+
+</Step>
+
+<Answer>
+
+The compensating block $\frac{1}{G_3}$ is required; without it the result is a different system. Always ask: *“What signal did this branch carry before the move? Does it still carry exactly that?”*
+
+</Answer>
+
+</Example>
+
+<Example title="Parallel blocks inside a feedback loop">
+
+**Given:** the diagram below with $G_1=2$, $G_2=\dfrac1s$ and unity negative feedback. **Asked:** $T(s)$ and $T(0)$.
+
+<ParallelLoopFig />
+
+<Step title="Parallel combination">
+
+Both blocks get the junction output and their outputs are added: $G=G_1+G_2=2+\dfrac1s=\dfrac{2s+1}{s}$.
+
+</Step>
+
+<Step title="Rule 3 with H = 1">
+
+$$
+T=\frac{G}{1+G}=\frac{\dfrac{2s+1}{s}}{1+\dfrac{2s+1}{s}}=\frac{2s+1}{s+2s+1}=\frac{2s+1}{3s+1}
+$$
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{2s+1}{3s+1},\qquad T(0)=1
+$$
+
+</Answer>
+
+**Check at $s=1$:** $G=3$, $T=3/4$; formula: $3/4$. ✓ $T(0)=1$ makes sense: the integrator $1/s$ in the forward path makes the loop product infinite at $s=0$, so $T(0)=1/H=1$.
+
+</Example>
+
+<Example title="Feed-forward path: moving a summing point">
+
+**Given:** $G_1=4$, $G_2=\dfrac{1}{s+2}$, $G_3=1$ in the diagram below. **Asked:** $T(s)$ by reduction, checked by algebra.
+
+<FeedforwardFig />
+
+<Step title="Why we need a move">
+
+$\Sigma_2$ sits between $G_1$ and $G_2$, inside the unity feedback loop, and receives a signal from outside the loop ($G_3R$). Rule 3 cannot be used until $\Sigma_2$ is moved.
+
+</Step>
+
+<Step title="Rule 1: move Σ₂ ahead of G₁">
+
+The side input $G_3R$ must now pass through $\frac{1}{G_1}$:
+
+<FeedforwardMovedFig />
+
+</Step>
+
+<Step title="Rearrange the two junctions">
+
+The input of $G_1$ is now $R-Y+\dfrac{G_3}{G_1}R$. Addition does not care about order, so write it as $\Big(1+\dfrac{G_3}{G_1}\Big)R-Y$: a parallel combination (direct path $1$ plus path $\frac{G_3}{G_1}$) in front of a plain unity-feedback loop.
+
+<Loop pre={{ t: '1+\\frac{G_3}{G_1}', w: 90 }} fwd={[{ t: 'G_1' }, { t: 'G_2' }]} fb={[]} caption="Pre-block (parallel paths combined) followed by a unity feedback loop." />
+
+</Step>
+
+<Step title="Reduce">
+
+$$
+T=\Big(1+\frac{G_3}{G_1}\Big)\cdot\frac{G_1G_2}{1+G_1G_2}=\frac{(G_1+G_3)\,G_2}{1+G_1G_2}
+$$
+
+With numbers: $G_1+G_3=5$, $G_1G_2=\dfrac{4}{s+2}$:
+
+$$
+T=\frac{\dfrac{5}{s+2}}{1+\dfrac{4}{s+2}}=\frac{5}{s+6}
+$$
+
+</Step>
+
+<Step title="Independent algebraic check">
+
+From the original diagram: $Y=G_2\big[G_1(R-Y)+G_3R\big]$, so $Y(1+G_1G_2)=G_2(G_1+G_3)R$, the same general formula. ✓
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{(G_1+G_3)G_2}{1+G_1G_2}=\frac{5}{s+6}
+$$
+
+</Answer>
+
+</Example>
+
+<Example title="Checking a reduction numerically">
+
+**Given:** the p. 4 system with $G_1=10$, $G_2=\dfrac1{s+1}$, $G_3=2$, $G_4=\dfrac1s$, $H_1=0.5$, $H_2=H_3=1$. **Asked:** $T(s)$, and a numeric spot-check of the formula.
+
+<Step title="Loop products and forward path">
+
+$$
+G_1G_2G_3G_4=\frac{20}{s(s+1)},\quad G_1G_2H_1=\frac{5}{s+1},\quad G_2G_3H_2=\frac{2}{s+1},\quad G_2G_3G_4H_3=\frac{2}{s(s+1)}
+$$
+
+</Step>
+
+<Step title="Substitute and multiply by s(s+1)">
+
+$$
+T=\frac{20}{s(s+1)+5s+2s+2}=\frac{20}{s^2+8s+2}
+$$
+
+</Step>
+
+<Step title="Spot-check at s = 1 directly from the diagram">
+
+At $s=1$: $G_2=0.5$, $G_4=1$. From the algebra check, $A\,(1+G_1G_2H_1+G_2G_3H_2+G_2G_3G_4H_3)=G_1G_2R$: $A(1+2.5+1+1)=5R$, so $A=\frac{5}{5.5}R$, and $Y=G_3G_4A=\frac{10}{5.5}R=\frac{20}{11}R$. The formula: $\frac{20}{1+8+2}=\frac{20}{11}$. ✓
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{20}{s^2+8s+2},\qquad T(0)=10
+$$
+
+</Answer>
+
+**Why spot-checks work:** two rational functions that differ will almost never agree at an arbitrary test point, so agreement at one or two random values of $s$ is a fast and reliable check in an exam.
+
+</Example>
+
+## Edge cases
+
+- **Unity feedback, $H=1$:** Rule 3 becomes $T=\dfrac{G}{1+G}$ (the p. 3 Rule 2 diagram is of this type).
+- **Very large loop product:** $T=\dfrac{G}{1+GH}\to\dfrac1H$ as $GH\to\infty$. The plant hardly matters; the feedback path decides.
+- **No feedback, $H=0$:** $T=G$. Setting individual $H$'s to zero is the fastest way to test a multi-loop result.
+- **Positive feedback with $GH=1$:** the denominator $1-GH$ becomes zero. For example $G=\dfrac{2}{s+1}$, $H=0.5$ positive gives $T=\dfrac{2}{s+1-1}=\dfrac{2}{s}$, a pure integrator — the output of a step grows like a ramp instead of settling.
+- **Moving across a block with a zero:** the compensating block $1/G$ swaps numerator and denominator of $G$, e.g. $G=\dfrac{s+1}{s+3}$ gives $\dfrac{1}{G}=\dfrac{s+3}{s+1}$. This is fine algebraically — the $1/G$ never appears in the final $T(s)$, because it always cancels against the $G$ it compensates (as $G_3G_4$ cancelled on p. 4).
+- **Take-off point next to a summing junction:** the rules of p. 3 move points across **blocks** only. Do not move a take-off point across a summing junction by these rules — the signal changes there, so the branch would carry a different signal. If you are unsure, fall back to the algebraic method.
+
+## How to solve exam problems
+
+<Procedure title="Finding T(s) of a block diagram">
+
+1. **Read the diagram.** Mark every sign at every junction, every take-off point, and list the loops with their loop products. Write the forward path product.
+2. **Choose the method.** One or two loops, or loops that interlock in a messy way: write the equations (p. 1–2 method). Nested or easily untangled loops: reduce graphically (p. 3–4 method).
+3. **Reduction:** combine series and parallel blocks; collapse any self-contained loop with $\frac{G}{1\pm GH}$; if no loop is self-contained, move a take-off point or summing point (with its compensating block) so that one becomes self-contained; repeat.
+4. **Simplify:** clear nested fractions by multiplying numerator and denominator by the inner denominators.
+5. **Verify:** (a) the loop-product check after every move; (b) set some $H$'s to zero and see that the result reduces sensibly; (c) evaluate at a test value such as $s=1$ by both methods.
+
+</Procedure>
+
+<Mistake title="Forgetting or inverting the compensating block">
+
+Moving a point without a compensating block, or putting $G$ where $\frac1G$ belongs. Cure: ask what signal the branch carried before the move and make sure it carries exactly that afterwards.
+
+</Mistake>
+
+<Mistake title="Sign errors">
+
+Using $1+GH$ for a positive-feedback loop, or losing a “−” when writing $E=R-HY$. The denominator sign is always the **opposite** of the junction sign.
+
+</Mistake>
+
+<Mistake title="Collapsing a loop that is not self-contained">
+
+Applying $\frac{G}{1+GH}$ to the $H_2$ loop of p. 1 while $X$ is still taken off inside it gives a wrong answer, because the $H_1$ branch would lose its signal. Move the take-off point first.
+
+</Mistake>
+
+<Mistake title="Thinking a take-off point splits the signal">
+
+Both branches carry the full signal. Only blocks change signals.
+
+</Mistake>
+
+**Typical variations:** numeric gains (substitute at the end, then clear fractions), asking only for one inner equivalent (like $G_A$), asking for the diagram after a specific move (draw it and give the compensating block), asking whether two diagrams are equivalent (write both output equations, as in the p. 3 proofs).
+
+## Practice exercises
+
+<Exercise title="Pick-off point versus summing junction" kind="concept" level={1}>
+
+A signal $X(s)$ reaches a take-off point with three outgoing branches. What signal does each branch carry? What is the output of a summing junction whose inputs are $X$ (+), $Y$ (−) and $Z$ (+)?
+
+<Solution>
+
+Each branch carries the full signal $X(s)$ — a take-off point copies the signal, it does not divide it. The junction output is $X-Y+Z$, each input taken with its own sign.
+
+**Check:** the proofs of Rules 1–3 only work if a take-off point copies the signal (e.g. in Rule 3 the junction receives $HY$, with the full $Y$).
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Why the 1/G block appears" kind="concept" level={1}>
+
+In Rule 1 (p. 3), why does the side input $X$ pass through $\frac{1}{G_1}$ after the summing point is moved before $G_1$?
+
+<Solution>
+
+Before the move, $X$ was added **after** $G_1$, so it reached $G_2$ unchanged. After the move it is added **before** $G_1$, so it gets multiplied by $G_1$. Putting $\frac{1}{G_1}$ in its path cancels that: $G_1\cdot\frac{1}{G_1}X=X$. Proof: before $Y=G_2(G_1R+X)$; after $Y=G_2G_1(R+X/G_1)=G_2(G_1R+X)$. ✓
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Closed loop with constant feedback" kind="formula" level={1}>
+
+$G(s)=\dfrac{5}{s+2}$, $H=3$, negative feedback. Find $T(s)$ and $T(0)$.
+
+<Solution>
+
+$$
+T=\frac{\dfrac{5}{s+2}}{1+\dfrac{15}{s+2}}=\frac{5}{s+2+15}=\frac{5}{s+17}
+$$
+
+$T(0)=\frac{5}{17}\approx0.294$. **Check:** $s=1$: $G=5/3$, $GH=5$, $T=\frac{5/3}{6}=\frac{5}{18}$; formula $\frac{5}{18}$. ✓
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Positive feedback version" kind="formula" level={1}>
+
+Repeat the previous exercise with a “+” at the feedback input of the junction. Is the result a sensible closed-loop system?
+
+<Solution>
+
+$$
+T=\frac{G}{1-GH}=\frac{\dfrac{5}{s+2}}{1-\dfrac{15}{s+2}}=\frac{5}{s+2-15}=\frac{5}{s-13}
+$$
+
+The pole is at $s=+13$: the response contains $e^{13t}$ and grows without limit — positive feedback with this large a loop product makes the system run away. **Check:** $s=1$: $T=\frac{5/3}{1-5}=-\frac{5}{12}$; formula $\frac{5}{1-13}=-\frac{5}{12}$. ✓
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Series and parallel combination" kind="calc" level={1}>
+
+$G_1=\dfrac{2}{s+1}$ is in series with a parallel pair $G_2=3$ and $G_3=\dfrac1s$ (outputs added). Find the equivalent transfer function.
+
+<Solution>
+
+Parallel: $G_2+G_3=3+\frac1s=\frac{3s+1}{s}$. Series with $G_1$:
+
+$$
+G_{eq}=\frac{2}{s+1}\cdot\frac{3s+1}{s}=\frac{2(3s+1)}{s(s+1)}=\frac{6s+2}{s^2+s}
+$$
+
+**Check:** $s=1$: $G_1=1$, parallel $=4$, product $4$; formula $\frac{8}{2}=4$. ✓
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Unity feedback form" kind="formula" level={1}>
+
+$G(s)=\dfrac{4}{s(s+2)}$ with unity negative feedback. Find $T(s)$.
+
+<Solution>
+
+$$
+T=\frac{G}{1+G}=\frac{\dfrac{4}{s(s+2)}}{1+\dfrac{4}{s(s+2)}}=\frac{4}{s(s+2)+4}=\frac{4}{s^2+2s+4}
+$$
+
+**Check:** $T(0)=1$, as expected for unity feedback with an integrator ($1/s$) in $G$. At $s=1$: $G=4/3$, $T=\frac{4/3}{7/3}=\frac47$; formula $\frac{4}{7}$. ✓
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Professor's two-loop system without H2" kind="prof" level={2}>
+
+In the p. 1 system remove the $H_2$ branch. Find $T(s)$ both by Rule 3 and from the professor's general result.
+
+<Solution>
+
+**Rule 3:** without $H_2$, the $H_1$ loop ($G_1$, $G_2$ forward, $H_1$ back) is self-contained: its equivalent is $\frac{G_1G_2}{1+G_1G_2H_1}$, followed in series by $G_3$:
+
+$$
+T=\frac{G_1G_2G_3}{1+G_1G_2H_1}
+$$
+
+**General result** with $H_2=0$: $\frac{G_1G_2G_3}{1+G_1G_2H_1+0}$ — identical. ✓
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Professor's two-loop system with numbers" kind="prof" level={2}>
+
+p. 1 system with $G_1=10$, $G_2=\dfrac1{s+1}$, $G_3=\dfrac1{s+2}$, $H_1=H_2=1$. Find $T(s)$ and $T(0)$.
+
+<Hint>Multiply numerator and denominator by $(s+1)(s+2)$.</Hint>
+
+<Solution>
+
+$G_1G_2G_3=\frac{10}{(s+1)(s+2)}$, $G_1G_2H_1=\frac{10}{s+1}$, $G_2G_3H_2=\frac{1}{(s+1)(s+2)}$. Multiply by $(s+1)(s+2)$:
+
+$$
+T=\frac{10}{(s+1)(s+2)+10(s+2)+1}=\frac{10}{s^2+3s+2+10s+20+1}=\frac{10}{s^2+13s+23}
+$$
+
+$T(0)=\frac{10}{23}\approx0.435$. **Check** directly at $s=0$: $G_1=10$, $G_2=1$, $G_3=0.5$: $T=\frac{5}{1+10+0.5}=\frac{5}{11.5}=\frac{10}{23}$. ✓
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Moving a take-off point forward" kind="problem" level={2}>
+
+A take-off point sits **before** a block $G$ and feeds a branch $B$. Prove that moving it to **after** $G$ requires the block $\frac1G$ in the branch. Where did the professor use this?
+
+<Solution>
+
+Let $Z$ be the signal before $G$. Originally the branch carries $Z$. After the move the take-off point carries $GZ$; for the branch to still carry $Z$ it needs a block $K$ with $K\cdot GZ=Z$, so $K=\frac1G$. Nothing else in the diagram changes, so the output equations are identical.
+
+The professor used it on p. 4, moving the $H_1$ take-off point past $G_3$ and $G_4$ (series, $G_3G_4$), hence the block $\frac{1}{G_3G_4}$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Moving a summing point after a block" kind="problem" level={2}>
+
+In the diagram $R\to\Sigma\to G\to Y$, a side input $X$ enters $\Sigma$ with +. Move the summing point to after $G$ and give the compensating block. Prove the equivalence.
+
+<Solution>
+
+Before: $Y=G(R+X)=GR+GX$. After: the junction adds the side input to $GR$, so the side input must arrive as $GX$: the compensating block is $G$. Then $Y=GR+GX$. ✓ (This is Rule 1 run backwards: going ahead of a block needs $\frac1G$, going after a block needs $G$.)
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Why move the H1 take-off point all the way to Y" kind="prof" level={2}>
+
+In the p. 4 example, the professor moved the $H_1$ take-off point past both $G_3$ and $G_4$. What would go wrong if it were moved only past $G_3$ (to point B)?
+
+<Solution>
+
+At B, the $H_2$ loop would become self-contained and $G_A$ could still be computed. But B lies **inside** the $H_3$ loop ($\Sigma_2\to G_2\to G_3\to B\to G_4\to Y\to H_3$). The next step — collapsing the $H_3$ loop into $G_B$ — would then be blocked by the take-off point at B, and another move (past $G_4$, block $\frac1{G_4}$) would be needed anyway. Moving it straight to $Y$ places it outside every inner loop, so the remaining reductions are plain Rule 3 steps. (Moving to B gives branch block $\frac1{G_3}$; then moving on past $G_4$ gives $\frac{1}{G_3}\cdot\frac{1}{G_4}=\frac{1}{G_3G_4}$ — the same final picture.)
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Three-loop system with all gains equal to one" kind="prof" level={1}>
+
+In the p. 4 system let all $G_i=1$ and all $H_i=1$. Find $T$ from the final formula, then check by the algebraic equations.
+
+<Solution>
+
+$$
+T=\frac{1}{1+1+1+1}=\frac14
+$$
+
+**Algebra:** $A(1+G_1G_2H_1+G_2G_3H_2+G_2G_3G_4H_3)=G_1G_2R$ gives $4A=R$, $A=R/4$; $Y=G_3G_4A=R/4$. ✓
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Three-loop system with a gain K" kind="prof" level={3}>
+
+p. 4 system with $G_1=K$, $G_2=\dfrac{1}{s+1}$, $G_3=1$, $G_4=\dfrac{1}{s+2}$, $H_1=H_2=H_3=1$. Find $T(s)$ in terms of $K$, then for $K=5$.
+
+<Solution>
+
+Forward path $\frac{K}{(s+1)(s+2)}$. Loop products: $G_1G_2H_1=\frac{K}{s+1}$, $G_2G_3H_2=\frac{1}{s+1}$, $G_2G_3G_4H_3=\frac{1}{(s+1)(s+2)}$. Multiply by $(s+1)(s+2)$:
+
+$$
+T=\frac{K}{(s+1)(s+2)+K(s+2)+(s+2)+1}
+$$
+
+Expand: $(s+1)(s+2)=s^2+3s+2$; $K(s+2)=Ks+2K$; $(s+2)+1=s+3$. Sum: $s^2+(4+K)s+(5+2K)$.
+
+$$
+T=\frac{K}{s^2+(4+K)s+5+2K},\qquad K=5:\ T=\frac{5}{s^2+9s+15}
+$$
+
+**Check** at $s=0$, $K=5$: $G_2=1$, $G_4=0.5$: $T=\frac{2.5}{1+5+1+0.5}=\frac{2.5}{7.5}=\frac13$; formula $\frac{5}{15}=\frac13$. ✓
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Spot the error in a reduction" kind="edge" level={2}>
+
+A student applies Rule 1 to the first p. 3 diagram but connects $X$ directly to the moved summing point (no $\frac1{G_1}$ block). Write the output of the student's diagram and say by how much the $X$-contribution is wrong.
+
+<Solution>
+
+Student: $Y=G_2G_1(R+X)=G_1G_2R+G_1G_2X$. Correct: $Y=G_1G_2R+G_2X$. The $R$ part is right, but the $X$ contribution is multiplied by an extra factor $G_1$. The error disappears only if $G_1=1$. The missing $\frac{1}{G_1}$ is exactly what removes this factor.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Very large loop gain" kind="edge" level={2}>
+
+$G=\dfrac{K}{s+1}$, $H=0.5$, negative feedback. Find $T(0)$ for $K=10$ and $K=1000$, and the limit as $K\to\infty$. Explain.
+
+<Solution>
+
+$T=\frac{K}{s+1+0.5K}$, so $T(0)=\frac{K}{1+0.5K}$. $K=10$: $\frac{10}{6}\approx1.667$. $K=1000$: $\frac{1000}{501}\approx1.996$. As $K\to\infty$, $T(0)\to\frac{1}{0.5}=2=\frac1H$. With a huge loop product the closed loop no longer depends on $G$: $T\approx\frac{G}{GH}=\frac1H$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Feedback that cancels the pole" kind="edge" level={2}>
+
+$G=\dfrac{2}{s+1}$, $H=0.5$, **positive** feedback. Find $T(s)$ and describe the step response.
+
+<Solution>
+
+$$
+T=\frac{G}{1-GH}=\frac{\dfrac{2}{s+1}}{1-\dfrac{1}{s+1}}=\frac{2}{s+1-1}=\frac{2}{s}
+$$
+
+An integrator. For a unit step $R=\frac1s$: $Y=\frac{2}{s^2}$, so $y(t)=2t$ — a ramp that never settles. The loop product at $s=0$ is exactly 1, so $1-GH=0$ there.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Feed-forward system with new gains" kind="problem" level={2}>
+
+In the feed-forward diagram of the additional examples take $G_1=2$, $G_2=\dfrac{1}{s+3}$, $G_3=2$. Find $T(s)$ and verify it with the signal equations.
+
+<Solution>
+
+General result (from the example): $T=\dfrac{(G_1+G_3)G_2}{1+G_1G_2}=\dfrac{\frac{4}{s+3}}{1+\frac{2}{s+3}}=\dfrac{4}{s+5}$.
+
+**Verification:** $Y=G_2[G_1(R-Y)+G_3R]$: $(s+3)Y=2R-2Y+2R$, so $(s+5)Y=4R$ and $T=\frac{4}{s+5}$. ✓
+
+</Solution>
+
+</Exercise>
+

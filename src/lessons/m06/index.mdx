@@ -1,0 +1,1585 @@
+import { FirstOrderLoopBD, Ex1LoopBD, Ex2LoopBD, GeneralLoopBD, IntegratorViewBD, RCCircuit, ImpulsePlot, StepPlot, RampPlot, Ex1StepPlot, Ex1ImpulsePlot, Ex1RampPlot, Ex2ImpulsePlot, Ex2StepPlot, MeasuredStepPlot, TenOverPlot, FirstOrderExplorer, LoopExplorer } from './widgets'
+
+## What is this about?
+
+The notes open a new chapter: <Term en="Time-domain characteristics of control systems" tr="Kontrol Sistemlerinin Zaman Bölgesi Karakteristikleri" /> <Src p="1" />. Until now we built transfer functions. Now we ask the question an engineer actually cares about: **if I apply this input, what will the output do over time, and how fast, and how accurately?**
+
+We start with the simplest dynamic system there is: the <Term en="first-order control system" tr="Birinci Dereceden Kontrol Sistemi" />.
+
+**A concrete picture first.** Close a switch that connects a battery to a resistor and an uncharged capacitor. The capacitor voltage does not jump to the battery voltage; it rises quickly at first and then more and more slowly, creeping up to the final value. Put a cup of hot tea in a room: its temperature falls fast at first, then slowly. Press the accelerator of a car: speed rises and levels off. All of these have the same shape, because each one obeys the same rule:
+
+> **The rate of change is proportional to how far you are from where you are going.**
+
+Far from the target → change fast. Close to the target → change slowly. That rule is a first-order differential equation, and its fingerprint is the exponential $e^{-t/\tau}$. A single number, the **time constant** $\tau$, tells you how fast everything happens.
+
+This module answers, for a first-order system:
+
+- What does the output do for the three standard test inputs (impulse, step, ramp — defined in [Module 02](#/m/02))?
+- What is the meaning of $\tau$ on each graph, and how do you sketch each graph by hand?
+- How long until the output has "settled"?
+- How big is the error that remains forever (the steady-state error $e_{ss}$)?
+- What changes when the gain is not 1 (Example 1) or when the transfer function has an $s$ in the numerator (Example 2)?
+
+**After this module you can:**
+
+- reduce any unity-feedback loop with a first-order $G(s)$ to the form $T(s)=\dfrac{K}{\tau s+1}$ and read off $\tau$, the DC gain $K$, and the pole $-1/\tau$;
+- write the impulse, step and ramp responses immediately, and sketch them with the correct tangents, key points and final values;
+- compute settling time ($4\tau$–$5\tau$) and the steady-state error both in the time domain and with $\lim_{s\to0}s[R(s)-Y(s)]$;
+- use the initial and final value theorems — and recognise when they need care;
+- read $\tau$ and $K$ from a measured response curve.
+
+The Laplace tools used here (partial fractions, inverse transforms, the initial and final value theorems) come from [Module 03](#/m/03).
+
+## The standard first-order loop
+
+### The block diagram
+
+The notes start from this loop <Src p="1" />:
+
+<FirstOrderLoopBD />
+
+- $R(s)$ — the input (reference, the value we want).
+- $E(s)$ — the error, $E(s)=R(s)-Y(s)$: what comes out of the summing junction $\Sigma$ with signs $+$ (from $R$) and $-$ (from $Y$).
+- $\dfrac{1}{\tau s}$ — the forward-path transfer function $G(s)$. $\tau$ is a positive constant measured in seconds.
+- $Y(s)$ — the output. It is fed straight back (no block in the feedback path, so $H(s)=1$): this is <Term en="unity negative feedback" tr="birim negatif geri besleme" />.
+
+### Deriving T(s)
+
+<Example title="Deriving T(s) for the standard first-order loop" src="1">
+
+<Step title="Write the loop equations">
+
+From the diagram: the error is $E(s)=R(s)-Y(s)$, and the block gives $Y(s)=G(s)E(s)$ with $G(s)=\dfrac{1}{\tau s}$.
+
+</Step>
+
+<Step title="Eliminate E(s)">
+
+$$
+Y(s)=G(s)\big[R(s)-Y(s)\big]\;\Rightarrow\;Y(s)\big[1+G(s)\big]=G(s)R(s)\;\Rightarrow\;\frac{Y(s)}{R(s)}=\frac{G(s)}{1+G(s)}
+$$
+
+This is the familiar closed-loop formula for unity negative feedback.
+
+</Step>
+
+<Step title="Substitute G(s) and clear the fraction">
+
+$$
+T(s)=\frac{\dfrac{1}{\tau s}}{1+\dfrac{1}{\tau s}}
+$$
+
+Multiply numerator and denominator by $\tau s$:
+
+$$
+T(s)=\frac{1}{\tau s+1}
+$$
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{Y(s)}{R(s)}=\frac{1}{\tau s+1}
+$$
+
+</Answer>
+
+</Example>
+
+<KeyFormula title="Standard first-order closed-loop transfer function">
+
+$$
+T(s)=\frac{Y(s)}{R(s)}=\frac{1}{\tau s+1}
+$$
+
+</KeyFormula>
+
+<Src p="1" /> The denominator is first-order in $s$ (highest power $s^1$) — that is exactly what "first-order system" means. The notes then say: *"Ters Laplace dönüşümünü alırsak sistemin birim impulse tepkesini buluruz"* — "if we take the inverse Laplace transform we find the system's unit impulse response."
+
+### The differential equation behind it
+
+Why does this loop behave like the capacitor or the cooling tea? Read the block $\dfrac{1}{\tau s}$ in the time domain: $\dfrac{1}{s}$ is integration, so the block integrates the error and multiplies it by $\dfrac{1}{\tau}$. Equivalently, the derivative of the output is proportional to the error:
+
+<IntegratorViewBD />
+
+$$
+Y(s)=\frac{1}{\tau s}E(s)\;\Longleftrightarrow\;\tau s\,Y(s)=E(s)\;\Longleftrightarrow\;\tau\frac{dy}{dt}=e(t)=r(t)-y(t)
+$$
+
+(using $\L\{\dot y\}=sY(s)$ with zero initial conditions). Rearranged:
+
+$$
+\tau\frac{dy}{dt}+y(t)=r(t)
+$$
+
+and its Laplace transform is $(\tau s+1)Y(s)=R(s)$, i.e. $T(s)=\dfrac{1}{\tau s+1}$ again.
+
+<Intuition>
+
+$\dfrac{dy}{dt}=\dfrac{e(t)}{\tau}$ is the whole story of this module:
+
+- **Big error → output moves fast.** At the start of a step, $e=1$, so the slope is $1/\tau$.
+- **Error shrinks → output slows down.** That is why the curve bends over exponentially.
+- **The output keeps moving as long as there is any error at all.** So for a constant target it can only stop when $e=0$ → zero steady-state error for a step.
+- **To follow a ramp of slope 1**, the output needs $\dfrac{dy}{dt}=1$, which requires a constant error $e=\tau$. That is the constant lag $\tau$ we will find for the ramp.
+- **Smaller $\tau$** → the same error produces a bigger slope → a faster system.
+
+</Intuition>
+
+### Physical twin: the RC circuit
+
+The RC circuit (see [Module 05](#/m/05)) is the textbook physical first-order system:
+
+<RCCircuit />
+
+- KVL around the loop: $v_s(t)=R\,i(t)+v_c(t)$.
+- Capacitor law: $i(t)=C\dfrac{dv_c}{dt}$.
+- Substituting: $RC\dfrac{dv_c}{dt}+v_c(t)=v_s(t)$.
+
+This is **exactly** $\tau\dot y+y=r$ with $y=v_c$, $r=v_s$ and $\tau=RC$. In the $s$-domain:
+
+$$
+\frac{V_c(s)}{V_s(s)}=\frac{1}{RCs+1}
+$$
+
+The "error" is the voltage across the resistor, $v_s-v_c$; it drives the current that charges the capacitor. When the capacitor reaches $v_s$, the resistor voltage — the error — is zero and charging stops. Everything said below about $\tau$ applies to this circuit with $\tau=RC$.
+
+<Example title="RC circuit as a first-order system">
+
+**Given:** $R=1\,\text{k}\Omega$, $C=100\,\mu\text{F}$, a 5 V step is applied at $t=0$, capacitor initially uncharged. **Asked:** $\tau$, $v_c(t)$, the voltage after one time constant, and the settling time.
+
+<Step title="Time constant">
+
+$\tau=RC=(1000\,\Omega)(100\times10^{-6}\,\text{F})=0.1\,\text{s}$.
+
+</Step>
+
+<Step title="Response">
+
+The input is $5\cdot u(t)$, so $V_s(s)=\dfrac{5}{s}$ and, by linearity, the output is 5 times the unit step response (derived below):
+
+$$
+v_c(t)=5\left(1-e^{-t/0.1}\right)=5\left(1-e^{-10t}\right)\ \text{V}
+$$
+
+</Step>
+
+<Step title="Key values">
+
+At $t=\tau=0.1$ s: $v_c=5(1-e^{-1})=5(0.632)=3.16$ V. Settling: $4\tau=0.4$ s (98.2 %), $5\tau=0.5$ s (99.3 %).
+
+</Step>
+
+<Answer>
+
+$\tau=0.1$ s, $v_c(t)=5(1-e^{-10t})$ V, $v_c(0.1)=3.16$ V, settled after about 0.4–0.5 s.
+
+</Answer>
+
+**Sanity check:** $v_c(0)=0$ (the capacitor starts uncharged), $v_c(\infty)=5$ V (a fully charged capacitor carries no current, so it has the whole source voltage). ✓
+
+</Example>
+
+### Where is the pole?
+
+The denominator $\tau s+1$ is zero at
+
+$$
+s=-\frac{1}{\tau}
+$$
+
+This single real pole lies on the negative real axis. Every response of the system contains the term $e^{-t/\tau}=e^{(-1/\tau)t}$, i.e. $e^{pt}$ with $p$ the pole. Consequently:
+
+- **pole farther to the left** ⇒ $1/\tau$ larger ⇒ $\tau$ smaller ⇒ **faster** decay;
+- **pole close to the origin** ⇒ $\tau$ large ⇒ slow, sluggish system;
+- pole on the left half-plane ⇒ $e^{-t/\tau}\to0$ ⇒ the system is stable and the transient dies out.
+
+You can move the pole yourself in the explorer further below.
+
+## Unit impulse response
+
+<Def term="Unit impulse response" tr="Birim Impulse Tepkesi">
+
+The output when the input is the unit impulse $r(t)=\delta(t)$, whose Laplace transform is $R(s)=1$ (see [Module 02](#/m/02)). Since $Y(s)=T(s)\cdot1$, the impulse response is simply the inverse Laplace transform of the transfer function. <Src p="1" />
+
+</Def>
+
+### Derivation
+
+Write $T(s)$ in the form of a standard transform pair. Use $\Li\left\{\dfrac{1}{s+a}\right\}=e^{-at}$ after dividing numerator and denominator by $\tau$:
+
+$$
+\frac{1}{\tau s+1}=\frac{1}{\tau}\cdot\frac{1}{s+\frac{1}{\tau}}
+$$
+
+so
+
+$$
+y(t)=\Li\left\{1\cdot\frac{1}{\tau s+1}\right\}=\frac{1}{\tau}e^{-\frac{t}{\tau}},\qquad t\ge0
+$$
+
+<KeyFormula title="Unit impulse response of 1/(τs+1)">
+
+$$
+y(t)=\frac{1}{\tau}e^{-t/\tau}
+$$
+
+</KeyFormula>
+
+### The graph and the meaning of tau
+
+<Src p="1" /> The notes sketch this decaying exponential, starting at $\frac{1}{\tau}$, with a dashed tangent from the starting point down to the time axis at $t=\tau$ and ticks at $\tau$, $4\tau$, $5\tau$:
+
+<ImpulsePlot />
+
+- **Axes:** time $t$ horizontally, output $y(t)$ vertically. The plot uses $\tau=1$ s so that the time axis directly reads in multiples of $\tau$.
+- **Start:** $y(0^+)=\frac{1}{\tau}$. The impulse "kicks" the system: it instantly delivers a finite amount of output, then the system relaxes.
+- **After one time constant:** $y(\tau)=\frac{1}{\tau}e^{-1}=0.368\cdot\frac{1}{\tau}$ — the response has dropped to 36.8 % of its initial value (it has lost 63.2 %).
+- **Final value:** $y\to0$.
+- **Shape:** concave up, always positive, never actually reaching zero.
+
+The professor's comment: *"Görüldüğü gibi τ zaman sabitini temsil etmektedir. Sistemin sönüm süresi yaklaşık 4τ–5τ olarak alınabilir."* — "As seen, $\tau$ represents the <Term en="time constant" tr="zaman sabiti" />. The system's <Term en="decay time" tr="sönüm süresi" /> can be taken as approximately $4\tau$–$5\tau$." <Src p="1" />
+
+How much is left after $n$ time constants? $e^{-n}$ of the initial value:
+
+| $t$ | $\tau$ | $2\tau$ | $3\tau$ | $4\tau$ | $5\tau$ |
+|---|---|---|---|---|---|
+| $e^{-t/\tau}$ (fraction remaining) | 0.368 | 0.135 | 0.050 | 0.018 | 0.007 |
+
+After $4\tau$ only 1.8 % remains, after $5\tau$ only 0.7 % — practically zero. That is why $4\tau$–$5\tau$ is the "decay time".
+
+### Initial slope of the impulse response
+
+Differentiate (chain rule: $\frac{d}{dt}e^{-t/\tau}=-\frac{1}{\tau}e^{-t/\tau}$):
+
+$$
+\left.\frac{dy(t)}{dt}\right|_{t=0}=\left.-\frac{1}{\tau^{2}}e^{-\frac{t}{\tau}}\right|_{t=0}=-\frac{1}{\tau^{2}}
+$$
+
+<Src p="2" /> *"Burada t=0 anında y(t) fonksiyonunun eğimi $-\frac{1}{\tau^2}$ olarak bulunur"* — "here the <Term en="slope" tr="eğim" /> of $y(t)$ at $t=0$ is $-\frac{1}{\tau^2}$."
+
+**Why the tangent hits the axis exactly at $\tau$:** the tangent line starts at height $\frac{1}{\tau}$ and falls with slope $-\frac{1}{\tau^2}$, so the line is $\frac{1}{\tau}-\frac{t}{\tau^2}$. It is zero when $t=\tau$. In words: *if the response kept falling at its initial rate, it would be gone after exactly one time constant.* This gives a graphical way to find $\tau$ from a measured curve.
+
+<Note title="Correction to the notes (p. 2)">
+
+The notes write the middle expression as $\left.\frac{1}{\tau^{2}}e^{-t/\tau}\right|_{t=0}$ — without the minus sign — and then the final result as $-\frac{1}{\tau^2}$. The derivative of $\frac{1}{\tau}e^{-t/\tau}$ is $-\frac{1}{\tau^2}e^{-t/\tau}$ (the inner derivative of $-t/\tau$ is $-\frac{1}{\tau}$). The **final result $-\frac{1}{\tau^2}$ is correct**; only the minus sign was dropped in the intermediate step. A decaying curve must have a negative slope.
+
+</Note>
+
+### Steady-state error definition
+
+<Def term="Steady-state error" tr="Kalıcı durum hatası">
+
+The error that remains after the transient has died out:
+
+$$
+e_{ss}=\lim_{t\to\infty}e(t)=\lim_{t\to\infty}\big[r(t)-y(t)\big]
+$$
+
+or, with the final value theorem applied to $E(s)=R(s)-Y(s)$:
+
+$$
+e_{ss}=\lim_{s\to0}s\big[R(s)-Y(s)\big]
+$$
+
+<Src p="2" />
+
+</Def>
+
+The $s$-domain version comes from the final value theorem $\lim_{t\to\infty}f(t)=\lim_{s\to0}sF(s)$ ([Module 03](#/m/03)), valid when $f(t)$ actually settles to a finite value. Its big advantage: you get $e_{ss}$ **without** inverting the Laplace transform. (The definition of $e_{ss}$ itself was introduced in [Module 02](#/m/02).)
+
+**For the impulse input** <Src p="2" />:
+
+Time domain — for $t>0$ the impulse is over, $r(t)=\delta(t)=0$, so
+
+$$
+e_{ss}=\lim_{t\to\infty}\left(0-\frac{1}{\tau}e^{-\frac{t}{\tau}}\right)=0
+$$
+
+$s$-domain — *"ya da Laplace dönüşümü kullanarak"* ("or using the Laplace transform"), with $R(s)=1$:
+
+$$
+e_{ss}=\lim_{s\to0}s\left(1-\frac{1}{\tau s+1}\right)=0\cdot\left(1-1\right)=0
+$$
+
+Both routes give the same result, as the notes remark (*"sonucuna aynı şekilde ulaşırız"*).
+
+## Unit step response
+
+<Src p="2" /> *"Giriş fonksiyonu R(s) olarak birim basamak (1/s) fonksiyonu alınırsa, ters Laplace dönüşümü yaparak zaman bölgesi çözümünü elde ederiz."* — "If the <Term en="unit step" tr="birim basamak" /> $\left(\frac{1}{s}\right)$ is taken as the input, we obtain the <Term en="time-domain solution" tr="zaman bölgesi çözümü" /> by inverse Laplace transform."
+
+The step is the most important test input: it models "switch on", "change the set-point", "apply a constant load".
+
+### Derivation of the step response
+
+<Src p="3" />
+
+$$
+Y(s)=R(s)T(s)=\frac{1}{s}\cdot\frac{1}{\tau s+1}
+$$
+
+**Partial fractions.** Write $\dfrac{1}{s(\tau s+1)}=\dfrac{A}{s}+\dfrac{B}{\tau s+1}$. Cover-up: $A=\left.\dfrac{1}{\tau s+1}\right|_{s=0}=1$; $B=\left.\dfrac{1}{s}\right|_{s=-1/\tau}=-\tau$. Hence
+
+$$
+Y(s)=\frac{1}{s}-\frac{\tau}{\tau s+1}=\frac{1}{s}-\frac{1}{s+\frac{1}{\tau}}
+$$
+
+(the last step divides numerator and denominator of the second term by $\tau$). Check by recombining: $\dfrac{(\tau s+1)-\tau s}{s(\tau s+1)}=\dfrac{1}{s(\tau s+1)}$ ✓. Inverting term by term ($\Li\{1/s\}=1$, $\Li\{1/(s+a)\}=e^{-at}$):
+
+<KeyFormula title="Unit step response of 1/(τs+1)">
+
+$$
+y(t)=1-e^{-t/\tau},\qquad t\ge0
+$$
+
+</KeyFormula>
+
+### The step response graph
+
+<StepPlot />
+
+<Src p="3" /> The notes draw the input level $r(t)=1$ as a dashed horizontal line, the rising curve, and a dashed tangent from the origin that reaches the level 1 exactly at $t=\tau$.
+
+- **Start:** $y(0)=1-1=0$. The output cannot jump — the first-order system needs time.
+- **Final value:** $y(\infty)=1$ = the input. Perfect tracking eventually.
+- **Shape:** concave down: it rises fastest at the start (largest error) and then slows down.
+- **Connection to the impulse response:** the step is the integral of the impulse, so the step response is the integral of the impulse response: $\int_0^t\frac{1}{\tau}e^{-u/\tau}du=1-e^{-t/\tau}$ ✓. Equivalently the slope of the step response is the impulse response.
+
+### Time constant on the step curve
+
+$$
+y(\tau)=1-e^{-1}=1-0.368=0.632
+$$
+
+**At $t=\tau$ the step response has covered 63.2 % of the way to its final value.** This is the most common practical definition of the time constant.
+
+**Initial slope** <Src p="3" />:
+
+$$
+\left.\frac{dy}{dt}\right|_{t=0}=\left.\frac{1}{\tau}e^{-\frac{t}{\tau}}\right|_{t=0}=\frac{1}{\tau}
+$$
+
+So the tangent at the origin is the line $y=\frac{t}{\tau}$, which reaches the final value 1 at $t=\tau$: *if the output kept rising at its initial speed, it would arrive in exactly one time constant.* In reality it has only reached 63.2 % by then.
+
+| $t$ | $\tau$ | $2\tau$ | $3\tau$ | $4\tau$ | $5\tau$ |
+|---|---|---|---|---|---|
+| $y(t)=1-e^{-t/\tau}$ | 0.632 | 0.865 | 0.950 | 0.982 | 0.993 |
+
+### Settling time
+
+<Src p="3" /> *"Sistemin yerleşme süresi yaklaşık 4τ–5τ civarındadır."* — "the system's <Term en="settling time" tr="yerleşme süresi" /> is approximately $4\tau$–$5\tau$."
+
+Where do these numbers come from? Ask: when is the output within a fraction $\varepsilon$ of the final value, i.e. $e^{-t/\tau}=\varepsilon$?
+
+$$
+t=\tau\ln\frac{1}{\varepsilon}
+$$
+
+- 2 % band ($\varepsilon=0.02$): $t=\tau\ln50=3.91\tau\approx4\tau$ → at $4\tau$ the output is at 98.2 %.
+- 1 % band: $t=\tau\ln100=4.61\tau$; at $5\tau$ the output is at 99.3 %.
+- 5 % band: $t=\tau\ln20=3.00\tau$.
+
+<KeyFormula title="Settling time of a first-order system">
+
+$$
+t_s\approx4\tau\ (\pm2\%)\qquad\text{to}\qquad5\tau\ (\pm1\%)
+$$
+
+</KeyFormula>
+
+<Tip title="Sketching the step response in an exam">
+
+1. Draw the final-value line (here $y=1$; in general $y=K$, see Example 1).
+2. Mark $\tau$ on the time axis and draw the tangent from the origin to the point $(\tau,\ \text{final value})$.
+3. Mark the point $(\tau,\ 0.632\times\text{final value})$.
+4. Mark $4\tau$ or $5\tau$, where the curve visibly merges with the final-value line.
+5. Draw a smooth, concave-down curve starting along the tangent, through the 63 % point, flattening into the final line.
+
+</Tip>
+
+### Step steady-state error
+
+<Src p="3" /> With $R(s)=\frac{1}{s}$:
+
+$$
+e_{ss}=\lim_{s\to0}s\left(\frac{1}{s}-\frac{1}{\tau s+1}\cdot\frac{1}{s}\right)=\lim_{s\to0}\left(1-\frac{1}{\tau s+1}\right)=1-1=0
+$$
+
+Time domain check: $e(t)=1-(1-e^{-t/\tau})=e^{-t/\tau}\to0$ ✓. The integrator in the loop keeps pushing until the error is exactly zero — as predicted by $\tau\dot y=e$.
+
+## Unit ramp response
+
+<Src p="4" /> *"Giriş fonksiyonunun birim rampa (1/s²) fonksiyonu olması durumunda çıkış fonksiyonu şöyle bulunur"* — "when the input is the <Term en="unit ramp" tr="birim rampa" /> $\left(\frac{1}{s^2}\right)$, the output is found as follows." A ramp $r(t)=t$ models a target that moves at constant speed: an antenna tracking a satellite, a reference temperature that rises steadily.
+
+### Partial fractions for the ramp
+
+$$
+Y(s)=\frac{1}{s^{2}}\cdot\frac{1}{\tau s+1}
+$$
+
+There is a **repeated** pole at $s=0$, so the expansion must contain both $\frac{1}{s^2}$ and $\frac{1}{s}$:
+
+$$
+\frac{1}{s^{2}(\tau s+1)}=\frac{A}{s^{2}}+\frac{B}{s}+\frac{C}{\tau s+1}
+$$
+
+Multiply both sides by $s^2(\tau s+1)$:
+
+$$
+1=A(\tau s+1)+Bs(\tau s+1)+Cs^{2}
+$$
+
+- $s=0$: $1=A$ → $A=1$.
+- $s=-\frac{1}{\tau}$: $1=C\cdot\frac{1}{\tau^2}$ → $C=\tau^2$.
+- Coefficient of $s^2$: $0=B\tau+C$ → $B=-\frac{C}{\tau}=-\tau$.
+- (Check with the coefficient of $s$: $0=A\tau+B=\tau-\tau$ ✓.)
+
+$$
+Y(s)=\frac{1}{s^{2}}-\frac{\tau}{s}+\frac{\tau^{2}}{\tau s+1}
+$$
+
+<Src p="4" /> For the last term, $\dfrac{\tau^2}{\tau s+1}=\dfrac{\tau}{s+\frac1\tau}$, whose inverse is $\tau e^{-t/\tau}$. With $\Li\{1/s^2\}=t$ and $\Li\{1/s\}=1$:
+
+<KeyFormula title="Unit ramp response of 1/(τs+1)">
+
+$$
+y(t)=t-\tau+\tau e^{-t/\tau},\qquad t\ge0
+$$
+
+</KeyFormula>
+
+Checks: $y(0)=0-\tau+\tau=0$ ✓. $\dot y(t)=1-e^{-t/\tau}$, so $\dot y(0)=0$ (the curve starts flat — visible in the notes' sketch) and $\dot y\to1$ (eventually it moves at the same speed as the input). Notice $\dot y$ equals the step response, and the step response is in turn the derivative of the ramp response — again because the ramp is the integral of the step.
+
+### The constant lag tau
+
+<RampPlot />
+
+<Src p="4" /> The notes draw $r(t)$ dashed, $y(t)$ solid below it, and a small blue double arrow labelled $\tau$ between them.
+
+- **Transient part:** $\tau e^{-t/\tau}$ — dies out after about $4\tau$–$5\tau$.
+- **Steady-state part:** $y_{ss}(t)=t-\tau$ — a line **parallel** to the input (same slope 1) but shifted down by $\tau$.
+
+*"Görüldüğü gibi y(t) çıkışı r(t) girişini kalıcı duruma ulaştıktan sonra da τ farkı ile izlemektedir."* — "the output follows the input with a difference of $\tau$ even after reaching steady state."
+
+Because both lines have slope 1, the gap can be read in two ways: the output is $\tau$ **lower** (vertical gap) and also $\tau$ seconds **late** (horizontal gap: $y_{ss}(t)=r(t-\tau)$). A system with a small time constant follows a moving target closely.
+
+### Ramp steady-state error
+
+<Src p="5" /> Time domain:
+
+$$
+e(t)=r(t)-y(t)=t-\left(t-\tau+\tau e^{-\frac{t}{\tau}}\right)=\tau-\tau e^{-t/\tau}\;\xrightarrow{t\to\infty}\;\tau
+$$
+
+$s$-domain:
+
+$$
+e_{ss}=\lim_{s\to0}s\left(\frac{1}{s^{2}}-\frac{1}{\tau s+1}\cdot\frac{1}{s^{2}}\right)=\lim_{s\to0}s\,\frac{\tau s+1-1}{s^{2}(\tau s+1)}=\lim_{s\to0}\frac{\tau s^2}{s^2(\tau s+1)}=\lim_{s\to0}\frac{\tau}{\tau s+1}=\tau
+$$
+
+(The notes do the same cancellation by crossing out $s$, $+1-1$ and $s^2$.)
+
+<KeyFormula title="Ramp steady-state error of the standard loop">
+
+$$
+e_{ss}=\tau
+$$
+
+</KeyFormula>
+
+**Why a constant error and not zero?** From $\tau\dot y=e$: to keep up with a target moving at speed 1, the output needs $\dot y=1$, and the only way the integrator produces that speed is to be fed a constant error $e=\tau$. Zero error would mean zero speed, and the output would fall behind. So a constant lag is the price of tracking a ramp with this loop.
+
+## Summary of the three responses
+
+| Input $r(t)$ | $R(s)$ | Output $y(t)$ of $\frac{1}{\tau s+1}$ | Start | Final behaviour | $e_{ss}$ |
+|---|---|---|---|---|---|
+| $\delta(t)$ | $1$ | $\frac{1}{\tau}e^{-t/\tau}$ | $\frac1\tau$, slope $-\frac{1}{\tau^2}$ | $\to0$ | $0$ |
+| $u(t)$ | $\frac1s$ | $1-e^{-t/\tau}$ | $0$, slope $\frac1\tau$ | $\to1$ | $0$ |
+| $t$ | $\frac{1}{s^2}$ | $t-\tau+\tau e^{-t/\tau}$ | $0$, slope $0$ | $\to t-\tau$ | $\tau$ |
+
+Each response is the derivative of the one below it, just as each input is the derivative of the one below it. One number, $\tau$, controls all three.
+
+## Explore tau and K
+
+The first slider changes $\tau$, the second the DC gain $K$ of the more general form $T(s)=\frac{K}{\tau s+1}$ that Example 1 introduces below (keep $K=1$ for the standard loop). Watch:
+
+- the pole at $-1/\tau$ moves left as $\tau$ shrinks, and all three curves get faster;
+- the tangents always hit their targets at $t=\tau$;
+- with $K\ne1$ the step response settles at $K$ instead of 1 (step error $1-K$), and the ramp response no longer stays parallel to the input (ramp error infinite).
+
+<FirstOrderExplorer />
+
+## Example 1 with DC gain below one
+
+<Ex1LoopBD />
+
+### The gain form of a first-order TF
+
+A real loop rarely gives exactly $\frac{1}{\tau s+1}$. Any first-order transfer function without a zero can be brought to the **gain–time-constant form**
+
+$$
+T(s)=\frac{b}{s+a}=\frac{b/a}{\frac{1}{a}s+1}=\frac{K}{\tau s+1},\qquad K=\frac{b}{a},\ \ \tau=\frac{1}{a}
+$$
+
+The trick: **make the constant term of the denominator equal to 1** by dividing numerator and denominator by $a$.
+
+- $\tau=\frac1a$ is the time constant (the pole is $-a=-\frac{1}{\tau}$).
+- $K=T(0)$ is the <Term en="DC gain" tr="DC kazanç" /> (steady-state gain): what a constant input of 1 produces in steady state, since a constant corresponds to $s\to0$.
+
+Because the system is linear, multiplying $T$ by $K$ just multiplies every response by $K$:
+
+$$
+y_\delta(t)=\frac{K}{\tau}e^{-t/\tau},\qquad y_{step}(t)=K\left(1-e^{-t/\tau}\right),\qquad y_{ramp}(t)=K\left(t-\tau+\tau e^{-t/\tau}\right)
+$$
+
+<KeyFormula title="General first-order system (gain form)">
+
+$$
+T(s)=\frac{K}{\tau s+1},\qquad y_{step}(t)=K\left(1-e^{-t/\tau}\right),\qquad e_{ss,step}=1-K
+$$
+
+</KeyFormula>
+
+<Example title="Example 1: closed-loop transfer function of G = 4/(s+1)" src="5">
+
+**Given:** unity negative feedback around $G(s)=\dfrac{4}{s+1}$. **Asked:** $T(s)$, its $\tau$ and DC gain.
+
+<Step title="Apply T = G/(1+G)">
+
+$$
+T(s)=\frac{\dfrac{4}{s+1}}{1+\dfrac{4}{s+1}}
+$$
+
+Multiply numerator and denominator by $(s+1)$:
+
+$$
+T(s)=\frac{4}{(s+1)+4}=\frac{4}{s+5}
+$$
+
+</Step>
+
+<Step title="Bring to the gain form">
+
+Divide numerator and denominator by 5:
+
+$$
+T(s)=\frac{4/5}{\frac{1}{5}s+1}=\frac{0.8}{0.2s+1}
+$$
+
+(the notes write this with decimal commas, $\frac{0{,}8}{0{,}2s+1}$).
+
+</Step>
+
+<Step title="Read the parameters">
+
+$K=0.8$, $\tau=0.2$ s, closed-loop pole at $s=-5$.
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{4}{s+5}=\frac{0.8}{0.2s+1},\qquad K=0.8,\ \ \tau=0.2\ \text{s}
+$$
+
+</Answer>
+
+**Interpretation:** the plant alone, $\frac{4}{s+1}$, has time constant 1 s (pole at $-1$). Feedback moved the pole to $-5$: the closed loop is **5 times faster**. The price: the DC gain is 0.8, not 1, so a step will not be tracked perfectly. Unlike the standard loop, $G=\frac{4}{s+1}$ contains **no integrator** (no pure $\frac1s$), so nothing forces the error to zero.
+
+</Example>
+
+### Example 1 step response
+
+<Example title="Example 1: unit step response" src="5–6">
+
+**Given:** $T(s)=\dfrac{0.8}{0.2s+1}$, $r(t)=u(t)$. **Asked:** $y(t)$, $e_{ss}$, the graph.
+
+<Step title="Output transform">
+
+$$
+Y(s)=\frac{0.8}{0.2s+1}\cdot\frac{1}{s}
+$$
+
+</Step>
+
+<Step title="Invert">
+
+This is $K=0.8$ times the standard step response with $\tau=0.2$: $y(t)=0.8\left(1-e^{-t/0.2}\right)$. Explicitly with partial fractions: $\frac{0.8}{s(0.2s+1)}=\frac{4}{s(s+5)}=\frac{0.8}{s}-\frac{0.8}{s+5}$ (cover-up: $\frac{4}{5}=0.8$ at $s=0$; $\frac{4}{-5}=-0.8$ at $s=-5$).
+
+$$
+y(t)=0.8\left(1-e^{-5t}\right)
+$$
+
+</Step>
+
+<Step title="Steady-state error">
+
+$$
+e_{ss}=\lim_{s\to0}s\left(\frac{1}{s}-\frac{0.8}{0.2s+1}\cdot\frac{1}{s}\right)=\lim_{s\to0}s\,\frac{0.2s+1-0.8}{s(0.2s+1)}=\lim_{s\to0}\frac{0.2s+0.2}{0.2s+1}=0.2
+$$
+
+(the notes cross out the two $s$ factors, then set $s=0$: $1-0.8=0.2$.)
+
+</Step>
+
+<Step title="Key points for the graph">
+
+$y(0)=0$; $y(\tau)=y(0.2)=0.8\times0.632=0.506$; initial slope $\frac{K}{\tau}=\frac{0.8}{0.2}=4$; $y(\infty)=0.8$; settled after $5\tau=1$ s.
+
+</Step>
+
+<Answer>
+
+$$
+y(t)=0.8\left(1-e^{-5t}\right),\qquad y_{ss}=0.8,\qquad e_{ss}=0.2
+$$
+
+</Answer>
+
+**Sanity check:** time domain $e(t)=1-0.8+0.8e^{-5t}\to0.2$ ✓. Also from the loop equation in steady state: $Y=G(0)E=4E$ and $E=1-Y$, so $Y=4(1-Y)\Rightarrow Y=0.8$, $E=0.2$ ✓.
+
+</Example>
+
+<Src p="6" /> The notes' graph: dashed lines at 1 (input) and 0.8 (final value), the curve rising to 0.8, and a dotted vertical line at $t=1$ s where it has practically settled ($5\tau=5\times0.2=1$ s). The gap between 1 and 0.8 is the steady-state error.
+
+<Ex1StepPlot />
+
+**Why exactly 0.2?** In general $e_{ss,step}=1-T(0)=1-K$. For a unity loop with $G=\frac{b}{s+a}$: $T(0)=\frac{G(0)}{1+G(0)}$, and $G(0)=4$ here, so $T(0)=\frac{4}{5}$ and $e_{ss}=\frac{1}{1+G(0)}=\frac{1}{5}=0.2$. A larger loop gain $G(0)$ would make the error smaller, but never zero without an integrator.
+
+### Example 1 impulse response
+
+<Example title="Example 1: unit impulse response" src="6">
+
+**Given:** $T(s)=\dfrac{4}{s+5}$, $R(s)=1$. **Asked:** $y(0)$, $y(\infty)$, $e_{ss}$, $y(t)$.
+
+<Step title="Output transform">
+
+$$
+Y(s)=T(s)\cdot1=\frac{4}{s+5}=\frac{0.8}{0.2s+1}
+$$
+
+</Step>
+
+<Step title="Initial value theorem">
+
+$$
+y(0^+)=\lim_{s\to\infty}sY(s)=\lim_{s\to\infty}\frac{4s}{s+5}=\lim_{s\to\infty}\frac{4}{1+5/s}=4
+$$
+
+</Step>
+
+<Step title="Final value theorem">
+
+$$
+y(\infty)=\lim_{s\to0}sY(s)=\lim_{s\to0}\frac{4s}{s+5}=\frac{0}{5}=0
+$$
+
+</Step>
+
+<Step title="Steady-state error">
+
+$$
+e_{ss}=\lim_{s\to0}s\left(1-\frac{4}{s+5}\right)=0\cdot\left(1-\frac45\right)=0
+$$
+
+</Step>
+
+<Step title="Time response">
+
+$K/\tau$ times the decaying exponential:
+
+$$
+y(t)=0.8\cdot\frac{1}{0.2}e^{-\frac{t}{0.2}}=4e^{-5t}
+$$
+
+</Step>
+
+<Answer>
+
+$$
+y(t)=4e^{-5t},\qquad y(0^+)=4,\qquad y(\infty)=0,\qquad e_{ss}=0
+$$
+
+</Answer>
+
+**Sanity check:** $4e^{0}=4$ matches the initial value theorem; $4e^{-\infty}=0$ matches the final value theorem. ✓
+
+</Example>
+
+<Ex1ImpulsePlot />
+
+<Src p="6" /> The notes' graph starts at 4 and has practically reached 0 at $t=1$ s $=5\tau$.
+
+<Note title="Correction to the notes (p. 6)">
+
+The notes write $y(\infty)=\lim_{s\to0}sY(s)=\lim_{s\to\infty}s\frac{4}{s+5}=0$. The second limit should be $s\to0$ (final value theorem), not $s\to\infty$. Taken literally, $\lim_{s\to\infty}\frac{4s}{s+5}=4$ — that is the **initial** value. The correct final value is $\lim_{s\to0}\frac{4s}{s+5}=0$, which is what the notes conclude. Remember: **$s\to\infty$ ↔ $t\to0^+$** and **$s\to0$ ↔ $t\to\infty$**.
+
+</Note>
+
+### Initial and final value theorems
+
+Example 1 is the first place the notes use both theorems ([Module 03](#/m/03)) to check a response without inverting it:
+
+<KeyFormula title="Initial and final value theorems">
+
+$$
+y(0^+)=\lim_{s\to\infty}sY(s),\qquad y(\infty)=\lim_{s\to0}sY(s)
+$$
+
+</KeyFormula>
+
+- **Initial value theorem** (<Term en="initial value theorem" tr="ilk değer teoremi" />): needs $Y(s)$ **strictly proper** (numerator degree lower than denominator degree), otherwise $y(t)$ contains an impulse at $t=0$ and the limit diverges — see Example 2.
+- **Final value theorem** (<Term en="final value" tr="son değer" />): needs $y(t)$ to actually settle, i.e. all poles of $sY(s)$ in the left half-plane. If $y(t)$ grows (like a ramp response), $\lim_{s\to0}sY(s)=\infty$ just tells you "it grows without bound".
+- The notes write $y(0)$; strictly it is $y(0^+)$, the value just after the impulse. Before $t=0$ the output is 0, so the impulse response jumps from 0 to 4 at $t=0$.
+
+### Example 1 ramp response
+
+<Example title="Example 1: unit ramp response" src="7">
+
+**Given:** $T(s)=\dfrac{4}{s+5}$, $R(s)=\dfrac{1}{s^2}$. **Asked:** $y(t)$, $y_{ss}(t)$, $e_{ss}$.
+
+<Step title="Partial fractions">
+
+$$
+Y(s)=\frac{1}{s^{2}}\cdot\frac{4}{s+5}=\frac{A}{s^{2}}+\frac{B}{s}+\frac{C}{s+5}
+$$
+
+Multiply by $s^2(s+5)$: $4=A(s+5)+Bs(s+5)+Cs^2$.
+
+- $s=0$: $4=5A$ → $A=0.8$.
+- $s=-5$: $4=25C$ → $C=0.16$.
+- coefficient of $s^2$: $0=B+C$ → $B=-0.16$.
+- check, coefficient of $s$: $0=A+5B=0.8-0.8$ ✓.
+
+$$
+Y(s)=\frac{0.8}{s^{2}}+\frac{-0.16}{s}+\frac{0.16}{s+5}
+$$
+
+</Step>
+
+<Step title="Invert">
+
+$$
+y(t)=0.8t-0.16+0.16e^{-5t}
+$$
+
+Check: $y(0)=-0.16+0.16=0$ ✓. Same as $K(t-\tau+\tau e^{-t/\tau})$ with $K=0.8$, $\tau=0.2$: $0.8t-0.16+0.16e^{-5t}$ ✓.
+
+</Step>
+
+<Step title="Steady-state output">
+
+*"$t>5\tau$ (1 s) olduğunda $0{,}16e^{-5t}$ terimi ihmal edilebilir"* — for $t>5\tau=1$ s the exponential <Term en="can be neglected" tr="ihmal edilebilir" />:
+
+$$
+y_{ss}(t)=0.8t-0.16
+$$
+
+</Step>
+
+<Step title="Steady-state error, time domain">
+
+$$
+e_{ss}(t)=t-\left(0.8t-0.16\right)=0.2t+0.16
+$$
+
+This grows without bound.
+
+</Step>
+
+<Step title="Steady-state error, s-domain">
+
+$$
+e_{ss}=\lim_{s\to0}s\left(\frac{1}{s^{2}}-\frac{4}{s^{2}(s+5)}\right)=\lim_{s\to0}s\,\frac{s+5-4}{s^{2}(s+5)}=\lim_{s\to0}\frac{s+1}{s(s+5)}=\infty
+$$
+
+</Step>
+
+<Answer>
+
+$$
+y(t)=0.8t-0.16+0.16e^{-5t},\qquad e(t)\to0.2t+0.16\to\infty
+$$
+
+</Answer>
+
+**Why infinite?** In steady state the output rises with slope 0.8 (the DC gain), while the input rises with slope 1. Two lines with different slopes drift apart: every second the output falls another 0.2 behind. Compare with the standard loop, where $K=1$ gave equal slopes and a constant gap $\tau$. A system that cannot even hold a constant (step error 0.2) has no chance of following a ramp.
+
+</Example>
+
+<Ex1RampPlot />
+
+<Src p="7" /> The notes draw $r(t)$ dashed and $y(t)$ solid with smaller slope; unlike the p. 4 sketch, the two lines **diverge**.
+
+## Example 2 with a zero at the origin
+
+<Ex2LoopBD />
+
+<Uncertain title="Signs at the summing junction (p. 8)">
+
+The block diagram of Example 2 has no $+$/$-$ signs at $\Sigma$. The solution uses $\frac{G}{1+G}$, which is the negative-feedback formula, so the loop is taken as unity **negative** feedback like the others.
+
+</Uncertain>
+
+### Biproper transfer functions
+
+<Example title="Example 2: closed-loop transfer function of G = s/(s+1)" src="8">
+
+**Given:** unity negative feedback around $G(s)=\dfrac{s}{s+1}$. **Asked:** $T(s)$ and a form suitable for inversion.
+
+<Step title="Apply T = G/(1+G)">
+
+$$
+T(s)=\frac{\dfrac{s}{s+1}}{1+\dfrac{s}{s+1}}=\frac{s}{(s+1)+s}=\frac{s}{2s+1}=\frac{0.5s}{s+0.5}
+$$
+
+(the last form divides numerator and denominator by 2).
+
+</Step>
+
+<Step title="Long division (numerator degree = denominator degree)">
+
+Write $0.5s=0.5(s+0.5)-0.25$:
+
+$$
+T(s)=\frac{0.5(s+0.5)-0.25}{s+0.5}=0.5-\frac{0.25}{s+0.5}
+$$
+
+Check: $\frac{0.5s+0.25-0.25}{s+0.5}=\frac{0.5s}{s+0.5}$ ✓.
+
+</Step>
+
+<Answer>
+
+$$
+T(s)=\frac{s}{2s+1}=\frac{0.5s}{s+0.5}=0.5-\frac{0.25}{s+0.5},\qquad \tau=2\ \text{s}
+$$
+
+</Answer>
+
+</Example>
+
+Here the numerator and denominator have the **same degree** (both 1). Such a transfer function is called **biproper**: proper (numerator degree not larger than denominator degree) but not *strictly* proper. Consequences:
+
+- $T(\infty)=\lim_{s\to\infty}\frac{s}{2s+1}=0.5\ne0$: part of the input passes **straight through** to the output instantly (a "direct feed-through" of 0.5). At very high frequencies $G\to1$, so $T\to\frac{1}{1+1}=0.5$.
+- $T(0)=0$: the DC gain is zero. The $s$ in the numerator of $G$ is a **zero at the origin** — a differentiator — so constants are blocked completely.
+- The pole is still at $-0.5$, so the time constant is $\tau=\frac{1}{0.5}=2$ s (also visible from $\frac{s}{2s+1}$: $\tau s+1$ with $\tau=2$).
+
+### Example 2 impulse response
+
+<Example title="Example 2: unit impulse response" src="8–9">
+
+**Given:** $T(s)=0.5-\dfrac{0.25}{s+0.5}$, $R(s)=1$. **Asked:** $y(t)$, $y(0^+)$, $y(\infty)$, $e_{ss}$.
+
+<Step title="Invert term by term">
+
+Use $\Li\{1\}=\delta(t)$ and $\Li\left\{\frac{1}{s+a}\right\}=e^{-at}$:
+
+$$
+y(t)=\Li\left\{0.5-\frac{0.25}{s+0.5}\right\}=0.5\,\delta(t)-0.25e^{-0.5t}
+$$
+
+</Step>
+
+<Step title="Value just after zero">
+
+For $t>0$ the impulse term is zero, so $y(0^+)=-0.25e^{0}=-0.25$. Via the initial value theorem applied **to the strictly proper part only** (see below):
+
+$$
+y(0^+)=\lim_{s\to\infty}s\left(-\frac{0.25}{s+0.5}\right)=\lim_{s\to\infty}\frac{-0.25s}{s}=-0.25
+$$
+
+</Step>
+
+<Step title="Final value">
+
+$$
+y(\infty)=\lim_{s\to0}sY(s)=\lim_{s\to0}s\,\frac{0.5s}{s+0.5}=0
+$$
+
+</Step>
+
+<Step title="Steady-state error">
+
+$$
+e_{ss}=\lim_{s\to0}s\left(1-\frac{0.5s}{s+0.5}\right)=0\cdot(1-0)=0
+$$
+
+</Step>
+
+<Answer>
+
+$$
+y(t)=0.5\,\delta(t)-0.25e^{-0.5t},\qquad y(0^+)=-0.25,\qquad y(\infty)=0,\qquad e_{ss}=0
+$$
+
+</Answer>
+
+**Interpretation:** half of the impulse passes straight through (the direct feed-through 0.5). Then the output swings negative to $-0.25$ and creeps back to 0 with time constant 2 s.
+
+</Example>
+
+<Ex2ImpulsePlot />
+
+<Src p="8" /> The notes draw the impulse as a blue upward arrow at $t=0$ (an impulse has no finite height; the arrow carries its **area** 0.5), and a blue curve rising from $-0.25$ towards 0.
+
+<Note title="Correction to the notes (p. 8 graph time scale)">
+
+The notes' sketch puts ticks 0.5 and 1 on the time axis and shows the curve practically at 0 by $t=1$. With $\tau=2$ s the true curve is far slower: $y(1)=-0.25e^{-0.5}=-0.152$ (still 61 % of the initial value), $y(\tau)=y(2)=-0.092$, and it only settles after $4\tau$–$5\tau=8$–$10$ s. The plot above uses the true time scale. The **shape** in the notes is right; only the time axis is qualitative.
+
+</Note>
+
+### Initial value theorem with an impulse
+
+<Src p="9" /> *"Bu fonksiyonda görüldüğü gibi ilk değer teoremini uygulamak sorunludur. Sıfırdan hemen sonraki an için t=0⁺ fonksiyonun alacağı değer sonludur, hesaplanabilir."* — "As seen in this function, applying the initial value theorem is **problematic**. For the instant just after zero, $t=0^+$, the value the function takes is <Term en="finite" tr="sonlu" /> and can be calculated."
+
+**What exactly is the problem?** Apply the theorem literally to the whole $Y(s)$:
+
+$$
+\lim_{s\to\infty}sY(s)=\lim_{s\to\infty}\left(0.5s-\frac{0.25s}{s+0.5}\right)=\infty-0.25=\infty
+$$
+
+The term $0.5s$ blows up. This is no accident: the constant $0.5$ in $Y(s)$ **is** the impulse $0.5\delta(t)$, and at $t=0$ an impulse is "infinite". The initial value theorem is derived for functions without impulses at the origin, i.e. for strictly proper $Y(s)$.
+
+**The fix (what the notes do implicitly):**
+
+1. Split $Y(s)$ by long division into constant + strictly proper remainder: $Y(s)=0.5+Y_r(s)$, with $Y_r(s)=-\dfrac{0.25}{s+0.5}$.
+2. The constant is the impulse; it acts only at $t=0$ and is gone at $t=0^+$.
+3. Apply the theorem to $Y_r$ only: $y(0^+)=\lim_{s\to\infty}sY_r(s)=-0.25$.
+
+The notes' line $y(0^+)=\lim_{s\to\infty}s\left(0.5-\frac{0.25}{s+0.5}\right)=\left.\frac{-0.25s}{s}\right|_{s\to\infty}=-0.25$ silently drops the $0.5s$ term — which is exactly step 3. Equivalently, for a biproper $Y(s)$ you can use $y(0^+)=\lim_{s\to\infty}s\big[Y(s)-Y(\infty)\big]$.
+
+<Uncertain title="How to read the p. 9 initial value computation">
+
+As written, $\lim_{s\to\infty}s\left(0.5-\frac{0.25}{s+0.5}\right)$ diverges because of $0.5s$. The result $y(0^+)=-0.25$ is nevertheless correct for the non-impulsive part of $y(t)$ and agrees with $-0.25e^{0}$. In an exam, write the split explicitly (step 1 above) so that your working is mathematically correct.
+
+</Uncertain>
+
+The final value theorem has no such problem: $Y(s)=\frac{0.5s}{s+0.5}$ has its only pole at $-0.5$, $sY(s)\to0$ as $s\to0$, and $y(\infty)=0$ <Src p="9" />.
+
+## More worked examples
+
+<Example title="Reading tau and gain from 5/(s+2)">
+
+**Given:** a closed-loop transfer function $T(s)=\dfrac{5}{s+2}$. **Asked:** $\tau$, DC gain, pole, settling time, the three responses and their steady-state errors.
+
+<Step title="Gain form">
+
+Divide by 2 (the constant term of the denominator): $T(s)=\dfrac{2.5}{0.5s+1}$ → $K=2.5$, $\tau=0.5$ s, pole $s=-2$.
+
+</Step>
+
+<Step title="Responses">
+
+- Impulse: $y=\frac{K}{\tau}e^{-t/\tau}=5e^{-2t}$ (equivalently $\Li\{\frac{5}{s+2}\}$). Starts at 5, initial slope $-\frac{K}{\tau^2}=-10$.
+- Step: $y=2.5(1-e^{-2t})$; $y(0.5)=2.5\times0.632=1.58$; $y_{ss}=2.5$.
+- Ramp: $y=2.5(t-0.5+0.5e^{-2t})=2.5t-1.25+1.25e^{-2t}$.
+
+</Step>
+
+<Step title="Settling and errors">
+
+$t_s\approx4\tau=2$ s. Step: $e_{ss}=1-K=1-2.5=-1.5$ (negative: the output **overshoots the target value** in steady state, it settles at 2.5 when asked for 1). Ramp: $e(t)\to t-(2.5t-1.25)=-1.5t+1.25\to-\infty$; the output runs away **ahead** of the input because its slope 2.5 is larger than 1.
+
+</Step>
+
+<Answer>
+
+$K=2.5$, $\tau=0.5$ s, pole $-2$, $t_s\approx2$ s; $e_{ss,step}=-1.5$, $e_{ss,ramp}=-\infty$, $e_{ss,impulse}=0$.
+
+</Answer>
+
+**Sanity check:** FVT on the step: $\lim_{s\to0}s\cdot\frac{5}{s+2}\cdot\frac1s=\frac52=2.5$ ✓. IVT on the impulse: $\lim_{s\to\infty}\frac{5s}{s+2}=5$ ✓.
+
+</Example>
+
+<Mistake title="Forgetting the DC gain">
+
+A very common slip is to write "first-order step response $=1-e^{-t/\tau}$" for every first-order system. That is only true when $K=1$. For $\frac{5}{s+2}$ the final value is $2.5$, not 1. Always compute $y_{ss}=T(0)$ (for a unit step) before sketching.
+
+</Mistake>
+
+<Example title="Step response of 10/(2s+1) in numbers">
+
+**Given:** $T(s)=\dfrac{10}{2s+1}$, unit step input. **Asked:** $y(t)$, the values at $t=1$, 2 and 8 s, and the settling time.
+
+<Step title="Read the form">
+
+Already in gain form: $K=10$, $\tau=2$ s (pole $-0.5$).
+
+</Step>
+
+<Step title="Response">
+
+$$
+y(t)=10\left(1-e^{-t/2}\right)
+$$
+
+</Step>
+
+<Step title="Values">
+
+- $y(1)=10(1-e^{-0.5})=10(1-0.6065)=3.93$
+- $y(2)=y(\tau)=10(0.632)=6.32$
+- $y(8)=y(4\tau)=10(1-e^{-4})=10(0.9817)=9.82$ — inside the 2 % band $[9.8,\,10.2]$.
+
+</Step>
+
+<Answer>
+
+$y(t)=10(1-e^{-t/2})$; $y(1)=3.93$, $y(2)=6.32$, $y(8)=9.82$; $t_s\approx4\tau=8$ s ($5\tau=10$ s for 99.3 %).
+
+</Answer>
+
+**Sanity check:** initial slope $K/\tau=5$; tangent $5t$ reaches 10 at $t=2=\tau$ ✓.
+
+</Example>
+
+<TenOverPlot />
+
+<Example title="Ramp tracking with the standard loop for tau = 0.5 s">
+
+**Given:** the standard loop of the notes with $G(s)=\dfrac{2}{s}$ (i.e. $\frac{1}{\tau s}$ with $\tau=0.5$). **Asked:** $T(s)$, the ramp response, $y(3)$, $e_{ss}$.
+
+<Step title="Identify tau">
+
+$\frac{2}{s}=\frac{1}{0.5s}$ → $\tau=0.5$ s, and $T(s)=\frac{G}{1+G}=\frac{2}{s+2}=\frac{1}{0.5s+1}$ (DC gain 1).
+
+</Step>
+
+<Step title="Ramp response">
+
+$y(t)=t-0.5+0.5e^{-2t}$. At $t=3$ s: $y(3)=3-0.5+0.5e^{-6}=2.5012$.
+
+</Step>
+
+<Step title="Error">
+
+$e_{ss}=\tau=0.5$. Check: $e(3)=3-2.5012=0.4988\approx0.5$ (already $6\tau$ after the start).
+
+</Step>
+
+<Answer>
+
+$T(s)=\frac{1}{0.5s+1}$, $y(t)=t-0.5+0.5e^{-2t}$, $e_{ss}=0.5$: the output lags the ramp by 0.5 (and by 0.5 s).
+
+</Answer>
+
+</Example>
+
+### Open-loop versus closed-loop time constant
+
+<GeneralLoopBD />
+
+For a unity loop around $G(s)=\dfrac{K}{s+a}$:
+
+$$
+T(s)=\frac{K}{s+a+K}=\frac{\frac{K}{a+K}}{\frac{1}{a+K}s+1},\qquad \tau_{CL}=\frac{1}{a+K},\qquad K_{DC}=\frac{K}{a+K},\qquad e_{ss,step}=\frac{a}{a+K}
+$$
+
+<Example title="Loop G = 9/(s+1): open-loop vs closed-loop time constant">
+
+**Given:** $G(s)=\dfrac{9}{s+1}$, unity negative feedback. **Asked:** $\tau$ of the plant and of the closed loop, the step response and step error.
+
+<Step title="Open loop">
+
+$G(s)=\frac{9}{s+1}$: pole $-1$, $\tau_{OL}=1$ s, DC gain $9$.
+
+</Step>
+
+<Step title="Closed loop">
+
+$$
+T(s)=\frac{9}{s+1+9}=\frac{9}{s+10}=\frac{0.9}{0.1s+1}
+$$
+
+$\tau_{CL}=0.1$ s, $K=0.9$.
+
+</Step>
+
+<Step title="Step response and error">
+
+$y(t)=0.9(1-e^{-10t})$, $t_s\approx4\tau_{CL}=0.4$ s, $e_{ss}=1-0.9=0.1$ (also $\frac{a}{a+K}=\frac{1}{10}$).
+
+</Step>
+
+<Answer>
+
+$\tau_{OL}=1$ s but $\tau_{CL}=0.1$ s; $y(t)=0.9(1-e^{-10t})$; $e_{ss}=0.1$.
+
+</Answer>
+
+**The common mistake:** reading $\tau=1$ s from $G(s)$ and claiming the system settles in 4 s. The question almost always asks about the **closed-loop** response, so first compute $T(s)$, then read $\tau$ from $T(s)$. Feedback with gain 9 made the system 10 times faster and reduced the step error from "no regulation" to 0.1.
+
+</Example>
+
+<LoopExplorer />
+
+<Example title="Choosing K for a required settling time">
+
+**Given:** $G(s)=\dfrac{K}{s+2}$ in a unity negative-feedback loop. **Asked:** $K$ such that the closed-loop settling time ($4\tau$ criterion) is 0.5 s; the resulting step error.
+
+<Step title="Required tau">
+
+$4\tau_{CL}=0.5$ → $\tau_{CL}=0.125$ s → closed-loop pole at $-\frac{1}{0.125}=-8$.
+
+</Step>
+
+<Step title="Solve for K">
+
+$\tau_{CL}=\frac{1}{a+K}=\frac{1}{2+K}=0.125$ → $2+K=8$ → $K=6$.
+
+</Step>
+
+<Step title="Step error">
+
+$T(s)=\frac{6}{s+8}=\frac{0.75}{0.125s+1}$, $e_{ss}=1-0.75=0.25$.
+
+</Step>
+
+<Answer>
+
+$K=6$, $T(s)=\frac{6}{s+8}$, $e_{ss,step}=0.25$.
+
+</Answer>
+
+**Interpretation:** a larger $K$ buys both speed and accuracy in this loop; with no integrator, the step error is never exactly zero.
+
+</Example>
+
+### Reading tau from a measured graph
+
+<MeasuredStepPlot />
+
+<Example title="Reading tau from a measured step response">
+
+**Given:** the measured unit step response above. The output settles at 1.6. **Asked:** $\tau$, $K$ and the transfer function, by two methods.
+
+<Step title="Final value gives K">
+
+The input is a unit step, the output settles at $1.6$ → $K=1.6$.
+
+</Step>
+
+<Step title="Method 1: the 63.2 % point">
+
+$0.632\times1.6=1.011$. Draw a horizontal line at 1.011 and read where the curve crosses it: $t\approx0.75$ s. So $\tau\approx0.75$ s.
+
+</Step>
+
+<Step title="Method 2: the tangent at the origin">
+
+The tangent at $t=0$ has slope $K/\tau$ and reaches the final value at $t=\tau$. Draw the tangent through the first samples and see where it hits $y=1.6$: at $t\approx0.75$ s. (Numerically: initial slope $\approx\frac{1.6}{0.75}=2.13$ per second.)
+
+</Step>
+
+<Answer>
+
+$$
+T(s)\approx\frac{1.6}{0.75s+1}
+$$
+
+</Answer>
+
+**Which method in practice?** The 63.2 % method is more reliable: drawing a tangent at the very start of a noisy measured curve is hard, and a small error in its slope shifts its intersection noticeably. Use the tangent as a cross-check. Important: 63.2 % of the **final value** (1.6), not of the input (1).
+
+</Example>
+
+## Edge cases
+
+- **$\tau\to0$:** $T(s)\to1$. The pole goes to $-\infty$, the step response becomes an instant jump, the ramp lag $\tau$ vanishes and the impulse response $\frac1\tau e^{-t/\tau}$ becomes an impulse itself. An ideal, infinitely fast system.
+- **Large $\tau$:** pole near the origin, sluggish response, large ramp lag.
+- **$K\ne1$ (Example 1):** the step is not tracked exactly ($e_{ss}=1-K$) and the ramp error is infinite, because output and input slopes differ. $K>1$ gives negative step error and $-\infty$ ramp error.
+- **Zero at the origin, biproper $T(s)$ (Example 2):** impulse in the impulse response, a jump at $t=0^+$ in the step response, and the initial value theorem must be applied to the strictly proper part.
+- **Impulse input:** $e_{ss}=0$ for every stable system, because both input and output vanish after the transient — the impulse error tells you little about accuracy; the step and ramp errors do.
+- **FVT on a growing signal:** $\lim_{s\to0}s(\ldots)=\infty$ only says "unbounded". It cannot give you the steady-state *function* $y_{ss}(t)=0.8t-0.16$ — for that you need the time-domain expression.
+
+<Example title="Example 2 driven by a unit step">
+
+**Given:** $T(s)=\dfrac{0.5s}{s+0.5}$ (Example 2), unit step input. **Asked:** $y(t)$, $y(0^+)$, $e_{ss}$.
+
+<Step title="Output">
+
+$$
+Y(s)=\frac{0.5s}{s+0.5}\cdot\frac{1}{s}=\frac{0.5}{s+0.5}\;\Rightarrow\;y(t)=0.5e^{-0.5t}
+$$
+
+The $s$ cancels: this $Y(s)$ is strictly proper, so there is no impulse.
+
+</Step>
+
+<Step title="Initial value — now the theorem works directly">
+
+$y(0^+)=\lim_{s\to\infty}\frac{0.5s}{s+0.5}=0.5$. The output **jumps** to 0.5 at $t=0$ — the direct feed-through of half the step.
+
+</Step>
+
+<Step title="Steady-state error">
+
+$e_{ss}=\lim_{s\to0}s\left(\frac1s-\frac{0.5}{s+0.5}\right)=1-0=1$.
+
+</Step>
+
+<Answer>
+
+$y(t)=0.5e^{-0.5t}$, $y(0^+)=0.5$, $y(\infty)=0$, $e_{ss}=1$.
+
+</Answer>
+
+**Interpretation:** a loop with a differentiating plant ($G=\frac{s}{s+1}$, DC gain 0) cannot hold any constant output at all: the step is "forgotten" with time constant 2 s and the full step remains as error.
+
+</Example>
+
+<Ex2StepPlot />
+
+## How to solve exam problems
+
+<Procedure title="First-order time-response problem">
+
+1. **Reduce the loop.** If a block diagram is given, compute $T(s)=\frac{G}{1+G}$ (unity negative feedback). Simplify to a single fraction.
+2. **Check the type.** First-order denominator? Numerator a constant → gain form $\frac{K}{\tau s+1}$. Numerator contains $s$ → biproper, do long division first (Example 2).
+3. **Normalise.** Divide by the constant term of the denominator: $\frac{b}{s+a}=\frac{b/a}{(1/a)s+1}$. Read $\tau=\frac1a$, $K=\frac ba$, pole $-a$.
+4. **Write the response** for the given input: $R(s)=1,\ \frac1s,\ \frac{1}{s^2}$; partial fractions; invert. Or use the ready forms $\frac K\tau e^{-t/\tau}$, $K(1-e^{-t/\tau})$, $K(t-\tau+\tau e^{-t/\tau})$.
+5. **Characteristic numbers:** $y(\tau)=0.632K$ (step), initial slopes $\pm K/\tau$ or $-K/\tau^2$, settling time $4\tau$–$5\tau$.
+6. **Steady-state error:** $e_{ss}=\lim_{s\to0}s[R(s)-Y(s)]$; confirm with $\lim_{t\to\infty}[r(t)-y(t)]$.
+7. **Verify:** IVT ($s\to\infty$) against $y(0^+)$, FVT ($s\to0$) against $y(\infty)$; recombine partial fractions.
+8. **Sketch:** final-value line, tangent to $(\tau,\text{final})$, 63 % point, $4\tau$–$5\tau$ mark.
+
+</Procedure>
+
+<Mistake title="Using the open-loop time constant">
+
+For $G=\frac{4}{s+1}$ the plant has $\tau=1$ s, but the closed loop has $\tau=0.2$ s. Read $\tau$ from $T(s)$, not from $G(s)$.
+
+</Mistake>
+
+<Mistake title="Reading tau before normalising">
+
+$\frac{4}{s+5}$ does **not** have $\tau=5$ or $\tau=4$. Divide by 5: $\frac{0.8}{0.2s+1}$, so $\tau=0.2$ s $=1/(\text{pole magnitude})$.
+
+</Mistake>
+
+<Mistake title="Mixing up the limits">
+
+Initial value: $s\to\infty$. Final value and $e_{ss}$: $s\to0$. (The notes themselves slip once on p. 6.)
+
+</Mistake>
+
+<Mistake title="63.2 percent of the wrong value">
+
+For $K\ne1$ the step response reaches $0.632K$ at $t=\tau$, not $0.632$. Example 1: $y(0.2)=0.506$.
+
+</Mistake>
+
+<Mistake title="Applying the FVT where it does not apply">
+
+The FVT gives a single number $\lim_{t\to\infty}f(t)$ and only when that limit exists. For a ramp response $y(t)=0.8t-0.16+\ldots$ there is no finite limit; $\lim_{s\to0}sY(s)=\infty$. To get the steady-state behaviour $0.2t+0.16$ of the error you must use the time-domain expression. Likewise, never apply the IVT to a $Y(s)$ that contains a constant term without removing it first.
+
+</Mistake>
+
+<Tip title="Fast answers to memorise">
+
+For $T(s)=\frac{K}{\tau s+1}$ with unit inputs: impulse $e_{ss}=0$; step $e_{ss}=1-K$; ramp $e_{ss}=\tau$ if $K=1$, otherwise $\pm\infty$. For a unity loop, $K=1$ exactly when $G(s)$ contains an integrator $\frac1s$ (like $\frac{1}{\tau s}$).
+
+</Tip>
+
+## Turkish terms
+
+| Turkish (notes) | English |
+|---|---|
+| Kontrol Sistemlerinin Zaman Bölgesi Karakteristikleri | Time-domain characteristics of control systems |
+| Birinci Dereceden Kontrol Sistemleri | First-order control systems |
+| Birim impulse tepkesi | Unit impulse response |
+| Birim basamak tepkesi | Unit step response |
+| Birim rampa tepkesi | Unit ramp response |
+| Zaman sabiti | Time constant |
+| Sönüm süresi | Decay time |
+| Yerleşme süresi | Settling time |
+| Eğim | Slope |
+| Kalıcı durum hatası | Steady-state error |
+| Ters Laplace dönüşümü | Inverse Laplace transform |
+| İlk değer teoremi | Initial value theorem |
+| Giriş / çıkış fonksiyonu | Input / output function |
+| İhmal edilebilir | Can be neglected |
+| Sonlu | Finite |
+| Örnek | Example |
+
+## Practice exercises
+
+<Exercise title="Meaning of the time constant" kind="concept" level={1}>
+
+A first-order system $\frac{1}{\tau s+1}$ receives a unit step. What percentage of the final value has the output reached at $t=\tau$, $2\tau$ and $3\tau$? What percentage of the initial value remains in the impulse response at the same instants?
+
+<Solution>
+
+Step: $y=1-e^{-t/\tau}$ → $1-e^{-1}=63.2\,\%$, $1-e^{-2}=86.5\,\%$, $1-e^{-3}=95.0\,\%$.
+
+Impulse: $\frac{y(t)}{y(0^+)}=e^{-t/\tau}$ → $36.8\,\%$, $13.5\,\%$, $5.0\,\%$.
+
+Check: the two percentages always add up to 100 %, because the step response is $1-e^{-t/\tau}$ and the normalised impulse response is $e^{-t/\tau}$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Exact settling times" kind="formula" level={1}>
+
+For $y(t)=1-e^{-t/\tau}$, find the exact time (in multiples of $\tau$) when the output first reaches 98 % and 99 % of its final value. Compare with the notes' rule $4\tau$–$5\tau$.
+
+<Solution>
+
+$1-e^{-t/\tau}=0.98$ → $e^{-t/\tau}=0.02$ → $t=\tau\ln50=3.91\tau$.
+
+$e^{-t/\tau}=0.01$ → $t=\tau\ln100=4.61\tau$.
+
+So "$4\tau$" is the 2 % settling time (rounded) and "$5\tau$" comfortably covers the 1 % criterion ($1-e^{-5}=99.3\,\%$). Verification: $1-e^{-3.912}=1-0.0200=0.980$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Standard loop with G = 1/(0.5s)" kind="formula" level={1}>
+
+The loop of the notes has $G(s)=\frac{1}{0.5s}$. Give $T(s)$, the unit step response, the time at which $y=0.632$, and the ramp steady-state error.
+
+<Solution>
+
+$\tau=0.5$ s. $T(s)=\frac{1}{0.5s+1}$. Step: $y=1-e^{-2t}$. $y=0.632$ at $t=\tau=0.5$ s (check: $1-e^{-1}=0.632$ ✓). Ramp: $e_{ss}=\tau=0.5$ (check: $\lim_{s\to0}s\left(\frac{1}{s^2}-\frac{1}{s^2(0.5s+1)}\right)=\lim_{s\to0}\frac{0.5}{0.5s+1}=0.5$ ✓).
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Gain form of 5/(s+2)" kind="calc" level={1}>
+
+For $T(s)=\frac{5}{s+2}$ find $\tau$, the DC gain, the 2 % settling time, $y_{ss}$ and $e_{ss}$ for a unit step.
+
+<Hint>Divide numerator and denominator by 2.</Hint>
+
+<Solution>
+
+$T=\frac{2.5}{0.5s+1}$: $\tau=0.5$ s, $K=2.5$, $t_s\approx4\tau=2$ s. Step: $y=2.5(1-e^{-2t})$, $y_{ss}=2.5$, $e_{ss}=1-2.5=-1.5$.
+
+Verification by FVT: $e_{ss}=\lim_{s\to0}s\left(\frac1s-\frac{5}{s(s+2)}\right)=1-\frac52=-1.5$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Impulse response of 3/(s+3)" kind="calc" level={1}>
+
+Find the unit impulse response of $T(s)=\frac{3}{s+3}$, its value and slope at $t=0^+$, and verify $y(0^+)$ with the initial value theorem.
+
+<Solution>
+
+$y(t)=\Li\{\frac{3}{s+3}\}=3e^{-3t}$. Gain form $\frac{1}{\frac13s+1}$: $K=1$, $\tau=\frac13$ s, so $y=\frac1\tau e^{-t/\tau}=3e^{-3t}$ ✓.
+
+$y(0^+)=3$. Slope: $\dot y=-9e^{-3t}$ → $-9=-\frac{1}{\tau^2}$ ✓.
+
+IVT: $\lim_{s\to\infty}\frac{3s}{s+3}=3$ ✓. The tangent $3-9t$ hits zero at $t=\frac13=\tau$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Find tau and K from the 63 percent point" kind="graph" level={2}>
+
+A unit step is applied to an unknown first-order system. The output settles at 2.0, and it passes 1.264 at $t=4$ s. Find $T(s)$.
+
+<Solution>
+
+$K=2$ (final value of the unit step response). $\frac{1.264}{2}=0.632$ → that instant is $t=\tau$, so $\tau=4$ s.
+
+$$
+T(s)=\frac{2}{4s+1}
+$$
+
+Check: $y(4)=2(1-e^{-1})=1.264$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Find tau with the tangent method" kind="graph" level={2}>
+
+The measured unit step response of a first-order system starts with slope 0.5 per second and settles at 1.5. Find $\tau$, $T(s)$ and the output value at $t=\tau$.
+
+<Solution>
+
+The tangent at the origin has slope $\frac{K}{\tau}$ and reaches the final value $K$ at $t=\tau$. So $\tau=\frac{K}{\text{slope}}=\frac{1.5}{0.5}=3$ s.
+
+$T(s)=\frac{1.5}{3s+1}$, $y(3)=1.5\times0.632=0.948$.
+
+Check: $\frac{d}{dt}1.5(1-e^{-t/3})\big|_0=\frac{1.5}{3}=0.5$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Example 1 with G = 9/(s+1)" kind="prof" level={2}>
+
+Repeat the professor's Example 1 for $G(s)=\frac{9}{s+1}$ with unity negative feedback: $T(s)$, unit step response and $e_{ss}$, unit impulse response with $y(0^+)$ and $y(\infty)$, unit ramp response and its $e_{ss}$.
+
+<Solution>
+
+$T=\frac{9}{s+10}=\frac{0.9}{0.1s+1}$: $K=0.9$, $\tau=0.1$ s.
+
+**Step:** $y=0.9(1-e^{-10t})$; $e_{ss}=\lim_{s\to0}s\left(\frac1s-\frac{9}{s(s+10)}\right)=1-0.9=0.1$.
+
+**Impulse:** $y=\frac{0.9}{0.1}e^{-10t}=9e^{-10t}$; IVT $\lim_{s\to\infty}\frac{9s}{s+10}=9$; FVT $\lim_{s\to0}\frac{9s}{s+10}=0$; $e_{ss}=0$.
+
+**Ramp:** $\frac{9}{s^2(s+10)}=\frac{A}{s^2}+\frac{B}{s}+\frac{C}{s+10}$: $A=\frac{9}{10}=0.9$, $C=\frac{9}{100}=0.09$, $B=-C=-0.09$ (check $s$-coefficient: $10B+A=-0.9+0.9=0$ ✓).
+$y=0.9t-0.09+0.09e^{-10t}$; $e(t)\to0.1t+0.09\to\infty$; $s$-domain: $\lim_{s\to0}s\frac{s+10-9}{s^2(s+10)}=\lim_{s\to0}\frac{s+1}{s(s+10)}=\infty$ ✓.
+
+Recombination check at $s=3$: $\frac{9}{9\cdot13}=0.07692$ and $\frac{0.9}{9}-\frac{0.09}{3}+\frac{0.09}{13}=0.1-0.03+0.006923=0.07692$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Example 2 with G = 2s/(s+1)" kind="prof" level={3}>
+
+As in the professor's Example 2, take $G(s)=\frac{2s}{s+1}$ with unity negative feedback. Find $T(s)$, its time constant, the unit impulse response, $y(0^+)$ (careful!) and $e_{ss}$.
+
+<Hint>Long division: write $T(s)$ as a constant plus a strictly proper fraction.</Hint>
+
+<Solution>
+
+$T=\frac{2s}{s+1+2s}=\frac{2s}{3s+1}=\frac{\frac23s}{s+\frac13}$. Time constant $\tau=3$ s (pole $-\frac13$).
+
+Long division: $\frac23s=\frac23\left(s+\frac13\right)-\frac29$, so $T(s)=\frac23-\frac{2/9}{s+1/3}$. Check at $s=3$: $\frac{6}{10}=0.6$ and $0.6667-\frac{0.2222}{3.3333}=0.6667-0.0667=0.6$ ✓.
+
+Impulse: $y(t)=\frac23\delta(t)-\frac29e^{-t/3}$.
+
+$y(0^+)$: the IVT on the whole $Y(s)$ diverges ($\frac23s\to\infty$); apply it to the strictly proper part: $\lim_{s\to\infty}s\left(-\frac{2/9}{s+1/3}\right)=-\frac29\approx-0.222$ ✓ ($=-\frac29e^0$).
+
+$e_{ss}=\lim_{s\to0}s\left(1-\frac{2s}{3s+1}\right)=0$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Step input to Example 2" kind="edge" level={2}>
+
+Using the closed loop of Example 2, $T(s)=\frac{s}{2s+1}$, compute the unit step response, $y(0^+)$ with the IVT, and $e_{ss}$. Why is the IVT unproblematic this time?
+
+<Solution>
+
+$Y=\frac{s}{2s+1}\cdot\frac1s=\frac{1}{2s+1}=\frac{0.5}{s+0.5}$ → $y=0.5e^{-0.5t}$.
+
+$Y(s)$ is strictly proper (the $s$ cancelled), so there is no impulse and the IVT applies directly: $y(0^+)=\lim_{s\to\infty}\frac{0.5s}{s+0.5}=0.5$ ✓ $(=0.5e^0)$.
+
+$e_{ss}=\lim_{s\to0}s\left(\frac1s-\frac{0.5}{s+0.5}\right)=1-0=1$. The system has zero DC gain, so it cannot hold a constant output; the whole step remains as error.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Why the ramp error of Example 1 is infinite" kind="concept" level={2}>
+
+In Example 1 the step error is a finite 0.2, but the ramp error is infinite. In the standard loop the ramp error is finite ($\tau$). Explain both facts using slopes.
+
+<Solution>
+
+In steady state a first-order system with DC gain $K$ responds to a ramp with $y_{ss}(t)=K(t-\tau)$, a line of slope $K$. The input has slope 1. The error is $e(t)=(1-K)t+K\tau$.
+
+- Standard loop, $K=1$: the $t$ term vanishes → constant error $K\tau=\tau$.
+- Example 1, $K=0.8$: $e(t)=0.2t+0.16$ grows by 0.2 every second → infinite.
+
+Check with Example 1's numbers: $(1-0.8)t+0.8\times0.2=0.2t+0.16$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Ramp response of 1/(2s+1) at t = 10 s" kind="calc" level={2}>
+
+Compute the unit ramp response of $T(s)=\frac{1}{2s+1}$ at $t=10$ s, and the error at that instant. How close is it to $e_{ss}$?
+
+<Solution>
+
+$\tau=2$: $y=t-2+2e^{-t/2}$. $y(10)=10-2+2e^{-5}=8+0.01348=8.0135$. $e(10)=10-8.0135=1.9865$. $e_{ss}=\tau=2$; at $t=5\tau$ the error is within $2e^{-5}=0.0135$ (0.7 %) of it.
+
+Check: $e(t)=\tau(1-e^{-t/\tau})=2(1-e^{-5})=1.9865$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Design K for a step error of 0.2" kind="problem" level={2}>
+
+A plant $G(s)=\frac{K}{s+4}$ is placed in a unity negative-feedback loop. Find $K$ so that the unit step steady-state error is 0.2. Then give the closed-loop $\tau$, the settling time ($4\tau$) and the ramp steady-state error.
+
+<Solution>
+
+$T=\frac{K}{s+4+K}$, $T(0)=\frac{K}{4+K}$, $e_{ss}=1-T(0)=\frac{4}{4+K}=0.2$ → $4+K=20$ → $K=16$.
+
+$T=\frac{16}{s+20}=\frac{0.8}{0.05s+1}$: $\tau=0.05$ s, $t_s\approx0.2$ s. Ramp: DC gain $0.8\ne1$ → $e_{ss}=\lim_{s\to0}s\left(\frac{1}{s^2}-\frac{16}{s^2(s+20)}\right)=\lim_{s\to0}\frac{s+4}{s(s+20)}=\infty$.
+
+Check: $1-0.8=0.2$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Sketch the responses of the loop with G = 1/(s+1)" kind="graph" level={2}>
+
+For unity negative feedback around $G(s)=\frac{1}{s+1}$, find $T(s)$ and sketch the unit step response, labelling the final value, the 63 % point, the tangent and the settling time. What is $e_{ss}$ for a step and for a ramp?
+
+<Solution>
+
+$T=\frac{1}{s+2}=\frac{0.5}{0.5s+1}$: $K=0.5$, $\tau=0.5$ s.
+
+Sketch: final-value line at 0.5 (input line at 1 above it); tangent from the origin with slope $\frac{K}{\tau}=1$ reaching 0.5 at $t=0.5$ s; point $(0.5,\ 0.316)$; settled by $4\tau=2$ s ($5\tau=2.5$ s). $y(t)=0.5(1-e^{-2t})$.
+
+Step $e_{ss}=1-0.5=0.5$; ramp $e_{ss}=\infty$ (output slope 0.5, input slope 1).
+
+Check: $0.5(1-e^{-1})=0.316$ ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="RC circuit time constant" kind="circuit" level={1}>
+
+In the series RC circuit, $R=10\,\text{k}\Omega$, $C=47\,\mu\text{F}$, and a 5 V step is applied to the uncharged circuit. Find $\tau$, $v_c(1\,\text{s})$ and the settling time.
+
+<Solution>
+
+$\tau=RC=10^4\times47\times10^{-6}=0.47$ s. $v_c(t)=5(1-e^{-t/0.47})$. $v_c(1)=5(1-e^{-2.128})=5(1-0.1191)=4.40$ V. $t_s\approx4\tau=1.88$ s ($5\tau=2.35$ s).
+
+Check: $v_c(0)=0$, $v_c(\infty)=5$ V ✓.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="What happens as tau goes to zero" kind="edge" level={2}>
+
+Describe what happens to the pole, the step response, the impulse response and the ramp error of $\frac{1}{\tau s+1}$ as $\tau\to0$. Is this physically achievable?
+
+<Solution>
+
+Pole $-\frac1\tau\to-\infty$. Step response $1-e^{-t/\tau}$ → an instant jump to 1 ($t_s=4\tau\to0$). Impulse response $\frac1\tau e^{-t/\tau}$: height $\frac1\tau\to\infty$, width $\sim\tau\to0$, area $\int_0^\infty\frac1\tau e^{-t/\tau}dt=1$ always → it tends to $\delta(t)$, i.e. the output copies the input. Ramp error $e_{ss}=\tau\to0$. Overall $T(s)\to1$: a perfect, infinitely fast system. Physically impossible — real systems store energy (capacitors, masses, heat capacity) and need time, so $\tau>0$; in the loop of the notes, $\tau\to0$ would mean an infinitely large gain $\frac1\tau$.
+
+</Solution>
+
+</Exercise>
+
+<Exercise title="Spot the errors in a solution" kind="concept" level={3}>
+
+A student solves: "$G(s)=\frac{4}{s+1}$ in unity feedback. $\tau=1$ s, so the step response is $1-e^{-t}$, it settles in 4 s, and $y(\infty)=\lim_{s\to\infty}sY(s)=1$." List every mistake and give the correct results.
+
+<Solution>
+
+1. $\tau$ was read from the open-loop $G$; the closed loop is $T=\frac{4}{s+5}$, $\tau=0.2$ s.
+2. The DC gain was ignored: the response is $0.8(1-e^{-5t})$, not $1-e^{-t}$.
+3. Settling time is therefore $4\tau=0.8$ s ($5\tau=1$ s), not 4 s.
+4. The final value uses $s\to0$, not $s\to\infty$: $y(\infty)=\lim_{s\to0}s\cdot\frac{4}{s+5}\cdot\frac1s=0.8$.
+
+Hence $e_{ss}=0.2$, not 0. (Compare the professor's Example 1, p. 5–6.)
+
+</Solution>
+
+</Exercise>
